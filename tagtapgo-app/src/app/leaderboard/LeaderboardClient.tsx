@@ -14,6 +14,7 @@ import { colors } from '@/lib/theme';
 import { LEADERBOARD_CONFIG } from '@/lib/constants';
 import { cn, formatNumber, getInitials } from '@/lib/utils';
 import BottomNav from '@/components/BottomNav';
+import PageHeader from '@/components/PageHeader';
 
 type LeaderboardType = 'class' | 'year' | 'school';
 type TimePeriod = 'weekly' | 'monthly' | 'all_time';
@@ -250,102 +251,86 @@ export default function LeaderboardClient({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom))' }}>
       {/* Header */}
-      <header className="bg-white border-b safe-area-top" style={{ borderColor: colors.gray[200] }}>
-        <div className="max-w-7xl mx-auto px-4 pt-6 pb-6">
-          <div className="flex items-center justify-between mb-4">
+      <PageHeader
+        title="Leaderboard"
+        subtitle="Compete with your peers"
+        icon={Trophy}
+        variant="white"
+        actions={
+          <div className="relative">
+            <button
+              onClick={() => setShowPeriodDropdown(!showPeriodDropdown)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm"
+              style={{
+                backgroundColor: colors.gray[100],
+                color: colors.gray[700],
+                minHeight: '44px',
+              }}
+            >
+              <span>{periodLabels[timePeriod]}</span>
+              <ChevronDown size={16} />
+            </button>
+
+            <AnimatePresence>
+              {showPeriodDropdown && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-10"
+                  style={{ borderColor: colors.gray[200] }}
+                >
+                  {(Object.keys(periodLabels) as TimePeriod[]).map((period) => (
+                    <button
+                      key={period}
+                      onClick={() => {
+                        setTimePeriod(period);
+                        setShowPeriodDropdown(false);
+                      }}
+                      className="w-full text-left px-4 py-3 hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg"
+                      style={{
+                        backgroundColor: timePeriod === period ? colors.primary.DEFAULT + '10' : 'transparent',
+                        color: timePeriod === period ? colors.primary.DEFAULT : colors.gray[700],
+                        minHeight: '44px',
+                      }}
+                    >
+                      {periodLabels[period]}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        }
+      >
+        {/* User's Rank Card */}
+        {userRank && (
+          <div
+            className="p-4 rounded-xl flex items-center justify-between"
+            style={{ backgroundColor: colors.primary.DEFAULT + '10' }}
+          >
             <div className="flex items-center gap-3">
               <div
-                className="p-3 rounded-xl"
-                style={{ backgroundColor: colors.primary.DEFAULT + '20' }}
+                className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white"
+                style={{ backgroundColor: colors.primary.DEFAULT }}
               >
-                <Trophy size={28} style={{ color: colors.primary.DEFAULT }} />
+                {userRank}
               </div>
               <div>
-                <h1 className="text-2xl font-bold" style={{ color: colors.gray[900] }}>
-                  Leaderboard
-                </h1>
+                <p className="font-medium" style={{ color: colors.gray[900] }}>
+                  Your Rank
+                </p>
                 <p className="text-sm" style={{ color: colors.gray[600] }}>
-                  Compete with your peers
+                  Keep climbing!
                 </p>
               </div>
             </div>
-
-            {/* Time Period Selector */}
-            <div className="relative">
-              <button
-                onClick={() => setShowPeriodDropdown(!showPeriodDropdown)}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm"
-                style={{
-                  backgroundColor: colors.gray[100],
-                  color: colors.gray[700],
-                  minHeight: '44px',
-                }}
-              >
-                <span>{periodLabels[timePeriod]}</span>
-                <ChevronDown size={16} />
-              </button>
-
-              <AnimatePresence>
-                {showPeriodDropdown && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-10"
-                    style={{ borderColor: colors.gray[200] }}
-                  >
-                    {(Object.keys(periodLabels) as TimePeriod[]).map((period) => (
-                      <button
-                        key={period}
-                        onClick={() => {
-                          setTimePeriod(period);
-                          setShowPeriodDropdown(false);
-                        }}
-                        className="w-full text-left px-4 py-3 hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg"
-                        style={{
-                          backgroundColor: timePeriod === period ? colors.primary.DEFAULT + '10' : 'transparent',
-                          color: timePeriod === period ? colors.primary.DEFAULT : colors.gray[700],
-                          minHeight: '44px',
-                        }}
-                      >
-                        {periodLabels[period]}
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            <TrendingUp size={24} style={{ color: colors.success }} />
           </div>
-
-          {/* User's Rank Card */}
-          {userRank && (
-            <div
-              className="p-4 rounded-xl flex items-center justify-between"
-              style={{ backgroundColor: colors.primary.DEFAULT + '10' }}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white"
-                  style={{ backgroundColor: colors.primary.DEFAULT }}
-                >
-                  {userRank}
-                </div>
-                <div>
-                  <p className="font-medium" style={{ color: colors.gray[900] }}>
-                    Your Rank
-                  </p>
-                  <p className="text-sm" style={{ color: colors.gray[600] }}>
-                    Keep climbing!
-                  </p>
-                </div>
-              </div>
-              <TrendingUp size={24} style={{ color: colors.success }} />
-            </div>
-          )}
-        </div>
-      </header>
+        )}
+      </PageHeader>
 
       {/* Tabs */}
       <div className="bg-white border-b" style={{ borderColor: colors.gray[200] }}>

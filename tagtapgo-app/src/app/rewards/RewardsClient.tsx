@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Gift, Sparkles, X, Check, AlertCircle } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
+import PageHeader from '@/components/PageHeader';
 import RewardCard from '@/components/RewardCard';
 import { colors, rewardCategories } from '@/lib/theme';
 import { cn, formatNumber, formatDate } from '@/lib/utils';
@@ -37,18 +38,18 @@ export default function RewardsClient({
   const [redemptions, setRedemptions] = useState<Redemption[]>(initialRedemptions);
   const [totalPoints, setTotalPoints] = useState(initialTotalPoints);
   const [filteredRewards, setFilteredRewards] = useState<Reward[]>(initialRewards);
-  
+
   // Use redemption hook
   const { redeemReward, isRedeeming } = useRedemption();
-  
+
   // Redemption modal state
   const [showRedemptionModal, setShowRedemptionModal] = useState(false);
   const [selectedReward, setSelectedReward] = useState<Reward | null>(null);
-  
+
   // Success modal state
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successRedemption, setSuccessRedemption] = useState<Redemption | null>(null);
-  
+
   // Toast state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -82,7 +83,7 @@ export default function RewardsClient({
 
       // Update local state
       setTotalPoints(result.remaining_points);
-      
+
       // Add redemption to history
       const newRedemption: Redemption = {
         id: result.redemption.id,
@@ -97,7 +98,7 @@ export default function RewardsClient({
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      
+
       setRedemptions(prev => [newRedemption, ...prev]);
 
       // Update reward stock
@@ -121,46 +122,30 @@ export default function RewardsClient({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom))' }}>
       {/* Header */}
-      <header className="bg-white border-b safe-area-top" style={{ borderColor: colors.gray[200] }}>
-        <div className="max-w-7xl mx-auto px-4 pt-6 pb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div
-                className="p-3 rounded-xl"
-                style={{ backgroundColor: colors.primary.DEFAULT + '20' }}
-              >
-                <Gift size={28} style={{ color: colors.primary.DEFAULT }} />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold" style={{ color: colors.gray[900] }}>
-                  Rewards
-                </h1>
-                <p className="text-sm" style={{ color: colors.gray[600] }}>
-                  Redeem your points for rewards
-                </p>
-              </div>
+      <PageHeader
+        title="Rewards"
+        subtitle="Redeem your points for rewards"
+        icon={Gift}
+        variant="white"
+        actions={
+          <div
+            className="px-4 py-2 rounded-xl"
+            style={{ backgroundColor: colors.primary.DEFAULT + '10' }}
+          >
+            <div className="flex items-center gap-2">
+              <Sparkles size={16} style={{ color: colors.primary.DEFAULT }} />
+              <span className="font-bold" style={{ color: colors.primary.DEFAULT }}>
+                {formatNumber(totalPoints)}
+              </span>
             </div>
-
-            {/* Points Balance */}
-            <div
-              className="px-4 py-2 rounded-xl"
-              style={{ backgroundColor: colors.primary.DEFAULT + '10' }}
-            >
-              <div className="flex items-center gap-2">
-                <Sparkles size={16} style={{ color: colors.primary.DEFAULT }} />
-                <span className="font-bold" style={{ color: colors.primary.DEFAULT }}>
-                  {formatNumber(totalPoints)}
-                </span>
-              </div>
-              <p className="text-xs" style={{ color: colors.gray[600] }}>
-                Available Points
-              </p>
-            </div>
+            <p className="text-xs" style={{ color: colors.gray[600] }}>
+              Available Points
+            </p>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       {/* Tabs */}
       <div className="bg-white border-b" style={{ borderColor: colors.gray[200] }}>
@@ -187,7 +172,7 @@ export default function RewardsClient({
       </div>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-4 pt-6 pb-8">
         {activeTab === 'catalog' ? (
           <>
             {/* Category Filters */}
@@ -297,9 +282,9 @@ export default function RewardsClient({
                     </p>
                     {/* Redemption Code */}
                     <div className="flex items-center gap-2 mt-2">
-                      <p className="text-xs font-mono font-bold px-2 py-1 rounded" style={{ 
+                      <p className="text-xs font-mono font-bold px-2 py-1 rounded" style={{
                         backgroundColor: colors.primary.DEFAULT + '20',
-                        color: colors.primary.DEFAULT 
+                        color: colors.primary.DEFAULT
                       }}>
                         {redemption.redemption_code}
                       </p>
@@ -333,14 +318,14 @@ export default function RewardsClient({
                           redemption.status === 'issued'
                             ? colors.success + '20'
                             : redemption.status === 'pending'
-                            ? colors.warning + '20'
-                            : colors.gray[100],
+                              ? colors.warning + '20'
+                              : colors.gray[100],
                         color:
                           redemption.status === 'issued'
                             ? colors.success
                             : redemption.status === 'pending'
-                            ? colors.warning
-                            : colors.gray[600],
+                              ? colors.warning
+                              : colors.gray[600],
                       }}
                     >
                       {redemption.status}

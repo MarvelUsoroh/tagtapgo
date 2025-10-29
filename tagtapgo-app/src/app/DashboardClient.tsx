@@ -12,6 +12,7 @@ import { Flame, Coins, Trophy, Target, TrendingUp, Calendar, Zap, Clock, AlertCi
 import { supabase } from '@/lib/supabase';
 import type { Student, Streak } from '@/lib/supabase';
 import BottomNav from '@/components/BottomNav';
+import PageHeader from '@/components/PageHeader';
 import StatCard from '@/components/StatCard';
 import TodayClasses from '@/components/TodayClasses';
 import RecentAchievements from '@/components/RecentAchievements';
@@ -297,7 +298,7 @@ export default function DashboardClient({
   }, [currentStreak]);
 
   return (
-    <div className="pb-20">
+    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom))' }}>
       {/* Toast Notification */}
       {toast && (
         <Toast
@@ -308,16 +309,11 @@ export default function DashboardClient({
       )}
       
       {/* Header */}
-      <div className="bg-gradient-to-br from-primary via-primary-dark to-success text-white px-6 pb-6 pt-8 safe-area-top">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-4"
-        >
-          <h1 className="text-2xl font-bold">Hi, {student?.first_name || student?.full_name?.split(' ')[0] || 'Student'}! 👋</h1>
-          <p className="text-white/80 text-sm">Keep up the great work!</p>
-        </motion.div>
-
+      <PageHeader
+        title={`Hi, ${student?.first_name || student?.full_name?.split(' ')[0] || 'Student'}! 👋`}
+        subtitle="Keep up the great work!"
+        variant="gradient"
+      >
         {/* Points & Streak */}
         <div className="grid grid-cols-2 gap-4 mb-4">
           {/* Points Display */}
@@ -396,7 +392,7 @@ export default function DashboardClient({
             </div>
           </motion.div>
         )}
-      </div>
+      </PageHeader>
 
       {/* Content */}
       <div className="px-4 py-6 space-y-6">

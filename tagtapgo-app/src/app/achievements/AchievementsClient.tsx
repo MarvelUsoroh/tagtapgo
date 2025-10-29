@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Sparkles } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
+import PageHeader from '@/components/PageHeader';
 import BadgeIcon from '@/components/BadgeIcon';
 import { colors, achievementCategories, categoryPalette, categoryAccents } from '@/lib/theme';
 import { cn, formatNumber, triggerConfetti } from '@/lib/utils';
@@ -77,29 +78,16 @@ export default function AchievementsClient({
     : initialAchievements.filter(a => a.category === selectedCategory);
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom))' }}>
       {/* Header */}
-      <header className="bg-white border-b safe-area-top" style={{ borderColor: colors.gray[200] }}>
-        <div className="max-w-7xl mx-auto px-4 pt-6 pb-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div 
-              className="p-3 rounded-xl"
-              style={{ backgroundColor: colors.primary.DEFAULT + '20' }}
-            >
-              <Trophy size={28} style={{ color: colors.primary.DEFAULT }} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold" style={{ color: colors.gray[900] }}>
-                Achievements
-              </h1>
-              <p className="text-sm" style={{ color: colors.gray[600] }}>
-                Unlock badges and earn bonus points
-              </p>
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="flex gap-4">
+      <PageHeader
+        title="Achievements"
+        subtitle="Unlock badges and earn bonus points"
+        icon={Trophy}
+        variant="white"
+      >
+        {/* Stats */}
+        <div className="flex gap-4">
             <div 
               className="flex-1 p-4 rounded-xl"
               style={{ backgroundColor: colors.gray[50] }}
@@ -130,11 +118,10 @@ export default function AchievementsClient({
               </p>
             </div>
           </div>
-        </div>
-      </header>
+      </PageHeader>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-7xl mx-auto px-4 pt-6 pb-8">
         {/* Category Filters */}
         <div className="mb-6 overflow-x-auto">
           <div className="flex gap-2 pb-2">

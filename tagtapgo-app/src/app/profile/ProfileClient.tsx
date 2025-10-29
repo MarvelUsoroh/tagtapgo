@@ -79,23 +79,21 @@ export default function ProfileClient({
   }
 
   return (
-    <div className="pb-20 min-h-screen bg-gray-50">
-      {/* Header with Avatar and Name */}
-      <div className="bg-gradient-to-br from-primary via-primary-dark to-success text-white px-6 pt-8 pb-20 safe-area-top">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between mb-4"
-        >
-          <h1 className="text-2xl font-bold">Profile</h1>
-          <button
-            onClick={() => router.push('/settings')}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-            style={{ minHeight: '44px', minWidth: '44px' }}
-          >
-            <Settings size={24} />
-          </button>
-        </motion.div>
+    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom))' }}>
+      {/* Custom Profile Header with extended gradient for overlapping card */}
+      <div className="bg-gradient-to-br from-primary via-primary-dark to-success text-white px-6 pb-20 safe-area-top" style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top))' }}>
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-2xl font-bold">Profile</h1>
+            <button
+              onClick={() => router.push('/settings')}
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              style={{ minHeight: '44px', minWidth: '44px' }}
+            >
+              <Settings size={24} />
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Profile Card - Overlapping Header */}
