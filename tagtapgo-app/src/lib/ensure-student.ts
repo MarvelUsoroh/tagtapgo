@@ -25,9 +25,14 @@ export async function ensureStudentProfile(supabase: SupabaseClient, user: AuthU
   }
 
   const emailLocal = user.email ? user.email.split('@')[0] : undefined;
-  const nameFromMeta = (user.user_metadata?.name as string | undefined) || emailLocal || 'Student';
+  const fullNameFromMeta = (user.user_metadata?.name as string | undefined) || emailLocal || 'Student';
   let universityId = user.user_metadata?.university_id as string | undefined;
   const externalId = (user.user_metadata?.external_id as string | undefined) || emailLocal || user.id;
+
+  // Split full name into first and last name (simple split on first space)
+  const nameParts = fullNameFromMeta.split(' ');
+  const firstName = nameParts[0];
+  const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : undefined;
 
   // Helper: basic UUID v4 format check
   const isUuid = (v?: string) => !!v && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(v);
@@ -58,7 +63,9 @@ export async function ensureStudentProfile(supabase: SupabaseClient, user: AuthU
         university_id: universityId,
         external_id: externalId,
         email: user.email,
-        name: nameFromMeta,
+        first_name: firstName,
+        last_name: lastName,
+        // Note: full_name is a GENERATED ALWAYS column, don't insert it
         settings: {},
       },
       { onConflict: 'id' }

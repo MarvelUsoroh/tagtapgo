@@ -151,20 +151,30 @@ function SignupContent() {
       }
 
       if (authData.user) {
-        // Create student profile
+        // Note: Student profile is now automatically created by database trigger
+        // This client-side insert is kept as a fallback but will likely be blocked by RLS
+        // The trigger on auth.users will handle profile creation reliably
+        
+        // Split name into first and last name
+        const nameParts = name.split(' ');
+        const firstName = nameParts[0];
+        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : undefined;
+
         const { error: profileError } = await supabase
           .from('students')
           .insert({
             id: authData.user.id,
             university_id: universityId,
             email,
-            name,
+            first_name: firstName,
+            last_name: lastName,
+            // Note: full_name is a GENERATED ALWAYS column, don't insert it
             settings: {},
           });
 
         if (profileError) {
-          console.error('Profile creation error:', profileError);
-          // Continue anyway - profile can be created later
+          console.error('Profile creation error (expected - trigger will handle):', profileError);
+          // Continue anyway - profile is created by database trigger
         }
 
         setSuccess(true);
