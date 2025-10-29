@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, FormEvent, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
@@ -11,7 +11,7 @@ import { VALIDATION, ERROR_MESSAGES } from '@/lib/constants';
 import SplashScreen from '@/components/SplashScreen';
 import useQueryCleanup from '@/hooks/useQueryCleanup';
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -259,5 +259,24 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

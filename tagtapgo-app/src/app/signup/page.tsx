@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, FormEvent, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Mail, Lock, User, GraduationCap, AlertCircle, CheckCircle } from 'lucide-react';
@@ -13,7 +13,7 @@ import useQueryCleanup from '@/hooks/useQueryCleanup';
 
 type University = { id: string; name: string };
 
-export default function SignupPage() {
+function SignupContent() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -416,5 +416,24 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    }>
+      <SignupContent />
+    </Suspense>
   );
 }

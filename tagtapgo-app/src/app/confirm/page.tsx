@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { colors } from '@/lib/theme';
 
-export default function ConfirmPage() {
+function ConfirmContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -153,5 +153,26 @@ export default function ConfirmPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ConfirmPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-4">
+                <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+              </div>
+              <p className="text-gray-600">Loading...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    }>
+      <ConfirmContent />
+    </Suspense>
   );
 }
