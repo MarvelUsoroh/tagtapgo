@@ -149,7 +149,7 @@ function ConfirmContent() {
         </div>
 
         <div className="mt-8 text-center text-sm text-gray-600">
-          <p>© 2024 TagTapGo. All rights reserved.</p>
+          <p>© 2025 TagTapGo. All rights reserved.</p>
         </div>
       </div>
     </div>

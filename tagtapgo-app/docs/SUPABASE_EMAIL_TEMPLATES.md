@@ -155,7 +155,7 @@ This document provides the email templates to configure in your Supabase project
         <a href="{{ .SiteURL }}/privacy">Privacy Policy</a>
       </p>
       <p style="margin-top: 15px; font-size: 12px;">
-        © 2024 TagTapGo. All rights reserved.
+        © 2025 TagTapGo. All rights reserved.
       </p>
     </div>
   </div>
@@ -280,7 +280,7 @@ This document provides the email templates to configure in your Supabase project
     </div>
     
     <div class="footer">
-      <p>© 2024 TagTapGo. All rights reserved.</p>
+      <p>© 2025 TagTapGo. All rights reserved.</p>
     </div>
   </div>
 </body>
@@ -411,7 +411,7 @@ This document provides the email templates to configure in your Supabase project
     </div>
     
     <div class="footer">
-      <p>© 2024 TagTapGo. All rights reserved.</p>
+      <p>© 2025 TagTapGo. All rights reserved.</p>
     </div>
   </div>
 </body>
@@ -535,7 +535,7 @@ This document provides the email templates to configure in your Supabase project
     </div>
     
     <div class="footer">
-      <p>© 2024 TagTapGo. All rights reserved.</p>
+      <p>© 2025 TagTapGo. All rights reserved.</p>
     </div>
   </div>
 </body>

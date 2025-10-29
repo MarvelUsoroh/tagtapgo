@@ -121,7 +121,7 @@ export default function UpdatePasswordPage() {
 
   if (!validSession && !error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
+      <div className="min-h-[100dvh] bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4 safe-area-top safe-area-bottom">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
                style={{ borderColor: colors.primary.DEFAULT }} />
@@ -132,7 +132,7 @@ export default function UpdatePasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4 safe-area-top safe-area-bottom">
       <div className="w-full max-w-md">
         {/* Logo and Header */}
         <div className="text-center mb-8">
@@ -311,7 +311,7 @@ export default function UpdatePasswordPage() {
 
         {/* Footer */}
         <div className="mt-8 text-center text-sm text-gray-600">
-          <p>© 2024 TagTapGo. All rights reserved.</p>
+          <p>© 2025 TagTapGo. All rights reserved.</p>
         </div>
       </div>
     </div>
