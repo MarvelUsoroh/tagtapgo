@@ -1,0 +1,28 @@
+{
+  "name": "tagtapgo-backend",
+  "version": "1.0.0",
+  "description": "TagTapGo Gamification MVP - Backend Infrastructure",
+  "type": "module",
+  "scripts": {
+    "dev": "supabase start",
+    "db:push": "supabase db push",
+    "db:reset": "supabase db reset",
+    "db:migrate": "supabase migration up",
+    "functions:serve": "supabase functions serve",
+    "functions:deploy": "supabase functions deploy",
+    "test": "deno test --allow-all",
+    "lint": "deno lint",
+    "format": "deno fmt"
+  },
+  "keywords": [
+    "gamification",
+    "education",
+    "attendance",
+    "supabase"
+  ],
+  "author": "TagTapGo Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  }
+}

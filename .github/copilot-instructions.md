@@ -1,0 +1,26 @@
+# TagTapGo Copilot Instructions
+- **Mission Context** TagTapGo couples a vendor-agnostic NFC protocol with a gamified student PWA; current sprint focus is the gamification-first MVP (see `notes/GAMIFICATION_MVP_PLAN.md`) while the 16-week protocol roadmap lives in `notes/SPRINT_PLAN.md`.
+- **Scope Snapshot** Monorepo includes `tagtapgo-app/` (Next.js 14 PWA), `tagtapgo-backend/` (Supabase project + docs), `tagtapgo-demo/` (investor marketing shell), specs in `.kiro/specs/`, and business notes under `notes/`.
+- **Spec Sources** Treat `.kiro/specs/gamification-mvp/{requirements,design,tasks}.md` and `tagtapgo-app/IMPLEMENTATION_STATUS.md` as canonical for feature scope; cross-check with `notes/SPRINT_AI_ROLE.md` for AI workload expectations.
+- **Success Metrics** Features should reinforce the 15-25% attendance lift goals—surface streaks, leaderboards, rewards, and analytics called out in the GAMIFICATION MVP plan when shaping UX or data flows.
+- **Primary App Workflow** Inside `tagtapgo-app/`: install deps (`npm install`), develop (`npm run dev`), verify with `npm run lint`, `npm run type-check`, and planned `npm test`; production builds run via `npm run build && npm start`.
+- **Authentication Guard** `middleware.ts` validates Supabase JWTs via JWKS; add new protected routes to its matcher or you'll bypass session enforcement.
+- **Data Access** Use typed Supabase helpers in `src/lib/supabase.ts`; align queries with column names from `tagtapgo-backend/docs/DATABASE_SCHEMA.md` before shipping schema-dependent work.
+- **State Pattern** Persisted global state lives in `src/store/useStore.ts`; update that store (not ad-hoc React state) when tracking student/session data needed across pages.
+- **Design System** Reuse tokens from `src/lib/theme.ts`, config in `src/lib/constants.ts`, and helpers in `src/lib/utils.ts` (`cn`, `formatNumber`, etc.)—no hardcoded colors, spacing, or typography.
+- **Animation Language** Follow Framer Motion usage in `src/app/page.tsx` and `src/components/*`; reference `theme.ts` duration/easing constants to keep motion consistent and performant.
+- **Gamification Data Flow** Dashboard + leaderboards query `points`, `streaks`, `class_schedules`, `attendance`, and related tables; mirror aggregation patterns in existing components when extending analytics or achievements.
+- **Notifications Stack** Push workflows span `src/lib/notifications.ts`, `NotificationPermissionPrompt.tsx`, and Supabase `push_subscriptions`; ensure `NEXT_PUBLIC_VAPID_PUBLIC_KEY` is set when introducing push features.
+- **Offline & PWA** When adding cached assets or push formats, update both `public/manifest.json` and `public/sw.js`; maintain installability requirements from the GAMIFICATION MVP spec.
+- **Routing & Layout** Pages live in `src/app/*/page.tsx`; respect `layout.tsx` safe-area padding and keep BottomNav parity when adding routes like `leaderboard`, `rewards`, `achievements`, or `profile`.
+- **Component Patterns** Extend `src/components/` primitives (e.g., `StatCard`, `RewardCard`, `LeaderboardPreview`) with typed props and clear loading/empty/error states before creating new variants.
+- **Hooks & Effects** Centralize cross-page side effects in `src/hooks/` (see `useNotifications`, `useCountUp`); prefer creating new hooks there instead of embedding logic in pages.
+- **Backend Workflow** Supabase backend lives under `tagtapgo-backend/`; use CLI commands (`npm install -g supabase`, `supabase login`, `supabase start`, `supabase db push`, `supabase functions deploy`) and mirror schema edits in `docs/DATABASE_SCHEMA.md`.
+- **Backend Testing** Run `deno test --allow-all` for edge functions/tests; keep migrations and docs in sync to avoid drift with the PWA.
+- **Env Expectations** Frontend needs `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, optional `NEXT_PUBLIC_VAPID_PUBLIC_KEY`; backend additionally consumes `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
+- **Demo Guardrails** `tagtapgo-demo/` is a standalone Vite marketing shell—keep changes isolated so investor demos remain auth-free and lightweight.
+- **Deployment Paths** Student PWA targets Vercel (`npm i -g vercel; vercel`), while backend deploys through Supabase CLI—ensure migrations land before enabling dependent frontend features.
+- **Documentation Hygiene** Update `tagtapgo-app/IMPLEMENTATION_STATUS.md` and relevant `notes/` entries after shipping features to keep roadmap tracking accurate.
+- **Support References** When touching security, integrations, or partner workflows, pull context from `notes/SECURITY_MODEL.md`, `notes/SIS_LMS_INTEGRATION.md`, `notes/BUSINESS_MODEL.md`.
+- **Quality Checklist** Ship mobile-first UI (`safe-area` classes), cover loading/empty/error states, keep animations <60fps cost, and tie UI telemetry back to attendance-impact metrics where possible.
+- **Schema Changes** If data gaps appear, validate against Supabase docs or note TODOs—avoid guessing column shapes or mutating schema without aligned migrations.

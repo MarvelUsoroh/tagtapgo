@@ -1,0 +1,104 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+.pnpm-store/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Testing
+coverage/
+.nyc_output/
+*.test.js.snap
+
+# Next.js (Frontend)
+.next/
+out/
+.swc/
+
+# Build outputs
+build/
+dist/
+*.tsbuildinfo
+
+# Supabase (Backend)
+.supabase/
+.branches/
+.temp/
+.env.keys
+
+# Production
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Debug
+debug.txt
+debug.log
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+.cache/
+
+# Kiro IDE
+.kiro/
+
+# Notes and documentation (optional)
+notes/
+
+# Demo app (removed from production)
+tagtapgo-demo/
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+.tsbuildinfo
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Misc
+.turbo
+.contentlayer

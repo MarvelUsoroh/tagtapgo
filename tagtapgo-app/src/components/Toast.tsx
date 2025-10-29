@@ -1,0 +1,79 @@
+'use client';
+
+import { useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CheckCircle, XCircle, AlertCircle, Clock, X } from 'lucide-react';
+import { colors } from '@/lib/theme';
+
+export type ToastType = 'success' | 'error' | 'warning' | 'info';
+
+interface ToastProps {
+  message: string;
+  type: ToastType;
+  duration?: number;
+  onClose: () => void;
+}
+
+const toastConfig = {
+  success: {
+    icon: CheckCircle,
+    bgColor: colors.success,
+    textColor: 'white',
+  },
+  error: {
+    icon: XCircle,
+    bgColor: colors.danger,
+    textColor: 'white',
+  },
+  warning: {
+    icon: AlertCircle,
+    bgColor: colors.warning,
+    textColor: 'white',
+  },
+  info: {
+    icon: Clock,
+    bgColor: colors.primary.DEFAULT,
+    textColor: 'white',
+  },
+};
+
+export default function Toast({ message, type, duration = 4000, onClose }: ToastProps) {
+  const config = toastConfig[type];
+  const Icon = config.icon;
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, duration);
+
+    return () => clearTimeout(timer);
+  }, [duration, onClose]);
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0, y: -50, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -50, scale: 0.95 }}
+        className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 max-w-md w-full mx-4"
+      >
+        <div
+          className="rounded-xl shadow-lg p-4 flex items-center gap-3"
+          style={{ backgroundColor: config.bgColor }}
+        >
+          <Icon size={24} style={{ color: config.textColor }} />
+          <p className="flex-1 font-medium" style={{ color: config.textColor }}>
+            {message}
+          </p>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-white/20 rounded-full transition-colors"
+            aria-label="Close notification"
+          >
+            <X size={20} style={{ color: config.textColor }} />
+          </button>
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}

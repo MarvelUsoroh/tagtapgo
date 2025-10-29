@@ -1,0 +1,154 @@
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
+import { createServerClient } from '@/lib/supabase-server';
+import BottomNav from '@/components/BottomNav';
+import { colors } from '@/lib/theme';
+
+export const dynamic = 'force-dynamic';
+
+type PromptRow = {
+  id: string;
+  expires_at: string;
+  class_schedule: {
+    id: string;
+    class: {
+      id: string;
+      name: string;
+      course?: { code?: string } | null;
+    };
+    start_time: string;
+    end_time: string;
+  };
+};
+
+export default async function FeedbackListPage() {
+  const supabase = createServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect('/login');
+  }
+
+  const { data, error } = await supabase
+    .from('feedback_prompts')
+    .select(`
+      id,
+      expires_at,
+      status,
+      class_schedule:class_schedules(
+        id,
+        class:classes(
+          id,
+          name,
+          course:courses(code)
+        ),
+        start_time,
+        end_time
+      )
+    `)
+    .eq('student_id', user.id)
+    .eq('status', 'pending')
+    .gt('expires_at', new Date().toISOString())
+    .order('expires_at', { ascending: true });
+
+  if (error) {
+    // On error, fallback to dashboard
+    redirect('/');
+  }
+
+  const prompts: PromptRow[] = (data || []) as unknown as PromptRow[];
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-20">
+      {/* Header with Back Button */}
+      <header className="sticky top-0 z-10 bg-white border-b" style={{ borderColor: colors.gray[200] }}>
+        <div className="max-w-2xl mx-auto px-4 py-4">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors"
+              aria-label="Back to dashboard"
+            >
+              <ArrowLeft className="w-6 h-6" style={{ color: colors.gray[700] }} />
+            </Link>
+            <div>
+              <h1 className="text-xl font-bold" style={{ color: colors.gray[900] }}>
+                Pending Feedback
+              </h1>
+              <p className="text-sm" style={{ color: colors.gray[600] }}>
+                {prompts.length} {prompts.length === 1 ? 'class' : 'classes'} waiting for your feedback
+              </p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-2xl mx-auto px-4 py-6">
+        {prompts.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-lg font-medium mb-2" style={{ color: colors.gray[600] }}>
+              No pending feedback right now
+            </p>
+            <p className="text-sm" style={{ color: colors.gray[500] }}>
+              Check back after your classes
+            </p>
+          </div>
+        ) : (
+          <ul className="space-y-3">
+            {prompts.map((prompt) => (
+              <li key={prompt.id} className="bg-white rounded-xl shadow-sm border p-4" style={{ borderColor: colors.gray[200] }}>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold truncate" style={{ color: colors.gray[900] }}>
+                      {prompt.class_schedule?.class?.course?.code
+                        ? `${prompt.class_schedule.class.course.code}: `
+                        : ''}
+                      {prompt.class_schedule?.class?.name ?? 'Class'}
+                    </p>
+                    <p className="text-sm mt-1" style={{ color: colors.gray[600] }}>
+                      {new Date(prompt.class_schedule?.start_time || '').toLocaleDateString('en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                      })}{' '}
+                      • {new Date(prompt.class_schedule?.start_time || '').toLocaleTimeString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })}
+                    </p>
+                    <p className="text-xs mt-2" style={{ color: colors.gray[500] }}>
+                      Expires {new Date(prompt.expires_at).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })}
+                    </p>
+                  </div>
+                  <Link
+                    href={`/feedback/${prompt.id}`}
+                    className="px-4 py-2 text-sm font-medium text-white rounded-lg hover:opacity-90 transition-opacity flex-shrink-0"
+                    style={{ 
+                      backgroundColor: colors.primary.DEFAULT,
+                      minHeight: '44px',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                  >
+                    Give Feedback
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </main>
+
+      {/* Bottom Navigation */}
+      <BottomNav />
+    </div>
+  );
+}
