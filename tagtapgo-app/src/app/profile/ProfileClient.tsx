@@ -79,7 +79,7 @@ export default function ProfileClient({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom))' }}>
+    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: 'var(--bottom-nav-height)' }}>
       {/* Custom Profile Header with extended gradient for overlapping card */}
       <div className="bg-gradient-to-br from-primary via-primary-dark to-success text-white px-6 pb-20 safe-area-top" style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top))' }}>
         <div className="max-w-7xl mx-auto">

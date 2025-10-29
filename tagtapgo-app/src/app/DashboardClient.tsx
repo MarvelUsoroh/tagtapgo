@@ -298,7 +298,7 @@ export default function DashboardClient({
   }, [currentStreak]);
 
   return (
-    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom))' }}>
+    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: 'var(--bottom-nav-height)' }}>
       {/* Toast Notification */}
       {toast && (
         <Toast

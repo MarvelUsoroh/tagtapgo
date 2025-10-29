@@ -8,15 +8,15 @@ import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { colors } from '@/lib/theme';
 import { VALIDATION } from '@/lib/constants';
+import { getPasswordStrength } from '@/lib/password-utils';
 import SplashScreen from '@/components/SplashScreen';
 import useQueryCleanup from '@/hooks/useQueryCleanup';
-import { useViewportHeight } from '@/hooks/useViewportHeight';
+
 
 type University = { id: string; name: string };
 
 function SignupContent() {
   const router = useRouter();
-  const viewportHeight = useViewportHeight();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -183,18 +183,10 @@ function SignupContent() {
     }
   };
 
-  const getPasswordStrength = (pwd: string): { strength: number; label: string; color: string } => {
-    if (pwd.length === 0) return { strength: 0, label: '', color: '' };
-    if (pwd.length < 6) return { strength: 25, label: 'Weak', color: colors.danger };
-    if (pwd.length < 8) return { strength: 50, label: 'Fair', color: colors.warning };
-    if (pwd.length < 12) return { strength: 75, label: 'Good', color: colors.primary.DEFAULT };
-    return { strength: 100, label: 'Strong', color: colors.success };
-  };
-
   const passwordStrength = getPasswordStrength(password);
 
   return (
-    <div className="bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4 safe-area-top safe-area-bottom" style={{ minHeight: viewportHeight }}>
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo and Header */}
         <div className="text-center mb-8">
@@ -422,9 +414,8 @@ function SignupContent() {
 }
 
 function SignupFallback() {
-  const viewportHeight = useViewportHeight();
   return (
-    <div className="bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4 safe-area-top safe-area-bottom" style={{ minHeight: viewportHeight }}>
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center">

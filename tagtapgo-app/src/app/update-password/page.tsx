@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { colors } from '@/lib/theme';
 import { VALIDATION } from '@/lib/constants';
+import { getPasswordStrength } from '@/lib/password-utils';
 
 export default function UpdatePasswordPage() {
   const router = useRouter();
@@ -95,7 +96,7 @@ export default function UpdatePasswordPage() {
       }
 
       setSuccess(true);
-      
+
       // Redirect to login after a short delay
       setTimeout(() => {
         router.push('/login?message=Password updated successfully');
@@ -109,22 +110,14 @@ export default function UpdatePasswordPage() {
     }
   };
 
-  const getPasswordStrength = (pwd: string): { strength: number; label: string; color: string } => {
-    if (pwd.length === 0) return { strength: 0, label: '', color: '' };
-    if (pwd.length < 6) return { strength: 25, label: 'Weak', color: colors.danger };
-    if (pwd.length < 8) return { strength: 50, label: 'Fair', color: colors.warning };
-    if (pwd.length < 12) return { strength: 75, label: 'Good', color: colors.primary.DEFAULT };
-    return { strength: 100, label: 'Strong', color: colors.success };
-  };
-
   const passwordStrength = getPasswordStrength(password);
 
   if (!validSession && !error) {
     return (
-      <div className="min-h-[100dvh] bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4 safe-area-top safe-area-bottom">
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
-               style={{ borderColor: colors.primary.DEFAULT }} />
+            style={{ borderColor: colors.primary.DEFAULT }} />
           <p className="text-gray-600">Verifying reset link...</p>
         </div>
       </div>
@@ -132,12 +125,12 @@ export default function UpdatePasswordPage() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4 safe-area-top safe-area-bottom">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo and Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
-               style={{ backgroundColor: colors.primary.DEFAULT }}>
+            style={{ backgroundColor: colors.primary.DEFAULT }}>
             <Lock className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Update Password</h1>
@@ -203,8 +196,8 @@ export default function UpdatePasswordPage() {
                       'focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all',
                       error && !password ? 'border-red-300' : 'border-gray-300'
                     )}
-                    style={{ 
-                      '--tw-ring-color': colors.primary.DEFAULT 
+                    style={{
+                      '--tw-ring-color': colors.primary.DEFAULT
                     } as React.CSSProperties}
                     placeholder="Enter new password"
                     disabled={loading}
@@ -216,9 +209,9 @@ export default function UpdatePasswordPage() {
                   <div className="mt-2">
                     <div className="flex items-center gap-2 mb-1">
                       <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div 
+                        <div
                           className="h-full transition-all duration-300"
-                          style={{ 
+                          style={{
                             width: `${passwordStrength.strength}%`,
                             backgroundColor: passwordStrength.color
                           }}
@@ -252,8 +245,8 @@ export default function UpdatePasswordPage() {
                       'focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all',
                       error && !confirmPassword ? 'border-red-300' : 'border-gray-300'
                     )}
-                    style={{ 
-                      '--tw-ring-color': colors.primary.DEFAULT 
+                    style={{
+                      '--tw-ring-color': colors.primary.DEFAULT
                     } as React.CSSProperties}
                     placeholder="Confirm new password"
                     disabled={loading}
@@ -275,7 +268,7 @@ export default function UpdatePasswordPage() {
                   'focus:outline-none focus:ring-2 focus:ring-offset-2',
                   loading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg transform hover:-translate-y-0.5'
                 )}
-                style={{ 
+                style={{
                   backgroundColor: colors.primary.DEFAULT,
                   '--tw-ring-color': colors.primary.DEFAULT
                 } as React.CSSProperties}
@@ -298,7 +291,7 @@ export default function UpdatePasswordPage() {
           {/* Back to Login Link */}
           {!success && (
             <div className="mt-6 text-center">
-              <Link 
+              <Link
                 href="/login"
                 className="text-sm font-medium hover:underline"
                 style={{ color: colors.primary.DEFAULT }}

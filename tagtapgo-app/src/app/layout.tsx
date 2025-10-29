@@ -43,7 +43,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <ServiceWorkerRegistration />
-        <div className="min-h-screen bg-gray-50 safe-area-top safe-area-bottom">
+        <div className="min-h-screen bg-gray-50 safe-area-top">
           {children}
         </div>
       </body>

@@ -122,7 +122,7 @@ export default function RewardsClient({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom))' }}>
+    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: 'var(--bottom-nav-height)' }}>
       {/* Header */}
       <PageHeader
         title="Rewards"
