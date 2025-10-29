@@ -81,7 +81,7 @@ export default function ProfileClient({
   return (
     <div className="pb-20 min-h-screen bg-gray-50">
       {/* Header with Avatar and Name */}
-      <div className="bg-gradient-to-br from-primary via-primary-dark to-success text-white p-6 pb-20">
+      <div className="bg-gradient-to-br from-primary via-primary-dark to-success text-white px-6 pt-8 pb-20 safe-area-top">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}

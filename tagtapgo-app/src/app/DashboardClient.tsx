@@ -297,7 +297,7 @@ export default function DashboardClient({
   }, [currentStreak]);
 
   return (
-    <div className="pb-20 safe-area-bottom">
+    <div className="pb-20">
       {/* Toast Notification */}
       {toast && (
         <Toast
@@ -308,7 +308,7 @@ export default function DashboardClient({
       )}
       
       {/* Header */}
-      <div className="bg-gradient-to-br from-primary via-primary-dark to-success text-white p-6 safe-area-top">
+      <div className="bg-gradient-to-br from-primary via-primary-dark to-success text-white px-6 pb-6 pt-8 safe-area-top">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
