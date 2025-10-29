@@ -93,6 +93,23 @@ function LoginContent() {
       });
 
       if (authError) {
+        // Check if error is due to unconfirmed email
+        if (authError.message.toLowerCase().includes('email not confirmed') || 
+            authError.message.toLowerCase().includes('email confirmation')) {
+          try {
+            // Automatically resend confirmation email
+            await supabase.auth.resend({
+              type: 'signup',
+              email: email,
+            });
+            setError('Your email is not confirmed. We\'ve sent you a new confirmation link. Please check your email.');
+          } catch (resendError) {
+            console.error('Error resending confirmation:', resendError);
+            setError('Your email is not confirmed. Please check your email for the confirmation link.');
+          }
+          setLoading(false);
+          return;
+        }
         throw authError;
       }
 
