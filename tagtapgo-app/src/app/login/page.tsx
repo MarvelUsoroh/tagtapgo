@@ -10,9 +10,11 @@ import { colors } from '@/lib/theme';
 import { VALIDATION, ERROR_MESSAGES } from '@/lib/constants';
 import SplashScreen from '@/components/SplashScreen';
 import useQueryCleanup from '@/hooks/useQueryCleanup';
+import { useViewportHeight } from '@/hooks/useViewportHeight';
 
 function LoginContent() {
   const router = useRouter();
+  const viewportHeight = useViewportHeight();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -120,7 +122,7 @@ function LoginContent() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4 safe-area-top safe-area-bottom">
+    <div className="bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4 safe-area-top safe-area-bottom" style={{ minHeight: viewportHeight }}>
       <div className="w-full max-w-md">
         
         {/* Logo and Header */}
@@ -262,20 +264,25 @@ function LoginContent() {
   );
 }
 
-export default function LoginPage() {
+function LoginFallback() {
+  const viewportHeight = useViewportHeight();
   return (
-    <Suspense fallback={
-      <div className="min-h-[100dvh] bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4 safe-area-top safe-area-bottom">
-        <div className="w-full max-w-md">
-          <div className="bg-white rounded-2xl shadow-xl p-8">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading...</p>
-            </div>
+    <div className="bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4 safe-area-top safe-area-bottom" style={{ minHeight: viewportHeight }}>
+      <div className="w-full max-w-md">
+        <div className="bg-white rounded-2xl shadow-xl p-8">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading...</p>
           </div>
         </div>
       </div>
-    }>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginFallback />}>
       <LoginContent />
     </Suspense>
   );
