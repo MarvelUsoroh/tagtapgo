@@ -14,6 +14,7 @@
  */
 
 import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getStudentUpcomingClasses } from './schedule-query-helpers.ts';
 
 export interface StreakRecord {
   id: string;
@@ -392,44 +393,31 @@ export async function sendStreakAtRiskNotifications(
     
     for (const streak of atRiskStudents) {
       try {
-        // Get next class with course info
-        const { data: nextClass, error: classError } = await supabase
-          .from('class_schedules')
-          .select(`
-            id,
-            start_time,
-            class_id,
-            classes:class_id (
-              id,
-              name,
-              course:course_id (
-                code,
-                name
-              )
-            )
-          `)
-          .eq('student_id', streak.student_id)
-          .gte('start_time', new Date().toISOString())
-          .lte('start_time', twoHoursFromNow.toISOString())
-          .order('start_time', { ascending: true })
-          .limit(1)
-          .single();
+        // Get upcoming classes for this student (within next 2 hours)
+        // Uses helper function that properly joins enrollments → courses → class_schedules
+        const upcomingClasses = await getStudentUpcomingClasses(
+          supabase,
+          streak.student_id,
+          new Date(),
+          twoHoursFromNow
+        );
         
-        if (classError || !nextClass) {
+        if (upcomingClasses.length === 0) {
           continue; // No class in next 2 hours
         }
         
+        // Get the first (soonest) upcoming class
+        const nextClass = upcomingClasses[0];
+        
         // Format class time
-        const classTime = new Date(nextClass.start_time).toLocaleTimeString('en-US', {
+        const classTime = nextClass.start_datetime.toLocaleTimeString('en-US', {
           hour: 'numeric',
           minute: '2-digit',
           hour12: true,
         });
         
-        // Get class name
-        const classData = nextClass.classes as any;
-        const courseData = classData?.course as any;
-        const className = courseData?.code || classData?.name || 'your class';
+        // Use course code from the helper function result
+        const className = nextClass.course_code || nextClass.course_name || 'your class';
         
         // Store notification in database
         await supabase
@@ -441,9 +429,10 @@ export async function sendStreakAtRiskNotifications(
             message: `Don't break your ${streak.current_streak}-day streak! ${className} starts at ${classTime}.`,
             data: {
               streak: streak.current_streak,
-              class_schedule_id: nextClass.id,
-              class_id: nextClass.class_id,
-              className,
+              schedule_id: nextClass.schedule_id,
+              course_id: nextClass.course_id,
+              course_code: nextClass.course_code,
+              course_name: nextClass.course_name,
               classTime,
             },
             read: false,

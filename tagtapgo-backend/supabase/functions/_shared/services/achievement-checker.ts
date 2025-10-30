@@ -161,8 +161,8 @@ async function checkStudentAchievements(
       // Calculate progress
       const progress = await calculateProgress(supabase, studentId, achievement);
       
-      // Check if criteria met (handle both 'target' and 'value' fields)
-      const target = achievement.criteria.target || achievement.criteria.value || 0;
+      // Check if criteria met (support threshold, target, or value fields)
+      const target = achievement.criteria.threshold || achievement.criteria.target || achievement.criteria.value || 0;
       const unlocked = progress >= target;
       
       if (unlocked && !studentAchievement) {
@@ -186,7 +186,7 @@ async function checkStudentAchievements(
         // Update progress
         await updateProgress(supabase, studentId, achievement, progress);
         
-        const target = achievement.criteria.target || achievement.criteria.value || 0;
+        const target = achievement.criteria.threshold || achievement.criteria.target || achievement.criteria.value || 0;
         result.achievements_progressed.push({
           achievement_id: achievement.id,
           achievement_name: achievement.name,
