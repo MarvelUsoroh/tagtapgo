@@ -224,6 +224,7 @@ async function calculateProgress(
       return await calculateStreakMilestone(supabase, studentId, achievement.criteria);
     
     case 'early_arrival_count':
+    case 'early_arrival': // Alias
       return await calculateEarlyArrivalCount(supabase, studentId, achievement.criteria);
     
     case 'perfect_week_count':
@@ -251,6 +252,7 @@ async function calculateProgress(
       return await calculateChallengeCount(supabase, studentId, achievement.criteria);
     
     case 'friend_count':
+    case 'friends': // Alias
       return await calculateFriendCount(supabase, studentId, achievement.criteria);
     
     default:
@@ -494,7 +496,8 @@ async function unlockAchievement(
   progress: number
 ): Promise<void> {
   // Insert or update student_achievement
-  const target = achievement.criteria.target || achievement.criteria.value || 0;
+  // Support multiple field names: threshold (database), target, value (legacy)
+  const target = achievement.criteria.threshold || achievement.criteria.target || achievement.criteria.value || 0;
   const { error: achievementError } = await supabase
     .from('student_achievements')
     .upsert({
@@ -543,7 +546,8 @@ async function updateProgress(
   achievement: Achievement,
   progress: number
 ): Promise<void> {
-  const target = achievement.criteria.target || achievement.criteria.value || 0;
+  // Support multiple field names: threshold (database), target, value (legacy)
+  const target = achievement.criteria.threshold || achievement.criteria.target || achievement.criteria.value || 0;
   const { error } = await supabase
     .from('student_achievements')
     .upsert({
