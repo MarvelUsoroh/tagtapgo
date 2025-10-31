@@ -18,16 +18,6 @@ interface ClassItem {
   points_earned?: number;
 }
 
-type AttendanceRow = {
-  id: string;
-  time?: string | null;
-  status?: 'present' | 'absent' | 'late' | string | null;
-  courses?: {
-    name?: string | null;
-    schedule?: unknown;
-  } | null;
-};
-
 export default function TodayClasses({ studentId }: { studentId: string }) {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,28 +28,74 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
     (async () => {
       try {
         const today = format(new Date(), 'yyyy-MM-dd');
+        
+        // Get today's day name (Monday, Tuesday, etc.)
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const todayName = dayNames[new Date().getDay()];
 
-        // Fetch today's attendance
-        const { data: attendanceData } = await supabase
-          .from('attendance')
+        // First, get the student's enrolled courses
+        const { data: enrollments } = await supabase
+          .from('enrollments')
+          .select('course_id')
+          .eq('student_id', studentId);
+
+        const enrolledCourseIds = (enrollments || []).map(e => e.course_id);
+
+        // If no enrollments, return early
+        if (enrolledCourseIds.length === 0) {
+          if (!cancelled) setClasses([]);
+          if (!cancelled) setLoading(false);
+          return;
+        }
+
+        // Fetch today's scheduled classes for enrolled courses
+        // Only show classes that haven't ended yet (current time <= end_time)
+        const currentTime = format(new Date(), 'HH:mm:ss');
+        
+        const { data: scheduleData } = await supabase
+          .from('class_schedules')
           .select(`
-            *,
+            id,
+            start_time,
+            end_time,
+            course_id,
             courses (
-              name,
-              schedule
+              id,
+              name
             )
           `)
+          .eq('day_of_week', todayName)
+          .in('course_id', enrolledCourseIds)
+          .gte('end_time', currentTime)
+          .order('start_time');
+
+        // Fetch today's attendance to check completion status
+        const { data: attendanceData } = await supabase
+          .from('attendance')
+          .select('course_id, status')
           .eq('student_id', studentId)
           .eq('date', today);
 
+        // Create a map of course attendance
+        const attendanceMap = new Map(
+          (attendanceData || []).map(att => [att.course_id, att.status])
+        );
+
         // Transform data
-        const classItems: ClassItem[] = ((attendanceData as AttendanceRow[] | null) || []).map((att) => ({
-          id: att.id,
-          course_name: att.courses?.name || 'Unknown Course',
-          time: att.time || '09:00',
-          status: att.status === 'present' ? 'completed' : 'missed',
-          points_earned: att.status === 'present' ? 10 : 0,
-        }));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const classItems: ClassItem[] = ((scheduleData as any[]) || []).map((schedule: any) => {
+          const courseId = schedule.course_id;
+          const attendanceStatus = attendanceMap.get(courseId);
+          
+          return {
+            id: schedule.id,
+            course_name: schedule.courses?.name || 'Unknown Course',
+            time: schedule.start_time || '09:00',
+            status: attendanceStatus === 'present' ? 'completed' : 
+                   attendanceStatus === 'absent' ? 'missed' : 'upcoming',
+            points_earned: attendanceStatus === 'present' ? 10 : 0,
+          };
+        });
 
         if (!cancelled) setClasses(classItems);
       } catch (error) {

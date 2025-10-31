@@ -115,3 +115,77 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// Push event - handle push notifications
+self.addEventListener('push', (event) => {
+  console.log('[Service Worker] Push received:', event);
+  
+  let notificationData = {
+    title: 'TagTapGo',
+    body: 'You have a new notification',
+    icon: '/icons/ttg-icon.svg',
+    badge: '/icons/ttg-icon.svg',
+    data: {},
+  };
+
+  // Parse push data if available
+  if (event.data) {
+    try {
+      const data = event.data.json();
+      notificationData = {
+        title: data.title || notificationData.title,
+        body: data.body || notificationData.body,
+        icon: data.icon || notificationData.icon,
+        badge: data.badge || notificationData.badge,
+        data: data.data || {},
+        tag: data.tag || 'default',
+        requireInteraction: data.requireInteraction || false,
+      };
+    } catch (error) {
+      console.error('[Service Worker] Error parsing push data:', error);
+    }
+  }
+
+  // Show notification
+  event.waitUntil(
+    self.registration.showNotification(notificationData.title, {
+      body: notificationData.body,
+      icon: notificationData.icon,
+      badge: notificationData.badge,
+      data: notificationData.data,
+      tag: notificationData.tag,
+      requireInteraction: notificationData.requireInteraction,
+    })
+  );
+});
+
+// Notification click event - handle notification clicks
+self.addEventListener('notificationclick', (event) => {
+  console.log('[Service Worker] Notification clicked:', event);
+  
+  event.notification.close();
+
+  // Get the URL from notification data
+  const urlToOpen = event.notification.data?.url || '/';
+
+  // Open or focus the app
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Check if there's already a window open
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          return client.focus().then((client) => {
+            // Navigate to the URL
+            if ('navigate' in client) {
+              return client.navigate(urlToOpen);
+            }
+          });
+        }
+      }
+      // No window open, open a new one
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen);
+      }
+    })
+  );
+});

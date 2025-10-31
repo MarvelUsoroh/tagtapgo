@@ -165,8 +165,12 @@ async function checkStudentAchievements(
       const target = achievement.criteria.threshold || achievement.criteria.target || achievement.criteria.value || 0;
       const unlocked = progress >= target;
       
-      if (unlocked && !studentAchievement) {
-        // Unlock achievement (only if not already in database)
+      // Debug logging
+      console.log(`[Achievement Checker] ${achievement.name}: progress=${progress}, target=${target}, unlocked=${unlocked}, hasRecord=${!!studentAchievement}, isUnlocked=${studentAchievement?.unlocked}`);
+      
+      if (unlocked && !studentAchievement?.unlocked) {
+        // Unlock achievement (if not already unlocked)
+        console.log(`[Achievement Checker] Unlocking ${achievement.name} for student ${studentId}`);
         await unlockAchievement(supabase, studentId, achievement, progress);
         
         result.achievements_unlocked.push({
@@ -568,42 +572,50 @@ async function updateProgress(
 /**
  * Send achievement unlock notification
  * Note: Requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables
+ * 
+ * Strategy: Store notification in database FIRST, then attempt to send push notification.
+ * This ensures the notification is always recorded even if push delivery fails.
  */
 async function sendAchievementNotification(
   supabase: SupabaseClient,
   studentId: string,
   achievement: Achievement
 ): Promise<void> {
-  // Store notification in database
-  const { error: dbError } = await supabase
-    .from('notifications')
-    .insert({
+  try {
+    // Step 1: Store notification in database FIRST (ensures it's always recorded)
+    const notificationData = {
       student_id: studentId,
-      notification_type: 'achievement_unlocked', // Must match check constraint
+      notification_type: 'achievement',
       title: '🏆 Achievement Unlocked!',
-      message: `You earned "${achievement.name}" (+${achievement.points_reward} points)`,
+      message: `You earned "${achievement.name}" and ${achievement.points_reward} points!`,
       data: {
-        achievement_id: achievement.id,
-        achievement_name: achievement.name,
-        points_reward: achievement.points_reward,
+        type: 'achievement',
+        achievementName: achievement.name,
+        achievementDescription: achievement.description,
+        pointsEarned: achievement.points_reward,
         rarity: achievement.rarity,
-        trigger_confetti: true, // Signal to frontend to show confetti
+        trigger_confetti: true,
       },
       read: false,
-      created_at: new Date().toISOString(),
-    });
-  
-  if (dbError) {
-    console.error('[Achievement Checker] Error storing notification:', dbError);
-  }
-  
-  // Send push notification (non-blocking)
-  try {
+    };
+    
+    const { error: notifError } = await supabase
+      .from('notifications')
+      .insert(notificationData);
+    
+    if (notifError) {
+      console.error('[Achievement Checker] Failed to store notification in database:', notifError);
+      // Continue to try push notification anyway
+    } else {
+      console.log(`[Achievement Checker] Stored notification in database for achievement: ${achievement.name}`);
+    }
+    
+    // Step 2: Attempt to send push notification (best effort)
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
     if (!supabaseUrl || !serviceRoleKey) {
-      console.warn('[Achievement Checker] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY, skipping push notification');
+      console.warn('[Achievement Checker] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY, skipping push notification delivery');
       return;
     }
     
@@ -622,7 +634,9 @@ async function sendAchievementNotification(
     
     console.log(`[Achievement Checker] Sent push notification for achievement: ${achievement.name}`);
   } catch (error) {
-    console.error('[Achievement Checker] Error sending push notification:', error);
-    // Don't throw - achievement is already unlocked and stored in DB
+    console.error('[Achievement Checker] Error in notification flow:', error);
+    const errorDetails = error instanceof Error ? error.message : String(error);
+    console.error('[Achievement Checker] Error details:', errorDetails);
+    // Don't throw - achievement is already unlocked and notification is stored
   }
 }

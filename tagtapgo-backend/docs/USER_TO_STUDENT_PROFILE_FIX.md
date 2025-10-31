@@ -320,7 +320,7 @@ DROP FUNCTION IF EXISTS public.handle_new_user();
 
 ## Status
 
-✅ **IMPLEMENTED**
+✅ **IMPLEMENTED** (Updated 2025-10-31)
 
 - [x] Migration created
 - [x] Trigger function created
@@ -329,24 +329,48 @@ DROP FUNCTION IF EXISTS public.handle_new_user();
 - [x] Frontend code updated
 - [x] Field names corrected
 - [x] Documentation created
+- [x] **Email confirmation check added** (Migration 20251031000003)
+- [x] Email confirmation trigger created
 
 ---
 
+## Security Update (2025-10-31)
+
+### Issue Found
+The original trigger created student profiles immediately on user creation, even if the email wasn't confirmed. This could lead to:
+- Unconfirmed users accessing the system
+- Spam/fake accounts getting profiles
+- Security concerns
+
+### Fix Applied
+**Migration**: `20251031000003_fix_student_profile_email_confirmation.sql`
+
+**Changes:**
+1. Updated `handle_new_user()` to check `email_confirmed_at` before creating profile
+2. Created new trigger `on_auth_user_email_confirmed` that creates profile when email is confirmed
+3. Added verification query to identify existing unconfirmed users with profiles
+
+**Result:**
+- New users must confirm email before getting a student profile
+- Existing unconfirmed users with profiles: 1 (favour.okafor.247829@unn.edu.ng)
+
 ## Next Steps
 
-1. **Deploy Migration**
+1. **Deploy Migration** ✅ DONE
    ```bash
    cd tagtapgo-backend
    supabase db push
    ```
 
 2. **Monitor for Issues**
-   - Check for users without profiles (should be 0)
-   - Verify new signups create profiles automatically
+   - Check for users without profiles (should be 0 for confirmed users)
+   - Verify new signups only create profiles after email confirmation
    - Check logs for any trigger errors
 
 3. **Test Thoroughly**
    - Create new user via signup
+   - Confirm email
+   - Verify profile is created after confirmation
    - Verify dashboard loads correctly
    - Check gamification features work
 

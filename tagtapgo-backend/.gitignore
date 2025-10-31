@@ -8,6 +8,7 @@
 .supabase/
 .branches/
 .temp/
+supabase/seed.sql
 
 # Dependencies
 node_modules/
@@ -62,6 +63,13 @@ temp/
 # Database dumps
 *.sql.gz
 *.dump
+
+# Scripts (may contain sensitive data or local-only utilities)
+scripts/
+
+# Test files
+test-*.sql
+*-test.sql
 
 # Debug
 debug.txt

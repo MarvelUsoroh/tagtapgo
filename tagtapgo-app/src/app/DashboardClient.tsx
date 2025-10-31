@@ -18,6 +18,8 @@ import TodayClasses from '@/components/TodayClasses';
 import RecentAchievements from '@/components/RecentAchievements';
 import LeaderboardPreview from '@/components/LeaderboardPreview';
 import NotificationPermissionPrompt from '@/components/NotificationPermissionPrompt';
+import NotificationBell from '@/components/NotificationBell';
+import NotificationsPanel from '@/components/NotificationsPanel';
 import Toast, { ToastType } from '@/components/Toast';
 import dynamic from 'next/dynamic';
 const FeedbackPromptCard = dynamic(() => import('@/components/FeedbackPromptCard'), { ssr: false });
@@ -69,6 +71,9 @@ export default function DashboardClient({
   
   // Toast notification state
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  
+  // Notifications panel state
+  const [notificationsPanelOpen, setNotificationsPanelOpen] = useState(false);
   
   // Count-up animation for points (SSR-safe: render plain number, animate on client)
   const pointsMotion = useMotionValue(initialPoints);
@@ -313,6 +318,15 @@ export default function DashboardClient({
         title={`Hi, ${student?.first_name || student?.full_name?.split(' ')[0] || 'Student'}! 👋`}
         subtitle="Keep up the great work!"
         variant="gradient"
+        actions={
+          student && (
+            <NotificationBell
+              studentId={student.id}
+              onClick={() => setNotificationsPanelOpen(true)}
+              variant="gradient"
+            />
+          )
+        }
       >
         {/* Points & Streak */}
         <div className="grid grid-cols-2 gap-4 mb-4">
@@ -472,6 +486,15 @@ export default function DashboardClient({
 
       {/* Notification Permission Prompt */}
       {student && <NotificationPermissionPrompt studentId={student.id} />}
+
+      {/* Notifications Panel */}
+      {student && (
+        <NotificationsPanel
+          studentId={student.id}
+          isOpen={notificationsPanelOpen}
+          onClose={() => setNotificationsPanelOpen(false)}
+        />
+      )}
     </div>
   );
 }

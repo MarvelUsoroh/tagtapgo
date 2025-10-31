@@ -300,7 +300,27 @@ Deno.serve(async (req) => {
       );
     }
     // Persist notification record (non-blocking)
+    // Note: For achievements, the notification may already be stored by achievement-checker
+    // Check if it exists first to avoid duplicates
     const storeNotif = async () => {
+      // For achievement notifications, check if one already exists with same data
+      if (notifType === 'achievement' && data?.achievementName) {
+        const { data: existing } = await supabaseService
+          .from("notifications")
+          .select('id')
+          .eq('student_id', studentId)
+          .eq('notification_type', 'achievement')
+          .eq('data->>achievementName', data.achievementName)
+          .gte('created_at', new Date(Date.now() - 60000).toISOString()) // Within last minute
+          .limit(1)
+          .single();
+        
+        if (existing) {
+          console.log('Notification already exists, skipping duplicate insert');
+          return;
+        }
+      }
+      
       await supabaseService.from("notifications").insert({
         student_id: studentId,
         notification_type: notifType,
