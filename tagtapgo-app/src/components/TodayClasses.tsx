@@ -13,7 +13,7 @@ import { NoClassesToday } from './EmptyState';
 interface ClassItem {
   id: string;
   course_name: string;
-  time: string;
+  time: string | null;
   status: 'completed' | 'upcoming' | 'missed';
   points_earned?: number;
 }
@@ -83,19 +83,22 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
 
         // Transform data
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const classItems: ClassItem[] = ((scheduleData as any[]) || []).map((schedule: any) => {
-          const courseId = schedule.course_id;
-          const attendanceStatus = attendanceMap.get(courseId);
-          
-          return {
-            id: schedule.id,
-            course_name: schedule.courses?.name || 'Unknown Course',
-            time: schedule.start_time || '09:00',
-            status: attendanceStatus === 'present' ? 'completed' : 
-                   attendanceStatus === 'absent' ? 'missed' : 'upcoming',
-            points_earned: attendanceStatus === 'present' ? 10 : 0,
-          };
-        });
+        const classItems: ClassItem[] = ((scheduleData as any[]) || [])
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((schedule: any) => {
+            const courseId = schedule.course_id;
+            const attendanceStatus = attendanceMap.get(courseId);
+            
+            return {
+              id: schedule.id,
+              course_name: schedule.courses?.name || 'Unknown Course',
+              time: schedule.start_time || null,
+              status: (attendanceStatus === 'present' ? 'completed' : 
+                     attendanceStatus === 'absent' ? 'missed' : 'upcoming') as 'completed' | 'upcoming' | 'missed',
+              points_earned: attendanceStatus === 'present' ? 10 : 0,
+            };
+          })
+          .filter(item => item.time !== null); // Filter out items with no time
 
         if (!cancelled) setClasses(classItems);
       } catch (error) {
@@ -190,7 +193,7 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
                 <div>
                   <p className="font-medium text-gray-900">{classItem.course_name}</p>
                   <p className="text-sm" style={{ color: colors.gray[500] }}>
-                    {formatTime(new Date(`2024-01-01T${classItem.time}`))}
+                    {classItem.time ? formatTime(new Date(`2024-01-01T${classItem.time}`)) : 'Time TBA'}
                   </p>
                 </div>
               </div>
