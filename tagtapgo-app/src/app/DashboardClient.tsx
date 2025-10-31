@@ -11,6 +11,8 @@ import { motion, useMotionValue, animate } from 'framer-motion';
 import { Flame, Coins, Trophy, Target, TrendingUp, Calendar, Zap, Clock, AlertCircle, Snowflake } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { Student, Streak } from '@/lib/supabase';
+import { useStore } from '@/store/useStore';
+import { useDataRefresh } from '@/hooks/useDataRefresh';
 import BottomNav from '@/components/BottomNav';
 import PageHeader from '@/components/PageHeader';
 import StatCard from '@/components/StatCard';
@@ -58,16 +60,29 @@ export default function DashboardClient({
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const store = useStore();
+  const { refreshGamification } = useDataRefresh(student?.id);
   
-  // Use initial data immediately (no loading state needed!)
-  const [totalPoints, setTotalPoints] = useState(initialPoints);
-  const [currentStreak, setCurrentStreak] = useState(initialStreak);
+  // Sync initial SSR data to global store on mount
+  useEffect(() => {
+    store.setTotalPoints(initialPoints);
+    store.setCurrentStreak(initialStreak?.current_streak || 0);
+    store.setBadgesCount(initialBadgesCount);
+    store.setAttendanceRate(attendanceRate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPoints, initialStreak, initialBadgesCount, attendanceRate]);
+  
+  // Use store values (synced across app)
+  const totalPoints = store.totalPoints;
+  const badgesCount = store.badgesCount;
+  const attRate = store.attendanceRate;
+  
+  // Local UI state
   const [countdown, setCountdown] = useState<string>('');
   const [streakAtRisk, setStreakAtRisk] = useState(false);
-  const freezeCount = initialStreak?.freeze_count || 0;
-  const [badgesCount, setBadgesCount] = useState<number>(initialBadgesCount);
+  const [currentStreak, setCurrentStreak] = useState<Streak | null>(initialStreak);
+  const freezeCount = currentStreak?.freeze_count || 0;
   const [todayCompleted, setTodayCompleted] = useState<number>(initialTodayCompleted);
-  const [attRate, setAttRate] = useState<number>(attendanceRate);
   
   // Toast notification state
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
@@ -137,7 +152,7 @@ export default function DashboardClient({
         filter: `student_id=eq.${student.id}`,
       }, (payload: { new: { points: number; transaction_type: string } }) => {
         const newPoints = payload.new.points;
-        setTotalPoints(prev => prev + newPoints);
+        store.setTotalPoints(store.totalPoints + newPoints);
         
         // Show toast notification
         const transactionType = payload.new.transaction_type;
@@ -146,13 +161,16 @@ export default function DashboardClient({
           : `+${newPoints} points earned!`;
         
         setToast({ message, type: 'success' });
+        
+        // Trigger comprehensive refresh
+        refreshGamification();
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(pointsChannel);
     };
-  }, [student?.id]);
+  }, [student?.id, store, refreshGamification, router]);
 
   // Real-time updates for streaks
   useEffect(() => {
@@ -167,6 +185,7 @@ export default function DashboardClient({
         filter: `student_id=eq.${student.id}`,
       }, (payload: { new: Streak }) => {
         setCurrentStreak(payload.new);
+        store.setCurrentStreak(payload.new.current_streak);
         
         // Show toast if streak increased
         if (payload.new.current_streak > (currentStreak?.current_streak || 0)) {
@@ -175,13 +194,16 @@ export default function DashboardClient({
             type: 'success' 
           });
         }
+        
+        // Trigger comprehensive refresh
+        refreshGamification();
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(streaksChannel);
     };
-  }, [student?.id, currentStreak]);
+  }, [student?.id, currentStreak, store, refreshGamification]);
 
   // Real-time updates for achievements
   useEffect(() => {
@@ -208,15 +230,18 @@ export default function DashboardClient({
             type: 'success' 
           });
         }
-        // Increment badge count
-        setBadgesCount((c) => c + 1);
+        // Increment badge count in store
+        store.setBadgesCount(store.badgesCount + 1);
+        
+        // Trigger comprehensive refresh
+        refreshGamification();
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(achievementsChannel);
     };
-  }, [student?.id]);
+  }, [student?.id, store, refreshGamification]);
 
   // Recompute today's completed classes as time passes
   useEffect(() => {
@@ -243,7 +268,8 @@ export default function DashboardClient({
         .gte('date', since);
       if (data && data.length > 0) {
         const present = data.filter(a => a.status === 'present').length;
-        setAttRate(Math.round((present / data.length) * 100));
+        const newRate = Math.round((present / data.length) * 100);
+        store.setAttendanceRate(newRate);
       }
     };
 
@@ -251,13 +277,15 @@ export default function DashboardClient({
       .channel('attendance-updates')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance', filter: `student_id=eq.${student.id}` }, () => {
         recalc();
+        // Trigger comprehensive refresh
+        refreshGamification();
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(attendanceChannel);
     };
-  }, [student?.id]);
+  }, [student?.id, store, refreshGamification]);
 
   // Countdown timer for next class
   useEffect(() => {

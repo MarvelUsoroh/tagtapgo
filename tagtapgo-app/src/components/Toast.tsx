@@ -55,19 +55,22 @@ export default function Toast({ message, type, duration = 4000, onClose }: Toast
         initial={{ opacity: 0, y: -50, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -50, scale: 0.95 }}
-        className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 max-w-md w-full mx-4"
+        className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 max-w-md w-full px-4 safe-area-top"
+        style={{ 
+          maxWidth: 'calc(100vw - 2rem)', // Ensure it doesn't overflow on small screens
+        }}
       >
         <div
-          className="rounded-xl shadow-lg p-4 flex items-center gap-3"
+          className="rounded-xl shadow-lg p-4 flex items-center gap-3 w-full"
           style={{ backgroundColor: config.bgColor }}
         >
-          <Icon size={24} style={{ color: config.textColor }} />
-          <p className="flex-1 font-medium" style={{ color: config.textColor }}>
+          <Icon size={24} style={{ color: config.textColor, flexShrink: 0 }} />
+          <p className="flex-1 font-medium text-sm sm:text-base break-words" style={{ color: config.textColor }}>
             {message}
           </p>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-white/20 rounded-full transition-colors"
+            className="p-1 hover:bg-white/20 rounded-full transition-colors flex-shrink-0"
             aria-label="Close notification"
           >
             <X size={20} style={{ color: config.textColor }} />

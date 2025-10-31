@@ -102,9 +102,31 @@ export function getRelativeTime(date: Date | null | undefined): string {
 
 /**
  * Format time (e.g., "10:30 AM")
+ * Handles both full timestamps and TIME-only strings (HH:MM:SS)
  */
-export function formatTime(date: string | Date): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
+export function formatTime(date: string | Date | null | undefined): string {
+  if (!date) return 'Time TBA';
+  
+  let d: Date;
+  
+  if (typeof date === 'string') {
+    // Check if it's a TIME-only string (HH:MM:SS or HH:MM)
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(date)) {
+      // Create a date with today's date + the time
+      d = new Date(`1970-01-01T${date}`);
+    } else {
+      // Full timestamp
+      d = new Date(date);
+    }
+  } else {
+    d = date;
+  }
+  
+  // Check if date is valid
+  if (isNaN(d.getTime())) {
+    return 'Invalid time';
+  }
+  
   return new Intl.DateTimeFormat('en-US', {
     hour: 'numeric',
     minute: '2-digit',

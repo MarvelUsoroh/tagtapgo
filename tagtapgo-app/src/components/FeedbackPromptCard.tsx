@@ -14,8 +14,10 @@ interface FeedbackPrompt {
   class_schedule_id: string;
   expires_at: string;
   status: string;
+  created_at: string; // Use this as the class date
   class_schedule: {
     id: string;
+    day_of_week: string;
     class: {
       id: string;
       name: string;
@@ -64,8 +66,10 @@ export default function FeedbackPromptCard({
           class_schedule_id,
           expires_at,
           status,
+          created_at,
           class_schedule:class_schedules!inner(
             id,
+            day_of_week,
             class:classes!inner(
               id,
               section,
@@ -244,7 +248,7 @@ export default function FeedbackPromptCard({
                     {prompt.class_schedule.class.name}
                   </p>
                   <p className="text-sm text-gray-600 mt-1">
-                    {new Date(prompt.class_schedule.start_time).toLocaleDateString(
+                    {new Date(prompt.created_at).toLocaleDateString(
                       'en-US',
                       {
                         weekday: 'short',
@@ -252,7 +256,7 @@ export default function FeedbackPromptCard({
                         day: 'numeric',
                       }
                     )}{' '}
-                    • {formatTime(prompt.class_schedule.start_time)}
+                    • {prompt.class_schedule?.start_time ? formatTime(prompt.class_schedule.start_time) : 'Time TBA'}
                   </p>
                   <div className="flex items-center gap-4 mt-2">
                     <div className="flex items-center gap-1 text-xs text-gray-500">

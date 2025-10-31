@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Bell } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { colors } from '@/lib/theme';
 import { motion } from 'framer-motion';
+import { useStore } from '@/store/useStore';
 
 interface NotificationBellProps {
   studentId: string;
@@ -13,7 +14,7 @@ interface NotificationBellProps {
 }
 
 export default function NotificationBell({ studentId, onClick, variant = 'white' }: NotificationBellProps) {
-  const [unreadCount, setUnreadCount] = useState(0);
+  const { unreadCount, setUnreadCount } = useStore();
 
   useEffect(() => {
     if (!studentId) return;
@@ -47,7 +48,7 @@ export default function NotificationBell({ studentId, onClick, variant = 'white'
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [studentId]);
+  }, [studentId, setUnreadCount]);
 
   const isGradient = variant === 'gradient';
 

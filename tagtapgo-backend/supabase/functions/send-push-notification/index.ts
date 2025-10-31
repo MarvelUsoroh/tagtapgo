@@ -192,6 +192,61 @@ Deno.serve(async (req) => {
         },
       }
     );
+    // Store notification in database FIRST (before attempting push)
+    // This ensures notifications are always saved even if push fails
+    const notifType = data?.type ?? "other";
+    
+    // For achievement notifications, check if one already exists to avoid duplicates
+    if (notifType === 'achievement' && data?.achievementName) {
+      const { data: existing } = await supabaseService
+        .from("notifications")
+        .select('id')
+        .eq('student_id', studentId)
+        .eq('notification_type', 'achievement')
+        .eq('data->>achievementName', data.achievementName)
+        .gte('created_at', new Date(Date.now() - 60000).toISOString()) // Within last minute
+        .limit(1)
+        .single();
+      
+      if (existing) {
+        console.log('Notification already exists, skipping duplicate');
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: "Notification already exists",
+          }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+              ...CORS_HEADERS,
+            },
+          }
+        );
+      }
+    }
+    
+    // Create notification record
+    const { data: notificationRecord, error: notifError } = await supabaseService
+      .from("notifications")
+      .insert({
+        student_id: studentId,
+        notification_type: notifType,
+        title,
+        message: messageBody,
+        data: data || {},
+        read: false,
+      })
+      .select()
+      .single();
+    
+    if (notifError) {
+      console.error("Failed to create notification record:", notifError);
+      // Continue anyway - we'll still try to send the push
+    } else {
+      console.log(`Created notification record ${notificationRecord.id} for student ${studentId}`);
+    }
+    
     // Fetch subscription
     const { data: subscriptionRow, error: subError } = await supabaseService
       .from("push_subscriptions")
@@ -199,13 +254,15 @@ Deno.serve(async (req) => {
       .eq("student_id", studentId)
       .single();
     if (subError || !subscriptionRow) {
-      console.error("No subscription for student:", studentId, subError);
+      console.log("No subscription for student:", studentId, "- notification saved but push not sent");
+      // Return success since we saved the notification
       return new Response(
         JSON.stringify({
-          error: "No push subscription found for this student",
+          success: true,
+          message: "Notification saved (no push subscription)",
         }),
         {
-          status: 404,
+          status: 200,
           headers: {
             "Content-Type": "application/json",
             ...CORS_HEADERS,
@@ -269,6 +326,7 @@ Deno.serve(async (req) => {
     // Send notification (Deno-native web_push)
     try {
       await sendWebPush(subscription, notificationPayload);
+      console.log(`Successfully sent push notification to student ${studentId}`);
     } catch (err) {
       console.error("web-push send error:", err);
       const statusCode = err?.statusCode;
@@ -286,54 +344,21 @@ Deno.serve(async (req) => {
           cleanup();
         }
       }
+      // Don't return error - notification was already saved to database
+      console.log("Push failed but notification was saved to database");
       return new Response(
         JSON.stringify({
-          error: "Failed to send push notification",
+          success: true,
+          message: "Notification saved (push delivery failed)",
         }),
         {
-          status: 500,
+          status: 200,
           headers: {
             "Content-Type": "application/json",
             ...CORS_HEADERS,
           },
         }
       );
-    }
-    // Persist notification record (non-blocking)
-    // Note: For achievements, the notification may already be stored by achievement-checker
-    // Check if it exists first to avoid duplicates
-    const storeNotif = async () => {
-      // For achievement notifications, check if one already exists with same data
-      if (notifType === 'achievement' && data?.achievementName) {
-        const { data: existing } = await supabaseService
-          .from("notifications")
-          .select('id')
-          .eq('student_id', studentId)
-          .eq('notification_type', 'achievement')
-          .eq('data->>achievementName', data.achievementName)
-          .gte('created_at', new Date(Date.now() - 60000).toISOString()) // Within last minute
-          .limit(1)
-          .single();
-        
-        if (existing) {
-          console.log('Notification already exists, skipping duplicate insert');
-          return;
-        }
-      }
-      
-      await supabaseService.from("notifications").insert({
-        student_id: studentId,
-        notification_type: notifType,
-        title,
-        message: messageBody,
-        data: data || {},
-        read: false,
-      });
-    };
-    try {
-      EdgeRuntime.waitUntil(storeNotif());
-    } catch {
-      storeNotif();
     }
     return new Response(
       JSON.stringify({

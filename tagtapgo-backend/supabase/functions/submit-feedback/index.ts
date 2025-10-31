@@ -123,6 +123,22 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Get course_id from class_schedule
+    const { data: scheduleData } = await supabase
+      .from("class_schedules")
+      .select("course_id")
+      .eq("id", class_schedule_id)
+      .single();
+
+    const course_id = scheduleData?.course_id;
+
+    if (!course_id) {
+      return new Response(
+        JSON.stringify({ error: "Could not find course for this class schedule" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
+      );
+    }
+
     // Insert feedback
     const { data: feedback, error: feedbackError } = await supabase
       .from("class_feedback")
@@ -130,12 +146,15 @@ Deno.serve(async (req) => {
         student_id,
         class_id,
         class_schedule_id,
+        course_id,
         content_quality,
         clarity,
         pace,
-        comment: comment || null,
-        is_anonymous: is_anonymous !== false, // Default to true
+        comments: comment || null, // Column is 'comments' not 'comment'
         submitted_at: new Date().toISOString(),
+        metadata: {
+          is_anonymous: is_anonymous !== false, // Store in metadata
+        },
       })
       .select()
       .single();

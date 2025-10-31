@@ -6,6 +6,8 @@ import { X, Bell, Trophy, TrendingUp, Flame, MessageCircle, Calendar } from 'luc
 import { supabase } from '@/lib/supabase';
 import { colors } from '@/lib/theme';
 import { formatDistanceToNow } from 'date-fns';
+import { useStore } from '@/store/useStore';
+import { useDataRefresh } from '@/hooks/useDataRefresh';
 
 interface Notification {
   id: string;
@@ -24,6 +26,8 @@ interface NotificationsPanelProps {
 }
 
 export default function NotificationsPanel({ studentId, isOpen, onClose }: NotificationsPanelProps) {
+  const { setUnreadCount } = useStore();
+  const { refreshAll } = useDataRefresh(studentId);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -74,29 +78,47 @@ export default function NotificationsPanel({ studentId, isOpen, onClose }: Notif
       setNotifications(data);
     }
     
-    setTotalUnreadCount(count || 0);
+    const unreadCount = count || 0;
+    setTotalUnreadCount(unreadCount);
+    setUnreadCount(unreadCount); // Update global store
     setLoading(false);
   };
 
   const markAsRead = async (notificationId: string) => {
+    // Optimistic update
+    setNotifications(prev =>
+      prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+    );
+    
+    const newUnreadCount = Math.max(0, totalUnreadCount - 1);
+    setTotalUnreadCount(newUnreadCount);
+    setUnreadCount(newUnreadCount); // Update global store immediately
+    
+    // Background sync
     await supabase
       .from('notifications')
       .update({ read: true })
       .eq('id', notificationId);
-
-    setNotifications(prev =>
-      prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
-    );
+    
+    // Trigger server-side refresh
+    await refreshAll();
   };
 
   const markAllAsRead = async () => {
+    // Optimistic update
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setTotalUnreadCount(0);
+    setUnreadCount(0); // Update global store immediately
+    
+    // Background sync
     await supabase
       .from('notifications')
       .update({ read: true })
       .eq('student_id', studentId)
       .eq('read', false);
-
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    
+    // Trigger server-side refresh
+    await refreshAll();
   };
 
   const getNotificationIcon = (type: string) => {

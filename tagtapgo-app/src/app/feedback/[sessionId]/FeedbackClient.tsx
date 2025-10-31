@@ -83,6 +83,11 @@ export default function FeedbackClient({
 
       // Show success and redirect
       const pointsEarned = data?.points_earned || (comment.trim() ? 10 : 5);
+      
+      // Trigger a router refresh to update server-side data
+      router.refresh();
+      
+      // Redirect to dashboard with success message
       router.push(`/?feedback=success&points=${pointsEarned}`);
     } catch (err) {
       console.error('Failed to submit feedback:', err);
