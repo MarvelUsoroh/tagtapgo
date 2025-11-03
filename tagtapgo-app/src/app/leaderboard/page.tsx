@@ -21,21 +21,12 @@ export default async function LeaderboardPage() {
   const userId = user.id;
   
   try {
-    // Calculate current week start (Monday)
-    const now = new Date();
-    const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-    monday.setHours(0, 0, 0, 0);
-    const currentWeekStart = monday.toISOString().split('T')[0];
-
-    // Fetch initial leaderboard data (school, weekly by default)
+    // Fetch initial leaderboard data (school, all-time by default)
     const { data: leaderboardData, error } = await supabase
       .from('leaderboards')
       .select('id, student_id, leaderboard_type, period, course_id, primary_course_id, rank, points, current_streak, longest_streak, score, period_start, period_end, updated_at, student_name, student_avatar_url')
       .eq('leaderboard_type', 'school')
-      .eq('period', 'weekly')
-      .eq('period_start', currentWeekStart)
+      .eq('period', 'all_time')
       .order('rank')
       .limit(LEADERBOARD_CONFIG.ITEMS_PER_PAGE);
     

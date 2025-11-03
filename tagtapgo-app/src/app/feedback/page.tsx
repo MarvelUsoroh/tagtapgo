@@ -4,12 +4,14 @@ import { ArrowLeft } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase-server';
 import BottomNav from '@/components/BottomNav';
 import { colors } from '@/lib/theme';
+import { formatTime } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
 type PromptRow = {
   id: string;
   expires_at: string;
+  prompt_sent_at: string | null;
   class_schedule: {
     id: string;
     class: {
@@ -37,6 +39,7 @@ export default async function FeedbackListPage() {
     .select(`
       id,
       expires_at,
+      prompt_sent_at,
       status,
       class_schedule:class_schedules(
         id,
@@ -108,25 +111,42 @@ export default async function FeedbackListPage() {
                         : ''}
                       {prompt.class_schedule?.class?.name ?? 'Class'}
                     </p>
-                    <p className="text-sm mt-1" style={{ color: colors.gray[600] }}>
-                      {new Date(prompt.class_schedule?.start_time || '').toLocaleDateString('en-US', {
-                        weekday: 'short',
-                        month: 'short',
-                        day: 'numeric',
-                      })}{' '}
-                      • {new Date(prompt.class_schedule?.start_time || '').toLocaleTimeString('en-US', {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      })}
-                    </p>
-                    <p className="text-xs mt-2" style={{ color: colors.gray[500] }}>
-                      Expires {new Date(prompt.expires_at).toLocaleString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      })}
-                    </p>
+                    {(() => {
+                      const classDateRaw = prompt.class_schedule?.start_time || prompt.prompt_sent_at || prompt.expires_at;
+                      const date = classDateRaw ? new Date(classDateRaw) : null;
+                      const dateLabel = !date || Number.isNaN(date.getTime())
+                        ? 'Date TBA'
+                        : date.toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                          });
+                      const timeLabelRaw = formatTime(prompt.class_schedule?.start_time || prompt.prompt_sent_at || null);
+                      const timeLabel = timeLabelRaw === 'Invalid time' ? 'Time TBA' : timeLabelRaw;
+
+                      return (
+                        <p className="text-sm mt-1" style={{ color: colors.gray[600] }}>
+                          {dateLabel} • {timeLabel}
+                        </p>
+                      );
+                    })()}
+                    {(() => {
+                      const expires = new Date(prompt.expires_at);
+                      const label = Number.isNaN(expires.getTime())
+                        ? 'Unknown'
+                        : expires.toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                          });
+
+                      return (
+                        <p className="text-xs mt-2" style={{ color: colors.gray[500] }}>
+                          Expires {label}
+                        </p>
+                      );
+                    })()}
                   </div>
                   <Link
                     href={`/feedback/${prompt.id}`}

@@ -50,7 +50,7 @@ export default function LeaderboardClient({
   currentStudentId,
 }: Props) {
   const [activeTab, setActiveTab] = useState<LeaderboardType>('school');
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>('weekly');
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>('all_time');
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(initialLeaderboard);
   const [userRank, setUserRank] = useState<number | null>(initialUserRank);
   const [loading, setLoading] = useState(false);
@@ -62,31 +62,36 @@ export default function LeaderboardClient({
   const getUserPrimaryClass = useCallback(async (period: TimePeriod): Promise<string | null> => {
     try {
       // Calculate period boundaries (use UTC to match backend)
-      let periodStart: string;
-      const now = new Date();
-      
+      let periodStart: string | undefined;
+
       if (period === 'weekly') {
+        const now = new Date();
         const dayOfWeek = now.getDay();
         const monday = new Date(now);
         monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
         monday.setHours(0, 0, 0, 0);
         periodStart = monday.toISOString().split('T')[0];
       } else if (period === 'monthly') {
-        // Use UTC to avoid timezone issues
+        const now = new Date();
         const monthStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
         periodStart = monthStart.toISOString().split('T')[0];
-      } else {
-        periodStart = '1970-01-01'; // All time
       }
 
       // Get user's class leaderboard entry to find their primary class
-      const { data, error } = await supabase
+      let query = supabase
         .from('leaderboards')
         .select('primary_course_id')
         .eq('leaderboard_type', 'class')
         .eq('period', period)
-        .eq('period_start', periodStart)
-        .eq('student_id', currentStudentId)
+        .eq('student_id', currentStudentId);
+
+      if (periodStart) {
+        query = query.eq('period_start', periodStart);
+      }
+
+      const { data, error } = await query
+        .order('period_start', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (error) {

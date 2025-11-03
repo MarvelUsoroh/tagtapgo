@@ -14,7 +14,8 @@ interface FeedbackPrompt {
   class_schedule_id: string;
   expires_at: string;
   status: string;
-  created_at: string; // Use this as the class date
+  prompt_sent_at: string | null;
+  created_at?: string | null;
   class_schedule: {
     id: string;
     day_of_week: string;
@@ -25,8 +26,8 @@ interface FeedbackPrompt {
         code: string;
       };
     };
-    start_time: string;
-    end_time: string;
+    start_time: string | null;
+    end_time: string | null;
   };
 }
 
@@ -66,6 +67,7 @@ export default function FeedbackPromptCard({
           class_schedule_id,
           expires_at,
           status,
+          prompt_sent_at,
           created_at,
           class_schedule:class_schedules!inner(
             id,
@@ -179,6 +181,28 @@ export default function FeedbackPromptCard({
     router.push(`/feedback/${promptId}`);
   };
 
+  const getClassDateLabel = useCallback((prompt: FeedbackPrompt) => {
+    const raw = prompt.class_schedule?.start_time || prompt.prompt_sent_at || prompt.expires_at;
+    if (!raw) return 'Date TBA';
+
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) {
+      return 'Date TBA';
+    }
+
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    });
+  }, []);
+
+  const getClassTimeLabel = useCallback((prompt: FeedbackPrompt) => {
+    const raw = prompt.class_schedule?.start_time || prompt.prompt_sent_at;
+    const formatted = formatTime(raw);
+    return formatted === 'Invalid time' ? 'Time TBA' : formatted;
+  }, []);
+
   // Don't render if loading or no prompts
   if (loading) {
     return (
@@ -203,7 +227,7 @@ export default function FeedbackPromptCard({
     >
       <div className="flex items-center gap-2 mb-3">
         <MessageSquare size={20} style={{ color: colors.primary.DEFAULT }} />
-        <h3 className="font-semibold text-gray-900">Pending Feedback</h3>
+        <h3 className="font-semibold text-gray-900">Class Review</h3>
         <span
           className="ml-auto text-xs font-semibold px-3 py-2 rounded-full"
           style={{
@@ -214,7 +238,7 @@ export default function FeedbackPromptCard({
           {totalPrompts} {totalPrompts === 1 ? 'class' : 'classes'}
         </span>
         <span className="sr-only" aria-live="polite">
-          You have {totalPrompts} pending feedback {totalPrompts === 1 ? 'item' : 'items'}
+          You have {totalPrompts} pending reviews {totalPrompts === 1 ? 'item' : 'items'}
         </span>
       </div>
 
@@ -248,15 +272,7 @@ export default function FeedbackPromptCard({
                     {prompt.class_schedule.class.name}
                   </p>
                   <p className="text-sm text-gray-600 mt-1">
-                    {new Date(prompt.created_at).toLocaleDateString(
-                      'en-US',
-                      {
-                        weekday: 'short',
-                        month: 'short',
-                        day: 'numeric',
-                      }
-                    )}{' '}
-                    • {prompt.class_schedule?.start_time ? formatTime(prompt.class_schedule.start_time) : 'Time TBA'}
+                    {getClassDateLabel(prompt)} • {getClassTimeLabel(prompt)}
                   </p>
                   <div className="flex items-center gap-4 mt-2">
                     <div className="flex items-center gap-1 text-xs text-gray-500">
@@ -283,7 +299,7 @@ export default function FeedbackPromptCard({
                 style={{ color: colors.primary.DEFAULT }}
                 aria-label={`View all ${totalPrompts} pending feedback items`}
               >
-                View all pending feedback
+                View all pending reviews
                 <ChevronRight size={16} />
               </Link>
             </div>

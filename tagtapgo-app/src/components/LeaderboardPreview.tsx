@@ -41,7 +41,7 @@ const rankColors = {
 export default function LeaderboardPreview({
   studentId,
   type = 'school',
-  period = 'weekly',
+  period = 'all_time',
 }: LeaderboardPreviewProps) {
   const router = useRouter();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);

@@ -1,4 +1,7 @@
+// @ts-nocheck
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { sendRewardRedemptionNotification } from '../_shared/services/notification-sender.ts'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -11,7 +14,7 @@ interface RedeemRequest {
   student_id: string
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS })
@@ -68,7 +71,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    const totalPoints = pointsData?.reduce((sum, p) => sum + p.points, 0) || 0
+  const totalPoints = (pointsData ?? []).reduce((sum: number, entry: { points: number }) => sum + entry.points, 0)
 
     // 4. Check sufficient points
     if (totalPoints < reward.points_cost) {
@@ -144,7 +147,31 @@ Deno.serve(async (req) => {
         .eq('id', reward_id)
     }
 
-    // 8. Success response
+    // Attempt to send reward redemption notification (non-blocking)
+    try {
+      const supabaseEnvUrl = Deno.env.get('SUPABASE_URL')
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+      const fallbackExpiry = reward.expiry_days
+        ? new Date(Date.now() + reward.expiry_days * 24 * 60 * 60 * 1000).toISOString()
+        : null
+
+      if (supabaseEnvUrl && serviceRoleKey) {
+        await sendRewardRedemptionNotification(
+          supabaseEnvUrl,
+          serviceRoleKey,
+          student_id,
+          reward.name,
+          redemption.redemption_code ?? '',
+          redemption.expires_at ?? fallbackExpiry ?? new Date().toISOString()
+        )
+      } else {
+        console.warn('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY, skipping reward notification')
+      }
+    } catch (notificationError) {
+      console.error('Failed to send reward notification:', notificationError)
+    }
+
+    // Success response
     return new Response(
       JSON.stringify({
         success: true,
@@ -164,8 +191,9 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Redeem reward error:', error)
+    const message = error instanceof Error ? error.message : 'Unknown error'
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({ error: 'Internal server error', details: message }),
       { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } }
     )
   }

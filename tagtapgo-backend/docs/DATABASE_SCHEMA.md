@@ -136,7 +136,7 @@ Highlights by table (abbreviated):
     - FK: student_id → students.id (ON DELETE CASCADE); reward_id → rewards.id (ON DELETE RESTRICT)
 - notifications
     - PK: id; FK: student_id → students.id (ON DELETE CASCADE)
-    - CHECK: notification_type ∈ ['streak_risk','achievement_unlocked','challenge_invitation','rank_change','reward_redemption','friend_request','other']
+    - Active notification_type values: ['achievement','streak','rank','reward','feedback_prompt','perfect_week','perfect_month','points_milestone','challenge','other','test']
 - push_subscriptions
     - PK: id; UNIQUE: (student_id); FK: student_id → students.id (ON DELETE CASCADE)
 - class_schedules

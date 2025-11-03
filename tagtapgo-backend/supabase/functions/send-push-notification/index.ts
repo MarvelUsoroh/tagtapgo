@@ -296,7 +296,6 @@ Deno.serve(async (req) => {
       .select("settings")
       .eq("id", studentId)
       .single();
-    const notifType = data?.type ?? "other";
     const prefs = studentRow?.settings?.notifications ?? {};
     if (prefs[notifType] === false) {
       console.log(`Notification type ${notifType} disabled for ${studentId}`);
