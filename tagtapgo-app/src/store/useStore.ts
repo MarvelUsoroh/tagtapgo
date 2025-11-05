@@ -69,13 +69,12 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'tagtapgo-storage',
-      // Only persist UI state, not auth data
+      // Only persist UI preferences, not volatile gamification data
+      // Gamification data is initialized from SSR on mount to prevent stale flashes
       partialize: (state) => ({
         unreadCount: state.unreadCount,
-        totalPoints: state.totalPoints,
-        currentStreak: state.currentStreak,
-        badgesCount: state.badgesCount,
-        attendanceRate: state.attendanceRate,
+        // Removed: totalPoints, currentStreak, badgesCount, attendanceRate
+        // These are now sourced from SSR and real-time updates only
       }),
     }
   )

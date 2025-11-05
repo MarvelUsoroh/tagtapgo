@@ -110,11 +110,18 @@ export default async function FeedbackPage({
     redirect('/?feedback=expired');
   }
 
+  // Extract timestamp fields with a precise type to avoid any-casts
+  const { prompt_sent_at, expires_at } = promptData as {
+    prompt_sent_at?: string | null;
+    expires_at?: string | null;
+  };
+
   return (
     <FeedbackClient
       promptId={promptData.id}
       classSchedule={enrichedSchedule}
       studentId={user.id}
+      sessionDateIso={prompt_sent_at ?? expires_at}
     />
   );
 }

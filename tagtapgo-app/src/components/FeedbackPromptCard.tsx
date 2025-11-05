@@ -182,7 +182,8 @@ export default function FeedbackPromptCard({
   };
 
   const getClassDateLabel = useCallback((prompt: FeedbackPrompt) => {
-    const raw = prompt.class_schedule?.start_time || prompt.prompt_sent_at || prompt.expires_at;
+    // Use prompt_sent_at (or expires_at) for the date label; start_time is TIME-only
+    const raw = prompt.prompt_sent_at || prompt.expires_at;
     if (!raw) return 'Date TBA';
 
     const date = new Date(raw);
@@ -198,6 +199,7 @@ export default function FeedbackPromptCard({
   }, []);
 
   const getClassTimeLabel = useCallback((prompt: FeedbackPrompt) => {
+    // Prefer schedule start_time for time; fall back to prompt_sent_at
     const raw = prompt.class_schedule?.start_time || prompt.prompt_sent_at;
     const formatted = formatTime(raw);
     return formatted === 'Invalid time' ? 'Time TBA' : formatted;

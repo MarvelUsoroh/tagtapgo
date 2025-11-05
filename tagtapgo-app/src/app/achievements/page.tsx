@@ -3,6 +3,9 @@
  * Fetches achievements data server-side
  */
 
+// Force dynamic rendering to ensure fresh data for authenticated users
+export const dynamic = 'force-dynamic';
+
 import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase-server';
 import AchievementsClient from './AchievementsClient';

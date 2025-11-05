@@ -112,7 +112,8 @@ export default async function FeedbackListPage() {
                       {prompt.class_schedule?.class?.name ?? 'Class'}
                     </p>
                     {(() => {
-                      const classDateRaw = prompt.class_schedule?.start_time || prompt.prompt_sent_at || prompt.expires_at;
+                      // Use prompt_sent_at (or expires_at) for the date label; start_time is TIME-only
+                      const classDateRaw = prompt.prompt_sent_at || prompt.expires_at;
                       const date = classDateRaw ? new Date(classDateRaw) : null;
                       const dateLabel = !date || Number.isNaN(date.getTime())
                         ? 'Date TBA'

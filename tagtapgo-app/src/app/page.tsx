@@ -3,6 +3,9 @@
  * Fetches data server-side to eliminate flash bug
  */
 
+// Force dynamic rendering to ensure fresh data for authenticated users
+export const dynamic = 'force-dynamic';
+
 import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase-server';
 import { ensureStudentProfile } from '@/lib/ensure-student';

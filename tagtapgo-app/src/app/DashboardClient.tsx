@@ -294,6 +294,18 @@ export default function DashboardClient({
         // Trigger comprehensive refresh
         refreshGamification();
       })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'student_achievements',
+        filter: `student_id=eq.${student.id}`,
+      }, () => {
+        // Decrement badge count when achievement is removed (cleanup/correction)
+        store.setBadgesCount(Math.max(0, store.badgesCount - 1));
+        
+        // Trigger comprehensive refresh to sync SSR and client state
+        refreshGamification();
+      })
       .subscribe();
 
     return () => {

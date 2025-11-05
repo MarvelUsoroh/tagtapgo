@@ -25,12 +25,14 @@ interface FeedbackClientProps {
   promptId: string;
   classSchedule: ClassSchedule;
   studentId: string;
+  sessionDateIso?: string | null; // Use prompt_sent_at (or expires_at) for date display
 }
 
 export default function FeedbackClient({
   promptId,
   classSchedule,
   studentId,
+  sessionDateIso,
 }: FeedbackClientProps) {
   const router = useRouter();
   const [contentQuality, setContentQuality] = useState(0);
@@ -116,11 +118,11 @@ export default function FeedbackClient({
                 {classSchedule.class.name}
               </h1>
               <p className="text-sm text-gray-600 mt-1">
-                {new Date(classSchedule.start_time).toLocaleDateString('en-US', {
+                {(sessionDateIso ? new Date(sessionDateIso) : null)?.toLocaleDateString('en-US', {
                   weekday: 'long',
                   month: 'long',
                   day: 'numeric',
-                })}{' '}
+                }) || 'Date TBA'}{' '}
                 • {formatTime(classSchedule.start_time)} -{' '}
                 {formatTime(classSchedule.end_time)}
               </p>
