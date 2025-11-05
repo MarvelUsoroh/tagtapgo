@@ -112,6 +112,24 @@ export default function NotificationSettingsPage() {
       title: 'Challenge Invitations',
       description: 'Get notified when friends challenge you',
     },
+    {
+      key: 'goal_achieved' as keyof NotificationPreferences,
+      icon: '🎯',
+      title: 'Goal Achieved',
+      description: 'Celebrate when you reach your attendance goal',
+    },
+    {
+      key: 'goal_behind' as keyof NotificationPreferences,
+      icon: '⚠️',
+      title: 'Goal Reminders',
+      description: 'Get reminded when falling behind on your attendance goal',
+    },
+    {
+      key: 'goal_progress' as keyof NotificationPreferences,
+      icon: '📊',
+      title: 'Weekly Progress Updates',
+      description: 'Receive weekly updates on your attendance goal progress',
+    },
   ];
 
   return (
@@ -287,7 +305,7 @@ export default function NotificationSettingsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50"
+            className="fixed bottom-24 left-4 right-4 z-50 flex justify-center"
           >
             <div
               className="flex items-center gap-2 px-4 py-3 rounded-full shadow-lg"

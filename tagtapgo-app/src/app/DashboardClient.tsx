@@ -5,10 +5,10 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, useMotionValue, animate } from 'framer-motion';
-import { Flame, Coins, Trophy, Target, TrendingUp, Calendar, Zap, Clock, AlertCircle, Snowflake } from 'lucide-react';
+import { Flame, Coins, Trophy, TrendingUp, Calendar, Zap, Clock, AlertCircle, Snowflake } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { Student, Streak } from '@/lib/supabase';
 import { useStore } from '@/store/useStore';
@@ -25,6 +25,8 @@ import NotificationsPanel from '@/components/NotificationsPanel';
 import Toast, { ToastType } from '@/components/Toast';
 import dynamic from 'next/dynamic';
 const FeedbackPromptCard = dynamic(() => import('@/components/FeedbackPromptCard'), { ssr: false });
+import AttendanceGoalCard from '@/components/AttendanceGoalCard';
+import AttendanceGoalModal from '@/components/AttendanceGoalModal';
 import { colors } from '@/lib/theme';
 
 interface Class {
@@ -75,7 +77,6 @@ export default function DashboardClient({
   // Use store values (synced across app)
   const totalPoints = store.totalPoints;
   const badgesCount = store.badgesCount;
-  const attRate = store.attendanceRate;
   
   // Local UI state
   const [countdown, setCountdown] = useState<string>('');
@@ -90,9 +91,66 @@ export default function DashboardClient({
   // Notifications panel state
   const [notificationsPanelOpen, setNotificationsPanelOpen] = useState(false);
   
+  // Attendance goal state
+  const [goalModalOpen, setGoalModalOpen] = useState(false);
+  const [goalSettings, setGoalSettings] = useState<{ type: 'weekly' | 'monthly'; target_percentage: number } | null>(null);
+  const [goalProgress, setGoalProgress] = useState<{ current: number; target: number; status: 'on_track' | 'behind' | 'achieved'; classes_attended: number; total_classes: number } | null>(null);
+  const [loadingGoal, setLoadingGoal] = useState(true);
+  
   // Count-up animation for points (SSR-safe: render plain number, animate on client)
   const pointsMotion = useMotionValue(initialPoints);
   const [displayPoints, setDisplayPoints] = useState<number>(initialPoints);
+
+  // Fetch attendance goal settings and progress
+  const fetchGoalData = useCallback(async () => {
+    if (!student?.id) return;
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // Fetch goal settings
+      const goalResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/attendance-goal`,
+        {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      if (goalResponse.ok) {
+        const goalData = await goalResponse.json();
+        setGoalSettings(goalData);
+
+        // Fetch goal progress
+        const progressResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/attendance-goal-progress`,
+          {
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
+          }
+        );
+
+        if (progressResponse.ok) {
+          const progressData = await progressResponse.json();
+          setGoalProgress(progressData);
+        }
+      }
+    } catch (error) {
+      console.error('[Dashboard] Error fetching goal data:', error);
+    } finally {
+      setLoadingGoal(false);
+    }
+  }, [student?.id]);
+
+  // Fetch goal data on mount
+  useEffect(() => {
+    fetchGoalData();
+  }, [fetchGoalData]);
 
   // Handle URL query parameters and show toast notifications
   useEffect(() => {
@@ -255,7 +313,7 @@ export default function DashboardClient({
     return () => clearInterval(interval);
   }, [todayClasses]);
 
-  // Realtime attendance changes -> recompute 30-day attendance rate
+  // Realtime attendance changes -> recompute 30-day attendance rate and goal progress
   useEffect(() => {
     if (!student?.id) return;
 
@@ -271,6 +329,9 @@ export default function DashboardClient({
         const newRate = Math.round((present / data.length) * 100);
         store.setAttendanceRate(newRate);
       }
+      
+      // Refresh goal progress
+      fetchGoalData();
     };
 
     const attendanceChannel = supabase
@@ -285,7 +346,7 @@ export default function DashboardClient({
     return () => {
       supabase.removeChannel(attendanceChannel);
     };
-  }, [student?.id, store, refreshGamification]);
+  }, [student?.id, store, refreshGamification, fetchGoalData]);
 
   // Countdown timer for next class
   useEffect(() => {
@@ -475,7 +536,7 @@ export default function DashboardClient({
         )}
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <StatCard
             icon={Calendar}
             value={`${todayCompleted}/${todayClasses.length}`}
@@ -488,13 +549,20 @@ export default function DashboardClient({
             label="Badges"
             color="gold"
           />
-          <StatCard
-            icon={Target}
-            value={`${attRate}%`}
-            label="Goal"
-            color="success"
-          />
         </div>
+
+        {/* Attendance Goal Card */}
+        {!loadingGoal && goalSettings && goalProgress && (
+          <AttendanceGoalCard
+            current={goalProgress.current}
+            target={goalProgress.target}
+            status={goalProgress.status}
+            goalType={goalSettings.type}
+            classesAttended={goalProgress.classes_attended}
+            totalClasses={goalProgress.total_classes}
+            onClick={() => setGoalModalOpen(true)}
+          />
+        )}
 
         {/* Today's Classes */}
         <TodayClasses studentId={student?.id || ''} />
@@ -521,6 +589,21 @@ export default function DashboardClient({
           studentId={student.id}
           isOpen={notificationsPanelOpen}
           onClose={() => setNotificationsPanelOpen(false)}
+        />
+      )}
+
+      {/* Attendance Goal Modal */}
+      {student && goalSettings && (
+        <AttendanceGoalModal
+          studentId={student.id}
+          isOpen={goalModalOpen}
+          onClose={() => setGoalModalOpen(false)}
+          currentGoal={goalSettings}
+          currentProgress={goalProgress || undefined}
+          onSave={() => {
+            fetchGoalData();
+            setToast({ message: '✅ Goal updated successfully!', type: 'success' });
+          }}
         />
       )}
     </div>

@@ -4,6 +4,7 @@
 // Schedule with pg_cron: SELECT cron.schedule('feedback-prompt-job', '*/5 * * * *', 'SELECT net.http_post(...)')
 
 import { createClient } from "npm:@supabase/supabase-js@2.32.0";
+import { DateTime } from "npm:luxon@3.4.3";
 import { getStudentsForClassSchedule } from "../_shared/services/schedule-query-helpers.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
@@ -20,16 +21,22 @@ Deno.serve(async (req: Request) => {
       auth: { persistSession: false },
     });
 
-    const now = new Date();
-    const fifteenMinutesAgo = new Date(now.getTime() - 15 * 60 * 1000);
-    const twentyMinutesAgo = new Date(now.getTime() - 20 * 60 * 1000);
+    const now = DateTime.utc();
+    const fifteenMinutesAgo = now.minus({ minutes: 15 });
+    const twentyMinutesAgo = now.minus({ minutes: 20 });
 
-    console.log(`[Feedback Prompt Job] Running at ${now.toISOString()}`);
-    console.log(`[Feedback Prompt Job] Looking for classes that ended between ${twentyMinutesAgo.toISOString()} and ${fifteenMinutesAgo.toISOString()}`);
+    console.log(`[Feedback Prompt Job] Running at ${now.toISO()}`);
+    console.log(`[Feedback Prompt Job] Looking for classes that ended between ${twentyMinutesAgo.toISO()} and ${fifteenMinutesAgo.toISO()}`);
 
-    // Find class schedules that ended 15-20 minutes ago (5-minute window to avoid duplicates)
-    // Note: class_schedules is a course template, not student-specific
-    // We need to find which students are enrolled in these courses
+    // Gather possible day names considering cross-timezone execution (±12 hours)
+    const candidateDays = Array.from(new Set([
+      now.minus({ hours: 12 }).toFormat("EEEE"),
+      now.toFormat("EEEE"),
+      now.plus({ hours: 12 }).toFormat("EEEE"),
+    ]));
+
+    // Find class schedules whose local end time is within the 15-20 minute window
+    // Join through courses → universities to capture timezone context
     const { data: classSchedules, error: scheduleError } = await supabase
       .from("class_schedules")
       .select(`
@@ -37,10 +44,19 @@ Deno.serve(async (req: Request) => {
         course_id,
         day_of_week,
         end_time,
-        class_id
+        class_id,
+        courses:course_id (
+          id,
+          code,
+          name,
+          university_id,
+          universities:university_id (
+            id,
+            timezone
+          )
+        )
       `)
-      .gte("end_time", twentyMinutesAgo.toISOString().split('T')[1].substring(0, 8))
-      .lte("end_time", fifteenMinutesAgo.toISOString().split('T')[1].substring(0, 8));
+      .in("day_of_week", candidateDays);
 
     if (scheduleError) {
       console.error("[Feedback Prompt Job] Error fetching class schedules:", scheduleError);
@@ -55,7 +71,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    console.log(`[Feedback Prompt Job] Found ${classSchedules.length} classes to process`);
+    console.log(`[Feedback Prompt Job] Found ${classSchedules.length} classes to process before timezone filtering`);
 
     let promptsCreated = 0;
     let notificationsSent = 0;
@@ -64,14 +80,37 @@ Deno.serve(async (req: Request) => {
     // Process each class schedule
     for (const schedule of classSchedules) {
       try {
-        // Calculate the date this schedule occurred (based on day_of_week and current time)
-        // Since we're looking at classes that ended 15-20 min ago, use current date
-        const scheduleDate = now.toISOString().split('T')[0];
-        
-        // Check if today matches the schedule's day_of_week
-        const todayDayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()];
-        if (schedule.day_of_week !== todayDayOfWeek) {
-          console.log(`[Feedback Prompt Job] Schedule ${schedule.id} day (${schedule.day_of_week}) doesn't match today (${todayDayOfWeek}), skipping`);
+        const timezone = schedule.courses?.universities?.timezone || "UTC";
+        const nowInTimezone = now.setZone(timezone);
+        const todayName = nowInTimezone.toFormat("EEEE");
+        const yesterdayName = nowInTimezone.minus({ days: 1 }).toFormat("EEEE");
+
+        let scheduleDayReference = nowInTimezone.startOf("day");
+        if (schedule.day_of_week === todayName) {
+          scheduleDayReference = nowInTimezone.startOf("day");
+        } else if (schedule.day_of_week === yesterdayName) {
+          scheduleDayReference = nowInTimezone.minus({ days: 1 }).startOf("day");
+        } else {
+          console.log(`[Feedback Prompt Job] Schedule ${schedule.id} day (${schedule.day_of_week}) is not today (${todayName}) or yesterday (${yesterdayName}) in ${timezone}, skipping`);
+          continue;
+        }
+
+        const [endHour, endMinute, endSecond] = schedule.end_time?.split(":").map(Number) ?? [];
+        if (endHour === undefined || endMinute === undefined || endSecond === undefined) {
+          console.log(`[Feedback Prompt Job] Schedule ${schedule.id} has invalid end_time (${schedule.end_time}), skipping`);
+          continue;
+        }
+
+        const scheduleEndLocal = scheduleDayReference.set({
+          hour: endHour,
+          minute: endMinute,
+          second: endSecond,
+          millisecond: 0,
+        });
+
+        const minutesSinceEnd = nowInTimezone.diff(scheduleEndLocal, "minutes").minutes;
+        if (minutesSinceEnd < 15 || minutesSinceEnd > 20) {
+          console.log(`[Feedback Prompt Job] Schedule ${schedule.id} in ${timezone} ended ${minutesSinceEnd.toFixed(2)} minutes ago, outside target window`);
           continue;
         }
 
@@ -91,7 +130,7 @@ Deno.serve(async (req: Request) => {
           .from("attendance")
           .select("student_id")
           .eq("course_id", schedule.course_id)
-          .eq("date", scheduleDate)
+          .eq("date", scheduleDayReference.toISODate())
           .in("status", ["present", "late", "excused"])
           .in("student_id", studentIds);
 
@@ -107,7 +146,9 @@ Deno.serve(async (req: Request) => {
         }
 
         // Create a Set for O(1) lookup of students who attended
-        const attendedStudentIds = new Set(attendanceRecords.map(a => a.student_id));
+        const attendedStudentIds = new Set(
+          attendanceRecords.map((a: { student_id: string }) => a.student_id)
+        );
         console.log(`[Feedback Prompt Job] ${attendedStudentIds.size} students attended for schedule ${schedule.id}`);
 
         // Create feedback prompts for students who attended
@@ -131,13 +172,14 @@ Deno.serve(async (req: Request) => {
             }
 
             // Create feedback prompt (expires in 24 hours)
-            const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+            const expiresAt = now.plus({ hours: 24 }).toISO();
             const { data: newPrompt, error: promptError } = await supabase
               .from("feedback_prompts")
               .insert({
                 student_id: student.student_id,
                 class_schedule_id: schedule.id,
-                expires_at: expiresAt.toISOString(),
+                prompt_sent_at: now.toISO(),
+                expires_at: expiresAt,
                 status: "pending",
               })
               .select()
@@ -215,7 +257,7 @@ Deno.serve(async (req: Request) => {
 
     const result = {
       success: true,
-      timestamp: now.toISOString(),
+      timestamp: now.toISO(),
       classesProcessed: classSchedules.length,
       promptsCreated,
       notificationsSent,
@@ -234,7 +276,7 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({
         success: false,
         error: String(error),
-        timestamp: new Date().toISOString(),
+        timestamp: DateTime.utc().toISO(),
       }),
       {
         status: 500,

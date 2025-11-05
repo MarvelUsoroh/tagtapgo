@@ -192,9 +192,41 @@ Deno.serve(async (req) => {
         },
       }
     );
-    // Store notification in database FIRST (before attempting push)
-    // This ensures notifications are always saved even if push fails
+    // Resolve preferences BEFORE deciding in-app (DB) vs push delivery
     const notifType = data?.type ?? "other";
+
+    // Read user notification preferences
+    const { data: studentRow } = await supabaseService
+      .from("students")
+      .select("settings")
+      .eq("id", studentId)
+      .single();
+
+    const rawPrefs = studentRow?.settings?.notifications ?? {};
+    // Back-compat: boolean means both in-app and push; object allows split { inApp, push }
+    const prefValue = rawPrefs?.[notifType];
+    const inAppEnabled = typeof prefValue === 'object'
+      ? prefValue?.inApp !== false
+      : prefValue !== false; // default true
+    const pushEnabled = typeof prefValue === 'object'
+      ? prefValue?.push !== false
+      : prefValue !== false; // default true
+
+    if (!inAppEnabled && !pushEnabled) {
+      console.log(`Notification ${notifType} disabled for ${studentId} (in-app and push)`);
+      return new Response(
+        JSON.stringify({
+          message: "Notification disabled by user preferences",
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            ...CORS_HEADERS,
+          },
+        }
+      );
+    }
     
     // For achievement notifications, check if one already exists to avoid duplicates
     if (notifType === 'achievement' && data?.achievementName) {
@@ -226,28 +258,47 @@ Deno.serve(async (req) => {
       }
     }
     
-    // Create notification record
-    const { data: notificationRecord, error: notifError } = await supabaseService
-      .from("notifications")
-      .insert({
-        student_id: studentId,
-        notification_type: notifType,
-        title,
-        message: messageBody,
-        data: data || {},
-        read: false,
-      })
-      .select()
-      .single();
-    
-    if (notifError) {
-      console.error("Failed to create notification record:", notifError);
-      // Continue anyway - we'll still try to send the push
-    } else {
-      console.log(`Created notification record ${notificationRecord.id} for student ${studentId}`);
+    // Create notification record (in-app) only if enabled
+    let notificationRecord: any = null;
+    if (inAppEnabled) {
+      const { data: created, error: notifError } = await supabaseService
+        .from("notifications")
+        .insert({
+          student_id: studentId,
+          notification_type: notifType,
+          title,
+          message: messageBody,
+          data: data || {},
+          read: false,
+        })
+        .select()
+        .single();
+      if (notifError) {
+        console.error("Failed to create notification record:", notifError);
+      } else {
+        notificationRecord = created;
+        console.log(`Created notification record ${notificationRecord.id} for student ${studentId}`);
+      }
     }
     
     // Fetch subscription
+    if (!pushEnabled) {
+      // If push disabled, return success if we stored in-app, otherwise just acknowledge
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: inAppEnabled ? "Notification saved (push disabled)" : "Notification disabled (push off, no in-app)",
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            ...CORS_HEADERS,
+          },
+        }
+      );
+    }
+
     const { data: subscriptionRow, error: subError } = await supabaseService
       .from("push_subscriptions")
       .select("subscription")
@@ -290,28 +341,7 @@ Deno.serve(async (req) => {
         }
       );
     }
-    // Optionally check user preferences (read-only; use service role to avoid RLS edge cases)
-    const { data: studentRow } = await supabaseService
-      .from("students")
-      .select("settings")
-      .eq("id", studentId)
-      .single();
-    const prefs = studentRow?.settings?.notifications ?? {};
-    if (prefs[notifType] === false) {
-      console.log(`Notification type ${notifType} disabled for ${studentId}`);
-      return new Response(
-        JSON.stringify({
-          message: "Notification type disabled by user",
-        }),
-        {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-            ...CORS_HEADERS,
-          },
-        }
-      );
-    }
+    // Preference check already handled above
     // Prepare payload
     const notificationPayload = {
       title,

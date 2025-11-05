@@ -11,7 +11,10 @@ export type NotificationType =
   | 'feedback_prompt'
   | 'points_milestone'
   | 'perfect_week'
-  | 'perfect_month';
+  | 'perfect_month'
+  | 'goal_achieved'
+  | 'goal_behind'
+  | 'goal_progress';
 
 export type NotificationPreferences = {
   achievement: boolean;
@@ -23,6 +26,9 @@ export type NotificationPreferences = {
   points_milestone: boolean;
   perfect_week: boolean;
   perfect_month: boolean;
+  goal_achieved: boolean;
+  goal_behind: boolean;
+  goal_progress: boolean;
 };
 
 const DEFAULT_PREFERENCES: NotificationPreferences = {
@@ -35,6 +41,9 @@ const DEFAULT_PREFERENCES: NotificationPreferences = {
   points_milestone: true,
   perfect_week: true,
   perfect_month: true,
+  goal_achieved: true,
+  goal_behind: true,
+  goal_progress: true,
 };
 
 /**
