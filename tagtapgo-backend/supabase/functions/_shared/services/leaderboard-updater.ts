@@ -69,6 +69,18 @@ export interface RankChange {
   points: number;
 }
 
+// Batched rank changes per student per period
+interface BatchedRankChange {
+  student_id: string;
+  period: "weekly" | "monthly" | "all_time";
+  changes: Array<{
+    leaderboard_type: "class" | "year" | "school";
+    old_rank: number;
+    new_rank: number;
+    is_significant: boolean;
+  }>;
+}
+
 /**
  * Update all leaderboards for active students
  *
@@ -102,6 +114,9 @@ export async function updateLeaderboards(
     return [];
   }
 
+  // Batch rank changes by student and period
+  const batchedChanges = new Map<string, BatchedRankChange[]>();
+
   // Update each leaderboard type and period
   const leaderboardTypes: Array<"class" | "year" | "school"> = [
     "class",
@@ -122,7 +137,8 @@ export async function updateLeaderboards(
           const classResults = await updateClassLeaderboards(
             supabase,
             period,
-            processStudentIds
+            processStudentIds,
+            batchedChanges
           );
           results.push(...classResults);
         } else {
@@ -131,7 +147,9 @@ export async function updateLeaderboards(
             supabase,
             type,
             period,
-            processStudentIds
+            processStudentIds,
+            undefined,
+            batchedChanges
           );
           results.push(result);
         }
@@ -154,6 +172,9 @@ export async function updateLeaderboards(
     }
   }
 
+  // Send batched rank change notifications
+  await sendBatchedRankNotifications(supabase, batchedChanges);
+
   return results;
 }
 
@@ -163,7 +184,8 @@ export async function updateLeaderboards(
 async function updateClassLeaderboards(
   supabase: SupabaseClient,
   period: "weekly" | "monthly" | "all_time",
-  studentIds: string[]
+  studentIds: string[],
+  batchedChanges: Map<string, BatchedRankChange[]>
 ): Promise<LeaderboardUpdateResult[]> {
   if (studentIds.length === 0) {
     console.log('[Leaderboard Updater] No students to process for class leaderboards');
@@ -194,7 +216,8 @@ async function updateClassLeaderboards(
       period_start,
       period_end,
       studentIds,
-      primaryClasses
+      primaryClasses,
+      batchedChanges
     );
 
     console.log(`[Leaderboard Updater] Completed unified class leaderboard update: ${result.entries_updated} entries`);
@@ -224,7 +247,8 @@ async function updateUnifiedClassLeaderboard(
   periodStart: string,
   periodEnd: string,
   studentIds: string[],
-  primaryClasses: Map<string, string | null>
+  primaryClasses: Map<string, string | null>,
+  batchedChanges: Map<string, BatchedRankChange[]>
 ): Promise<LeaderboardUpdateResult> {
   const result: LeaderboardUpdateResult = {
     leaderboard_type: "class",
@@ -276,7 +300,7 @@ async function updateUnifiedClassLeaderboard(
       studentIds
     );
 
-    // Detect rank changes
+    // Detect rank changes and batch them
     for (const ranking of rankings) {
       const existing = existingMap.get(ranking.student_id);
       const oldRank = existing?.rank || null;
@@ -290,17 +314,19 @@ async function updateUnifiedClassLeaderboard(
           points: ranking.points,
         });
 
-        // Send rank change notification if significant
-        if (oldRank - newRank >= 5 || (newRank <= 3 && oldRank > 3)) {
-          await sendRankChangeNotification(
-            supabase,
-            ranking.student_id,
-            oldRank,
-            newRank,
-            "class",
-            period
-          );
-        }
+        // Check if change is significant
+        const isSignificant = oldRank - newRank >= 5 || (newRank <= 3 && oldRank > 3);
+
+        // Add to batched changes instead of sending immediately
+        addToBatchedChanges(
+          batchedChanges,
+          ranking.student_id,
+          period,
+          "class",
+          oldRank,
+          newRank,
+          isSignificant
+        );
       }
     }
 
@@ -379,7 +405,8 @@ async function updateLeaderboard(
   type: "class" | "year" | "school",
   period: "weekly" | "monthly" | "all_time",
   studentIds: string[],
-  courseId?: string
+  courseId?: string,
+  batchedChanges?: Map<string, BatchedRankChange[]>
 ): Promise<LeaderboardUpdateResult> {
   const result: LeaderboardUpdateResult = {
     leaderboard_type: type,
@@ -427,7 +454,7 @@ async function updateLeaderboard(
     courseId
   );
 
-  // Detect rank changes
+  // Detect rank changes and batch them
   for (const ranking of rankings) {
     const existing = existingEntries.find(
       (e) => e.student_id === ranking.student_id
@@ -443,15 +470,19 @@ async function updateLeaderboard(
         points: ranking.points,
       });
 
-      // Send rank change notification if significant (moved up 5+ places or into top 3)
-      if (oldRank - newRank >= 5 || (newRank <= 3 && oldRank > 3)) {
-        await sendRankChangeNotification(
-          supabase,
+      // Check if change is significant (moved up 5+ places or into top 3)
+      const isSignificant = oldRank - newRank >= 5 || (newRank <= 3 && oldRank > 3);
+
+      // Add to batched changes if batching is enabled
+      if (batchedChanges) {
+        addToBatchedChanges(
+          batchedChanges,
           ranking.student_id,
+          period,
+          type,
           oldRank,
           newRank,
-          type,
-          period
+          isSignificant
         );
       }
     }
@@ -734,96 +765,157 @@ async function calculateRankings(
 }
 
 /**
- * Send rank change notification
+ * Add rank change to batched changes
  */
-async function sendRankChangeNotification(
-  supabase: SupabaseClient,
+function addToBatchedChanges(
+  batchedChanges: Map<string, BatchedRankChange[]>,
   studentId: string,
+  period: "weekly" | "monthly" | "all_time",
+  leaderboardType: "class" | "year" | "school",
   oldRank: number,
   newRank: number,
-  type: "class" | "year" | "school",
-  period: "weekly" | "monthly" | "all_time"
-): Promise<void> {
-  const isImprovement = newRank < oldRank;
-  const rankChange = Math.abs(oldRank - newRank);
-  const direction = isImprovement ? "up" : "down";
-  const emoji = isImprovement ? "📈" : "📉";
-
-  // Format leaderboard type for display
-  const leaderboardName =
-    type === "class" ? "Class" : type === "year" ? "Year" : "School";
-  const periodName =
-    period === "weekly"
-      ? "Weekly"
-      : period === "monthly"
-        ? "Monthly"
-        : "All-Time";
-
-  let message = "";
-  if (newRank <= 3 && isImprovement) {
-    const medals = ["🥇", "🥈", "🥉"];
-    message = `${medals[newRank - 1]} You're now #${newRank} on the ${leaderboardName} ${periodName} leaderboard!`;
-  } else {
-    message = `You moved ${direction} ${rankChange} ${rankChange === 1 ? "place" : "places"} to #${newRank} on the ${leaderboardName} ${periodName} leaderboard!`;
+  isSignificant: boolean
+): void {
+  const key = `${studentId}:${period}`;
+  
+  if (!batchedChanges.has(key)) {
+    batchedChanges.set(key, []);
   }
 
-  // Store notification in database
-  const { error: dbError } = await supabase.from("notifications").insert({
-    student_id: studentId,
-    notification_type: "rank",
-    title: `${emoji} Rank Update!`,
-    message,
-    data: {
-      leaderboard_type: type,
+  const batches = batchedChanges.get(key)!;
+  let batch = batches.find(b => b.period === period);
+
+  if (!batch) {
+    batch = {
+      student_id: studentId,
       period,
-      old_rank: oldRank,
-      new_rank: newRank,
-      is_improvement: isImprovement,
-    },
-    read: false,
-    created_at: new Date().toISOString(),
-  });
-
-  if (dbError) {
-    console.error(
-      "[Leaderboard Updater] Error storing rank change notification:",
-      dbError
-    );
+      changes: [],
+    };
+    batches.push(batch);
   }
 
-  // Send push notification (non-blocking)
-  try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  batch.changes.push({
+    leaderboard_type: leaderboardType,
+    old_rank: oldRank,
+    new_rank: newRank,
+    is_significant: isSignificant,
+  });
+}
 
-    if (!supabaseUrl || !serviceRoleKey) {
-      console.warn(
-        "[Leaderboard Updater] Missing environment variables, skipping push notification"
-      );
-      return;
+/**
+ * Send batched rank change notifications
+ */
+async function sendBatchedRankNotifications(
+  supabase: SupabaseClient,
+  batchedChanges: Map<string, BatchedRankChange[]>
+): Promise<void> {
+  for (const [key, batches] of batchedChanges.entries()) {
+    for (const batch of batches) {
+      // Only send if at least one change is significant
+      const hasSignificantChange = batch.changes.some(c => c.is_significant);
+      if (!hasSignificantChange) {
+        continue;
+      }
+
+      const periodName =
+        batch.period === "weekly"
+          ? "Weekly"
+          : batch.period === "monthly"
+            ? "Monthly"
+            : "All-Time";
+
+      // Build message with all rank changes
+      const changeLines = batch.changes.map(change => {
+        const leaderboardName =
+          change.leaderboard_type === "class"
+            ? "Class"
+            : change.leaderboard_type === "year"
+              ? "Year"
+              : "School";
+        
+        const isImprovement = change.new_rank < change.old_rank;
+        const rankDiff = Math.abs(change.old_rank - change.new_rank);
+        const arrow = isImprovement ? "↑" : "↓";
+        
+        return `• ${leaderboardName}: #${change.new_rank} (${arrow}${rankDiff})`;
+      });
+
+      const title = `🏆 ${periodName} Leaderboard Update!`;
+      const message = `You're climbing the ranks:\n${changeLines.join("\n")}`;
+
+      // Store notification in database
+      const { error: dbError } = await supabase.from("notifications").insert({
+        student_id: batch.student_id,
+        notification_type: "rank",
+        title,
+        message,
+        data: {
+          period: batch.period,
+          changes: batch.changes,
+          batched: true,
+        },
+        read: false,
+        created_at: new Date().toISOString(),
+      });
+
+      if (dbError) {
+        console.error(
+          "[Leaderboard Updater] Error storing batched rank notification:",
+          dbError
+        );
+        continue;
+      }
+
+      // Send push notification (non-blocking)
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL");
+        const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+        if (!supabaseUrl || !serviceRoleKey) {
+          console.warn(
+            "[Leaderboard Updater] Missing environment variables, skipping push notification"
+          );
+          continue;
+        }
+
+        // Send via send-push-notification Edge Function
+        const response = await fetch(
+          `${supabaseUrl}/functions/v1/send-push-notification`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${serviceRoleKey}`,
+            },
+            body: JSON.stringify({
+              studentId: batch.student_id,
+              title,
+              body: message,
+              data: {
+                type: "rank",
+                period: batch.period,
+                changes: batch.changes,
+                batched: true,
+              },
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          console.error(
+            `[Leaderboard Updater] Failed to send batched push notification: ${response.status}`
+          );
+        } else {
+          console.log(
+            `[Leaderboard Updater] Sent batched rank notification to student ${batch.student_id} (${batch.changes.length} changes)`
+          );
+        }
+      } catch (error) {
+        console.error(
+          "[Leaderboard Updater] Error sending batched push notification:",
+          error
+        );
+      }
     }
-
-    const { sendRankChangeNotification: sendPush } = await import(
-      "./notification-sender.ts"
-    );
-
-    await sendPush(
-      supabaseUrl,
-      serviceRoleKey,
-      studentId,
-      oldRank,
-      newRank,
-      `${leaderboardName} ${periodName}`,
-      isImprovement
-    );
-
-    console.log(
-      `[Leaderboard Updater] Sent rank change push notification to student ${studentId}`
-    );
-  } catch (error) {
-    console.error(
-      "[Leaderboard Updater] Error sending rank change push notification:",
-      error
-    );
   }
 }

@@ -228,35 +228,9 @@ Deno.serve(async (req) => {
       );
     }
     
-    // For achievement notifications, check if one already exists to avoid duplicates
-    if (notifType === 'achievement' && data?.achievementName) {
-      const { data: existing } = await supabaseService
-        .from("notifications")
-        .select('id')
-        .eq('student_id', studentId)
-        .eq('notification_type', 'achievement')
-        .eq('data->>achievementName', data.achievementName)
-        .gte('created_at', new Date(Date.now() - 60000).toISOString()) // Within last minute
-        .limit(1)
-        .single();
-      
-      if (existing) {
-        console.log('Notification already exists, skipping duplicate');
-        return new Response(
-          JSON.stringify({
-            success: true,
-            message: "Notification already exists",
-          }),
-          {
-            status: 200,
-            headers: {
-              "Content-Type": "application/json",
-              ...CORS_HEADERS,
-            },
-          }
-        );
-      }
-    }
+    // Note: Do not suppress achievement push based on existing DB records.
+    // Producers may store in-app notifications before calling this endpoint;
+    // we still deliver push to ensure parity between in-app and push.
     
     // Create notification record (in-app) only if enabled
     let notificationRecord: any = null;
