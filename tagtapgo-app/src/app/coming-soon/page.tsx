@@ -17,7 +17,7 @@ export default function ComingSoonPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 safe-area-top" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
-        <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="max-w-5xl mx-auto px-4 py-4">
           <button
             onClick={() => router.back()}
             className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"

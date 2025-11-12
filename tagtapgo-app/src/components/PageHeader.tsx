@@ -37,7 +37,7 @@ export default function PageHeader({
         ...(isGradient ? {} : { borderColor: colors.gray[200] })
       }}
     >
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         {/* Title Section */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">

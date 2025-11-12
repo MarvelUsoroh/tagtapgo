@@ -82,7 +82,7 @@ export default function ProfileClient({
     <div className="min-h-screen bg-gray-50" style={{ paddingBottom: 'var(--bottom-nav-height)' }}>
       {/* Custom Profile Header with extended gradient for overlapping card */}
       <div className="bg-gradient-to-br from-primary via-primary-dark to-success text-white px-6 pb-20 safe-area-top" style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top))' }}>
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold">Profile</h1>
             <button
@@ -97,7 +97,7 @@ export default function ProfileClient({
       </div>
 
       {/* Profile Card - Overlapping Header */}
-      <div className="px-4 -mt-16">
+      <div className="max-w-5xl mx-auto px-4 -mt-16">
         {incompleteProfile && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}

@@ -149,7 +149,7 @@ export default function RewardsClient({
 
       {/* Tabs */}
       <div className="bg-white border-b" style={{ borderColor: colors.gray[200] }}>
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="max-w-5xl mx-auto px-4">
           <div className="flex gap-1">
             {(['catalog', 'history'] as TabType[]).map((tab) => (
               <button
@@ -172,7 +172,7 @@ export default function RewardsClient({
       </div>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 pt-6 pb-8">
+      <main className="max-w-5xl mx-auto px-4 pt-6 pb-8">
         {activeTab === 'catalog' ? (
           <>
             {/* Category Filters */}
