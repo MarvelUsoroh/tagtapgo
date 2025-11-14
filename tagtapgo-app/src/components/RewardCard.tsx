@@ -7,14 +7,38 @@ import { colors } from '@/lib/theme';
 import { cn, formatNumber } from '@/lib/utils';
 import { cardHover, buttonPress } from '@/lib/animations';
 import type { Reward } from '@/lib/supabase';
+import { trackRewardView, getOrCreateSessionId } from '@/lib/reward-analytics';
 
 interface RewardCardProps {
   reward: Reward;
   onRedeem: (rewardId: string) => void;
   disabled?: boolean;
+  studentId?: string;
+  referralSource?: 'browse' | 'notification' | 'leaderboard' | 'achievement' | 'search';
 }
 
-export default function RewardCard({ reward, onRedeem, disabled = false }: RewardCardProps) {
+export default function RewardCard({ 
+  reward, 
+  onRedeem, 
+  disabled = false,
+  studentId,
+  referralSource = 'browse'
+}: RewardCardProps) {
+  
+  // Track view when card is clicked
+  const handleClick = () => {
+    if (disabled) return;
+    
+    // Track the view
+    if (studentId) {
+      const sessionId = getOrCreateSessionId();
+      trackRewardView(studentId, reward.id, referralSource, sessionId);
+    }
+    
+    // Call the redeem handler
+    onRedeem(reward.id);
+  };
+  
   const getBadgeStyles = (badge: string) => {
     if (badge === 'popular') {
       return {
@@ -105,7 +129,7 @@ export default function RewardCard({ reward, onRedeem, disabled = false }: Rewar
 
           <motion.button
             {...(disabled ? {} : buttonPress)}
-            onClick={() => !disabled && onRedeem(reward.id)}
+            onClick={handleClick}
             disabled={disabled}
             className="font-semibold px-4 py-2 rounded-lg transition-colors duration-200"
             style={{

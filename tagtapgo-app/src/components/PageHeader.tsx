@@ -29,12 +29,12 @@ export default function PageHeader({
       className={cn(
         'px-6 pb-6 safe-area-top',
         isGradient
-          ? 'bg-gradient-to-br from-primary via-primary-dark to-success text-white'
+          ? 'text-white'
           : 'bg-white border-b'
       )}
       style={{
         paddingTop: 'calc(1.5rem + env(safe-area-inset-top))',
-        ...(isGradient ? {} : { borderColor: colors.gray[200] })
+        ...(isGradient ? { backgroundColor: colors.primary.dark } : { borderColor: colors.gray[200] })
       }}
     >
       <div className="max-w-5xl mx-auto">

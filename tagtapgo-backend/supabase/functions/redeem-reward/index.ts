@@ -2,6 +2,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { sendRewardRedemptionNotification } from '../_shared/services/notification-sender.ts'
+import { createRedemptionAnalytics } from '../_shared/services/reward-analytics.ts'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -147,7 +148,15 @@ Deno.serve(async (req: Request) => {
         .eq('id', reward_id)
     }
 
-    // Attempt to send reward redemption notification (non-blocking)
+    // 8. Create redemption analytics (non-blocking)
+    try {
+      await createRedemptionAnalytics(supabase, redemption.id)
+    } catch (analyticsError) {
+      console.error('Failed to create redemption analytics:', analyticsError)
+      // Don't fail the redemption if analytics fails
+    }
+
+    // 9. Attempt to send reward redemption notification (non-blocking)
     try {
       const supabaseEnvUrl = Deno.env.get('SUPABASE_URL')
       const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')

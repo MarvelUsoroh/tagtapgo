@@ -21,7 +21,7 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t z-50" style={{ borderColor: colors.gray[200], paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      <div className="flex justify-around items-center" style={{ minHeight: `${UI_CONFIG.MIN_TOUCH_TARGET}px` }}>
+      <div className="max-w-5xl mx-auto flex justify-around items-center" style={{ minHeight: `${UI_CONFIG.MIN_TOUCH_TARGET}px` }}>
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
