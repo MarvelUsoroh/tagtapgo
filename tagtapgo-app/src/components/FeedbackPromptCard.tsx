@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Clock, ChevronRight } from 'lucide-react';
-import { cn, formatTime } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { colors } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 
@@ -21,14 +21,28 @@ interface FeedbackPrompt {
     day_of_week: string;
     class: {
       id: string;
-      name: string;
+      section: string;
       course: {
         code: string;
+        name: string;
       };
     };
     start_time: string | null;
     end_time: string | null;
-  };
+  } | {
+    id: string;
+    day_of_week: string;
+    class: {
+      id: string;
+      section: string;
+      course: {
+        code: string;
+        name: string;
+      };
+    };
+    start_time: string | null;
+    end_time: string | null;
+  }[];
 }
 
 interface FeedbackPromptCardProps {
@@ -69,10 +83,10 @@ export default function FeedbackPromptCard({
           status,
           prompt_sent_at,
           created_at,
-          class_schedule:class_schedules!inner(
+          class_schedule:class_schedules(
             id,
             day_of_week,
-            class:classes!inner(
+            class:classes(
               id,
               section,
               course:courses(
@@ -181,6 +195,13 @@ export default function FeedbackPromptCard({
     router.push(`/feedback/${promptId}`);
   };
 
+  const getClassSchedule = useCallback((prompt: FeedbackPrompt) => {
+    // Handle both single object and array responses from Supabase
+    return Array.isArray(prompt.class_schedule) 
+      ? prompt.class_schedule[0] 
+      : prompt.class_schedule;
+  }, []);
+
   const getClassDateLabel = useCallback((prompt: FeedbackPrompt) => {
     // Use prompt_sent_at (or expires_at) for the date label; start_time is TIME-only
     const raw = prompt.prompt_sent_at || prompt.expires_at;
@@ -199,11 +220,22 @@ export default function FeedbackPromptCard({
   }, []);
 
   const getClassTimeLabel = useCallback((prompt: FeedbackPrompt) => {
-    // Prefer schedule start_time for time; fall back to prompt_sent_at
-    const raw = prompt.class_schedule?.start_time || prompt.prompt_sent_at;
-    const formatted = formatTime(raw);
-    return formatted === 'Invalid time' ? 'Time TBA' : formatted;
-  }, []);
+    // start_time is a TIME string like "09:00:00", format it directly
+    const schedule = getClassSchedule(prompt);
+    const timeStr = schedule?.start_time;
+    if (!timeStr) return 'Time TBA';
+    
+    try {
+      const [hours, minutes] = timeStr.split(':');
+      const hour = parseInt(hours, 10);
+      const min = parseInt(minutes, 10);
+      const period = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+      return `${displayHour}:${min.toString().padStart(2, '0')} ${period}`;
+    } catch {
+      return 'Time TBA';
+    }
+  }, [getClassSchedule]);
 
   // Don't render if loading or no prompts
   if (loading) {
@@ -268,10 +300,12 @@ export default function FeedbackPromptCard({
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-gray-900 truncate">
-                    {prompt.class_schedule.class.course?.code
-                      ? `${prompt.class_schedule.class.course.code}: `
-                      : ''}
-                    {prompt.class_schedule.class.name}
+                    {(() => {
+                      const schedule = getClassSchedule(prompt);
+                      const courseCode = schedule?.class?.course?.code;
+                      const courseName = schedule?.class?.course?.name || 'Class';
+                      return courseCode ? `${courseCode}: ${courseName}` : courseName;
+                    })()}
                   </p>
                   <p className="text-sm text-gray-600 mt-1">
                     {getClassDateLabel(prompt)} • {getClassTimeLabel(prompt)}
