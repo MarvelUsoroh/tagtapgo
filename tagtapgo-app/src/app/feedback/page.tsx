@@ -106,10 +106,10 @@ export default async function FeedbackListPage({
             </Link>
             <div>
               <h1 className="text-xl font-bold" style={{ color: colors.gray[900] }}>
-                Pending Feedback
+                Pending Reflections
               </h1>
               <p className="text-sm" style={{ color: colors.gray[600] }}>
-                {prompts.length} {prompts.length === 1 ? 'class' : 'classes'} waiting for your feedback
+                {prompts.length} {prompts.length === 1 ? 'class' : 'classes'} waiting for your review
               </p>
             </div>
           </div>
@@ -211,7 +211,7 @@ export default async function FeedbackListPage({
                       alignItems: 'center',
                     }}
                   >
-                    Give Feedback
+                    Give Review
                   </Link>
                 </div>
               </li>

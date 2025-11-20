@@ -13,11 +13,12 @@ import { useVenusChat } from '@/hooks/useVenusChat';
 
 interface VenusChatContainerProps {
   sessionId: string;
+  classScheduleId: string;
   courseName: string;
   topic: string;
 }
 
-export default function VenusChatContainer({ sessionId, courseName, topic }: VenusChatContainerProps) {
+export default function VenusChatContainer({ sessionId, classScheduleId, courseName, topic }: VenusChatContainerProps) {
   const router = useRouter();
   const { 
     messages, 
@@ -27,7 +28,7 @@ export default function VenusChatContainer({ sessionId, courseName, topic }: Ven
     quickReplies, 
     sendMessage, 
     startChat 
-  } = useVenusChat(sessionId);
+  } = useVenusChat(sessionId, classScheduleId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -69,8 +70,16 @@ export default function VenusChatContainer({ sessionId, courseName, topic }: Ven
       header={Header}
       input={
         status === 'completed' ? (
-          <div className="p-4 text-center bg-green-50 text-green-700 font-medium rounded-t-xl">
-            Conversation Complete! 🎉
+          <div className="p-4 flex flex-col gap-3 bg-white border-t border-gray-100">
+            <div className="text-center bg-green-50 text-green-700 font-medium p-3 rounded-lg border border-green-100">
+              Conversation Complete! 🎉
+            </div>
+            <button 
+              onClick={() => router.push('/')}
+              className="w-full py-3 bg-black text-white rounded-xl font-semibold hover:bg-gray-800 transition-colors shadow-sm"
+            >
+              Back to Dashboard
+            </button>
           </div>
         ) : (
           <div>

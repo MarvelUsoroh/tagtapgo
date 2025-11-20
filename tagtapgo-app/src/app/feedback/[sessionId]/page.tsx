@@ -70,9 +70,16 @@ export default async function FeedbackPage({ params }: PageProps) {
 
   // Extract course and class information
   // Handle both single object and array responses from Supabase
+  // Extract course and class information
+  // Handle both single object and array responses from Supabase
   const classSchedule = Array.isArray(prompt.class_schedule) 
     ? prompt.class_schedule[0] 
     : prompt.class_schedule;
+
+  if (!classSchedule) {
+    redirect('/feedback?error=schedule_not_found');
+  }
+
   const classInfoRaw = classSchedule?.class;
   const classInfo = Array.isArray(classInfoRaw) ? classInfoRaw[0] : classInfoRaw;
   const courseInfo = classInfo?.course;
@@ -91,6 +98,7 @@ export default async function FeedbackPage({ params }: PageProps) {
   return (
     <VenusChatContainer 
       sessionId={params.sessionId}
+      classScheduleId={classSchedule.id}
       courseName={displayName}
       topic={topic}
     />

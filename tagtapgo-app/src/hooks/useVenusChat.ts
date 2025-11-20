@@ -47,32 +47,38 @@ const triggerConfetti = async () => {
   }
 };
 
-export function useVenusChat(sessionId: string) {
+export function useVenusChat(promptId: string, classScheduleId: string) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [status, setStatus] = useState<'idle' | 'thinking' | 'completed'>('idle');
   const [turn, setTurn] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [quickReplies, setQuickReplies] = useState<string[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(null);
 
   // Load from localStorage on mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(`venus-chat-${sessionId}`);
+      const saved = localStorage.getItem(`venus-chat-${promptId}`);
       if (saved) {
         const { 
           messages: savedMessages, 
           turn: savedTurn, 
-          status: savedStatus 
+          status: savedStatus,
+          conversationId: savedConvId
         } = JSON.parse(saved);
+        
         // Add timestamps if missing
         const messagesWithTimestamps = savedMessages.map((msg: Message) => ({
           ...msg,
           timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
         }));
+        
         setMessages(messagesWithTimestamps);
         setTurn(savedTurn);
         setStatus(savedStatus);
+        if (savedConvId) setConversationId(savedConvId);
+        
         // Set appropriate quick replies
         const turnKeys = ['recall', 'elaboration', 'gap', 'closing'] as const;
         setQuickReplies(QUICK_REPLIES[turnKeys[savedTurn]] || []);
@@ -80,25 +86,57 @@ export function useVenusChat(sessionId: string) {
     } catch (err) {
       console.error('Failed to load saved chat:', err);
     }
-  }, [sessionId]);
+  }, [promptId]);
 
   // Save to localStorage when state changes
   useEffect(() => {
     if (messages.length > 0) {
       try {
-        localStorage.setItem(`venus-chat-${sessionId}`, JSON.stringify({ 
+        localStorage.setItem(`venus-chat-${promptId}`, JSON.stringify({ 
           messages, 
           turn, 
-          status 
+          status,
+          conversationId
         }));
       } catch (err) {
         console.error('Failed to save chat:', err);
       }
     }
-  }, [messages, turn, status, sessionId]);
+  }, [messages, turn, status, conversationId, promptId]);
+
+  // Create conversation in DB if not exists
+  const ensureConversation = async () => {
+    if (conversationId) return conversationId;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // Check if one exists for this prompt (metadata check) or just create new
+      // For MVP, we'll create a new one and link it to the prompt via metadata
+      const { data, error } = await supabase
+        .from('feedback_conversations')
+        .insert({
+          student_id: user.id,
+          class_schedule_id: classScheduleId,
+          metadata: { prompt_id: promptId }
+        })
+        .select('id')
+        .single();
+
+      if (error) throw error;
+      
+      setConversationId(data.id);
+      return data.id;
+    } catch (err) {
+      console.error('Failed to create conversation:', err);
+      setError('Failed to start conversation. Please try again.');
+      return null;
+    }
+  };
 
   // Award points API call
-  const awardPoints = async () => {
+  const awardPoints = async (convId: string) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return;
@@ -112,7 +150,7 @@ export function useVenusChat(sessionId: string) {
             Authorization: `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({
-            conversation_id: sessionId,
+            conversation_id: convId,
           }),
         }
       );
@@ -134,8 +172,11 @@ export function useVenusChat(sessionId: string) {
   };
 
   // Initialize chat
-  const startChat = useCallback(() => {
+  const startChat = useCallback(async () => {
     if (messages.length > 0) return;
+    
+    // Create conversation record
+    await ensureConversation();
     
     const randomStart = TEMPLATES.recall[Math.floor(Math.random() * TEMPLATES.recall.length)];
     setIsTyping(true);
@@ -152,12 +193,19 @@ export function useVenusChat(sessionId: string) {
       setIsTyping(false);
       setStatus('idle');
     }, 1000);
-  }, [messages.length]);
+  }, [messages.length]); // Removed ensureConversation from deps to avoid loop, it's stable enough or we can use ref
 
   const sendMessage = async (content: string) => {
     try {
       setError(null);
       
+      // Ensure conversation ID exists (retry if failed at start)
+      let currentConvId = conversationId;
+      if (!currentConvId) {
+        currentConvId = await ensureConversation();
+        if (!currentConvId) return; // Stop if still fails
+      }
+
       // 1. User Message
       const userMsg: Message = { 
         id: Date.now().toString(), 
@@ -198,7 +246,9 @@ export function useVenusChat(sessionId: string) {
             nextQuickReplies = [];
             
             // Award points and trigger confetti
-            await awardPoints();
+            if (currentConvId) {
+              await awardPoints(currentConvId);
+            }
             setTimeout(() => triggerConfetti(), 500);
           }
 
