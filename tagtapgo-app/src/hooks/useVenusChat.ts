@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Message } from '@/components/chat/MessageBubble';
+import { supabase } from '@/lib/supabase';
 
 // Mock Templates for Manual MVP
 const TEMPLATES = {
@@ -97,26 +98,38 @@ export function useVenusChat(sessionId: string) {
   }, [messages, turn, status, sessionId]);
 
   // Award points API call
-  const awardPoints = async (points: number) => {
+  const awardPoints = async () => {
     try {
-      const response = await fetch('/api/feedback/award-points', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}` // Adjust based on your auth
-        },
-        body: JSON.stringify({ sessionId, points })
-      });
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/award-feedback-points`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            conversation_id: sessionId,
+          }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error('Failed to award points');
       }
 
-      const result = await response.json();
-      console.log('Points awarded:', result);
-    } catch (err) {
-      console.error('Failed to award points:', err);
-      // Don't show error to user for points - it's not critical
+      const data = await response.json();
+      
+      // Trigger confetti if points were awarded
+      if (data.success) {
+        triggerConfetti();
+      }
+    } catch (error) {
+      console.error('Error awarding points:', error);
+      // Don't show error to user, just log it. The chat is already done.
     }
   };
 
@@ -185,7 +198,7 @@ export function useVenusChat(sessionId: string) {
             nextQuickReplies = [];
             
             // Award points and trigger confetti
-            await awardPoints(15);
+            await awardPoints();
             setTimeout(() => triggerConfetti(), 500);
           }
 

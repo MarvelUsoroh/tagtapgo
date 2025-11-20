@@ -261,7 +261,7 @@ export default function FeedbackPromptCard({
     >
       <div className="flex items-center gap-2 mb-3">
         <MessageSquare size={20} style={{ color: colors.primary.DEFAULT }} />
-        <h3 className="font-semibold text-gray-900">Class Review</h3>
+        <h3 className="font-semibold text-gray-900">Reflections</h3>
         <span
           className="ml-auto text-xs font-semibold px-3 py-2 rounded-full"
           style={{
@@ -343,9 +343,7 @@ export default function FeedbackPromptCard({
         </div>
       </AnimatePresence>
 
-      <p className="text-xs text-gray-500 mt-3 text-center">
-        Share your thoughts and earn bonus points
-      </p>
+
     </motion.div>
   );
 }

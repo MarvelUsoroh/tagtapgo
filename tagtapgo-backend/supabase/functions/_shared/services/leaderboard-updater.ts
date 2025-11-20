@@ -843,30 +843,9 @@ async function sendBatchedRankNotifications(
       const title = `🏆 ${periodName} Leaderboard Update!`;
       const message = `You're climbing the ranks:\n${changeLines.join("\n")}`;
 
-      // Store notification in database
-      const { error: dbError } = await supabase.from("notifications").insert({
-        student_id: batch.student_id,
-        notification_type: "rank",
-        title,
-        message,
-        data: {
-          period: batch.period,
-          changes: batch.changes,
-          batched: true,
-        },
-        read: false,
-        created_at: new Date().toISOString(),
-      });
-
-      if (dbError) {
-        console.error(
-          "[Leaderboard Updater] Error storing batched rank notification:",
-          dbError
-        );
-        continue;
-      }
-
-      // Send push notification (non-blocking)
+      // Send notification via send-push-notification Edge Function
+      // Note: send-push-notification will create the database notification record
+      // to avoid duplication
       try {
         const supabaseUrl = Deno.env.get("SUPABASE_URL");
         const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");

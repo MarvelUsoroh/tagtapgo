@@ -11,7 +11,7 @@ interface ChatLayoutProps {
 export default function ChatLayout({ header, children, input }: ChatLayoutProps) {
   return (
     <div className="flex flex-col h-[100dvh] bg-white">
-      <div className="flex-none z-10 bg-white/80 backdrop-blur-md border-b border-gray-100">
+      <div className="flex-none z-10 bg-white/80 backdrop-blur-md border-b border-gray-100 pt-[env(safe-area-inset-top)]">
         {header}
       </div>
       
@@ -21,7 +21,7 @@ export default function ChatLayout({ header, children, input }: ChatLayoutProps)
         </div>
       </div>
 
-      <div className="flex-none z-10 bg-white">
+      <div className="flex-none z-10 bg-white pb-[env(safe-area-inset-bottom)]">
         <div className="max-w-2xl mx-auto w-full">
           {input}
         </div>
