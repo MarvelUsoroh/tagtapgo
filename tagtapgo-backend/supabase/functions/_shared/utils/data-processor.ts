@@ -314,6 +314,7 @@ export function normalizeAttendance(
     source_tz: attendance.sourceTz,
     period: attendance.period || null,
     date: attendance.date || null,
+    metadata: attendance.metadata || {},
     updated_at: new Date().toISOString(),
   };
 }

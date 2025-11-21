@@ -69,11 +69,28 @@ serve(async (_req: Request) => {
       throw new Error(`Failed to load attendance: ${attendanceError.message}`);
     }
 
-  if (!newAttendance || newAttendance.length === 0) {
-      console.log("[GAMIFICATION JOB] No new attendance records to process");
+    // Get new point transactions since last run (to catch feedback points, etc.)
+    const { data: newPoints, error: pointsError } = await supabase
+      .from("points")
+      .select("student_id")
+      .gte("created_at", lastRunTime);
 
-      // Even without new attendance, we should still update leaderboards
-      // in case points changed from achievements, redemptions, or other sources
+    if (pointsError) {
+      console.error(`[GAMIFICATION JOB] Failed to load new points: ${pointsError.message}`);
+      // Don't fail the whole job, just log it
+    }
+
+    // Combine student IDs from attendance and points
+    const attendanceStudentIds = new Set((newAttendance || []).map((a) => a.student_id));
+    const pointsStudentIds = new Set((newPoints || []).map((p) => p.student_id));
+    
+    // Merge sets
+    const affectedStudentIds = new Set([...attendanceStudentIds, ...pointsStudentIds]);
+    const studentIds = Array.from(affectedStudentIds);
+
+    if (studentIds.length === 0) {
+      console.log("[GAMIFICATION JOB] No new attendance or point activity to process");
+
       const result: GamificationResult = {
         success: true,
         attendance_processed: 0,
@@ -83,84 +100,10 @@ serve(async (_req: Request) => {
         achievements_unlocked: 0,
         leaderboards_updated: 0,
         errors: [],
-        duration: 0,
+        duration: Date.now() - startTime,
       };
 
-      // Update leaderboards for all active students (in case points changed)
-      // This includes the new unified class leaderboards based on primary classes
-      try {
-        console.log(
-          "[GAMIFICATION JOB] Updating leaderboards (no new attendance)..."
-        );
-        console.log(
-          "[GAMIFICATION JOB] Note: Class leaderboards will use dynamic primary class calculation"
-        );
-        const leaderboardResults = await updateLeaderboards(supabase);
-
-        result.leaderboards_updated = leaderboardResults.reduce(
-          (sum, r) => sum + r.entries_updated,
-          0
-        );
-
-        // Enhanced metrics collection for monitoring
-        const resultsByType = leaderboardResults.reduce(
-          (acc, r) => {
-            acc[r.leaderboard_type] =
-              (acc[r.leaderboard_type] || 0) + r.entries_updated;
-            return acc;
-          },
-          {} as Record<string, number>
-        );
-
-        const classResults = leaderboardResults.filter(
-          (r) => r.leaderboard_type === "class"
-        );
-        const classRankChanges = classResults.reduce(
-          (sum, r) => sum + r.rank_changes.length,
-          0
-        );
-
-        // Store enhanced metrics
-        result.class_leaderboard_groups = classResults.length;
-        result.class_rank_changes = classRankChanges;
-        result.leaderboard_breakdown = resultsByType;
-
-        if (classResults.length > 0) {
-          console.log(
-            `[GAMIFICATION JOB] Class leaderboards: ${classResults.length} primary class groups updated`
-          );
-          if (classRankChanges > 0) {
-            console.log(
-              `[GAMIFICATION JOB] Class rank changes: ${classRankChanges} students changed ranks`
-            );
-          }
-        }
-
-        // Collect errors
-        leaderboardResults.forEach((r) => {
-          if (r.errors && r.errors.length > 0) {
-            const errorStrings = (r.errors as string[]).map((e) => `Leaderboards: ${e}`);
-            result.errors.push(...errorStrings);
-          }
-        });
-
-        console.log(
-          `[GAMIFICATION JOB] ✓ Updated ${result.leaderboards_updated} leaderboard entries`
-        );
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        console.error(
-          "[GAMIFICATION JOB] ✗ Leaderboard update failed:",
-          errorMessage
-        );
-        result.errors.push(`Leaderboard update: ${errorMessage}`);
-      }
-
-      result.duration = Date.now() - startTime;
-      result.success = result.errors.length === 0;
-
-      await logJobExecution(result.success ? "success" : "partial", result);
+      await logJobExecution("success", result);
 
       return new Response(JSON.stringify(result), {
         headers: { "Content-Type": "application/json" },
@@ -169,21 +112,16 @@ serve(async (_req: Request) => {
     }
 
     console.log(
-      `[GAMIFICATION JOB] Processing ${newAttendance.length} attendance records`
+      `[GAMIFICATION JOB] Processing ${newAttendance?.length || 0} attendance records`
     );
+    console.log(`[GAMIFICATION JOB] Affecting ${studentIds.length} students (Attendance + Points)`);
 
     // Type the attendance rows using shared service type
     const newAttendanceTyped: PointsAttendanceRecord[] = (newAttendance ?? []) as PointsAttendanceRecord[];
 
-    // Get unique student IDs
-    const studentIds: string[] = [
-      ...new Set(newAttendanceTyped.map((a) => a.student_id)),
-    ];
-    console.log(`[GAMIFICATION JOB] Affecting ${studentIds.length} students`);
-
     const result: GamificationResult = {
       success: true,
-      attendance_processed: newAttendance.length,
+      attendance_processed: newAttendance?.length || 0,
       students_affected: studentIds.length,
       points_awarded: 0,
       streaks_updated: 0,
@@ -193,68 +131,72 @@ serve(async (_req: Request) => {
       duration: 0,
     };
 
-    // Step 1: Calculate and award points
-    try {
-      console.log("[GAMIFICATION JOB] Step 1: Calculating points...");
-      const pointsResults = await calculateAndAwardPoints(
-        supabase,
-        newAttendanceTyped
-      );
+    // Step 1: Calculate and award points (Only for attendance records)
+    if (newAttendanceTyped.length > 0) {
+      try {
+        console.log("[GAMIFICATION JOB] Step 1: Calculating points for attendance...");
+        const pointsResults = await calculateAndAwardPoints(
+          supabase,
+          newAttendanceTyped
+        );
 
-      result.points_awarded = pointsResults.reduce(
-        (sum, r) => sum + r.total_points_awarded,
-        0
-      );
+        result.points_awarded = pointsResults.reduce(
+          (sum, r) => sum + r.total_points_awarded,
+          0
+        );
 
-      // Collect errors
-      pointsResults.forEach((r) => {
-        if (r.errors && r.errors.length > 0) {
-          const errorStrings = (r.errors as string[]).map((e) => `Points: ${e}`);
-          result.errors.push(...errorStrings);
-        }
-      });
+        // Collect errors
+        pointsResults.forEach((r) => {
+          if (r.errors && r.errors.length > 0) {
+            const errorStrings = (r.errors as string[]).map((e) => `Points: ${e}`);
+            result.errors.push(...errorStrings);
+          }
+        });
 
-      console.log(
-        `[GAMIFICATION JOB] ✓ Awarded ${result.points_awarded} points`
-      );
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.error(
-        "[GAMIFICATION JOB] ✗ Points calculation failed:",
-        errorMessage
-      );
-      result.errors.push(`Points calculation: ${errorMessage}`);
-      // Continue with other steps
+        console.log(
+          `[GAMIFICATION JOB] ✓ Awarded ${result.points_awarded} points`
+        );
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        console.error(
+          "[GAMIFICATION JOB] ✗ Points calculation failed:",
+          errorMessage
+        );
+        result.errors.push(`Points calculation: ${errorMessage}`);
+        // Continue with other steps
+      }
+
+      // Step 2: Update streaks (Only for attendance records)
+      try {
+        console.log("[GAMIFICATION JOB] Step 2: Updating streaks...");
+        const streakResults = await updateStreaks(supabase, newAttendanceTyped);
+
+        result.streaks_updated = streakResults.length;
+
+        // Collect errors
+        streakResults.forEach((r) => {
+          if (r.errors && r.errors.length > 0) {
+            const errorStrings = (r.errors as string[]).map((e) => `Streaks: ${e}`);
+            result.errors.push(...errorStrings);
+          }
+        });
+
+        console.log(
+          `[GAMIFICATION JOB] ✓ Updated ${result.streaks_updated} streaks`
+        );
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        console.error("[GAMIFICATION JOB] ✗ Streak update failed:", errorMessage);
+        result.errors.push(`Streak update: ${errorMessage}`);
+        // Continue with other steps
+      }
+    } else {
+      console.log("[GAMIFICATION JOB] Skipping Steps 1 & 2 (No new attendance)");
     }
 
-    // Step 2: Update streaks
-    try {
-      console.log("[GAMIFICATION JOB] Step 2: Updating streaks...");
-  const streakResults = await updateStreaks(supabase, newAttendanceTyped);
-
-      result.streaks_updated = streakResults.length;
-
-      // Collect errors
-      streakResults.forEach((r) => {
-        if (r.errors && r.errors.length > 0) {
-          const errorStrings = (r.errors as string[]).map((e) => `Streaks: ${e}`);
-          result.errors.push(...errorStrings);
-        }
-      });
-
-      console.log(
-        `[GAMIFICATION JOB] ✓ Updated ${result.streaks_updated} streaks`
-      );
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.error("[GAMIFICATION JOB] ✗ Streak update failed:", errorMessage);
-      result.errors.push(`Streak update: ${errorMessage}`);
-      // Continue with other steps
-    }
-
-    // Step 3: Check achievements
+    // Step 3: Check achievements (For ALL affected students)
     try {
       console.log("[GAMIFICATION JOB] Step 3: Checking achievements...");
       const achievementResults = await checkAchievements(supabase, studentIds);
@@ -286,7 +228,7 @@ serve(async (_req: Request) => {
       // Continue with other steps
     }
 
-    // Step 4: Update leaderboards
+    // Step 4: Update leaderboards (For ALL affected students)
     // This includes the new unified class leaderboards with primary class calculation
     try {
       console.log("[GAMIFICATION JOB] Step 4: Updating leaderboards...");

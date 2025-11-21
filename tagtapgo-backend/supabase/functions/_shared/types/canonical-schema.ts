@@ -44,6 +44,7 @@ export interface CanonicalAttendance {
   sourceTz: string;               // Source timezone (e.g., "Europe/Dublin")
   period?: string;                // SIS-specific (e.g., "Morning", "Period 1")
   date?: string;                  // SIS-specific (e.g., "2025-10-25")
+  metadata?: Record<string, any>; // Additional context (e.g., session topic)
 }
 
 

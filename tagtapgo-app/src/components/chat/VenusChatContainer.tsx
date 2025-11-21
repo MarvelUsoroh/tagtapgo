@@ -13,12 +13,11 @@ import { useVenusChat } from '@/hooks/useVenusChat';
 
 interface VenusChatContainerProps {
   sessionId: string;
-  classScheduleId: string;
   courseName: string;
   topic: string;
 }
 
-export default function VenusChatContainer({ sessionId, classScheduleId, courseName, topic }: VenusChatContainerProps) {
+export default function VenusChatContainer({ sessionId, courseName, topic }: VenusChatContainerProps) {
   const router = useRouter();
   const { 
     messages, 
@@ -28,7 +27,7 @@ export default function VenusChatContainer({ sessionId, classScheduleId, courseN
     quickReplies, 
     sendMessage, 
     startChat 
-  } = useVenusChat(sessionId, classScheduleId);
+  } = useVenusChat(sessionId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

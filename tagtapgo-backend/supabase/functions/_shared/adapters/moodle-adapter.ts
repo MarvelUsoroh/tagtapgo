@@ -401,6 +401,9 @@ export class MoodleAdapter extends BaseAdapter {
               statusCode: statusCode,
               recordedAt: this.client.timestampToISO(log.timetaken),
               sourceTz: this.config.timezone,
+              metadata: {
+                topic: session.description,
+              },
             });
           }
         } catch (error) {

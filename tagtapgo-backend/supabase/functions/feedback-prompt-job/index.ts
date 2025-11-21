@@ -5,7 +5,6 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2.32.0";
 import { DateTime } from "npm:luxon@3.4.3";
-import { getStudentsForClassSchedule } from "../_shared/services/schedule-query-helpers.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -115,12 +114,35 @@ Deno.serve(async (req: Request) => {
         }
 
         // Get all students enrolled in this course
-        const enrolledStudents = await getStudentsForClassSchedule(supabase, schedule.id);
+        // Optimization: Query enrollments directly instead of using helper to avoid extra DB roundtrip
+        const { data: enrolledStudentsData, error: enrollmentError } = await supabase
+          .from('enrollments')
+          .select(`
+            student_id,
+            courses:course_id (
+              code,
+              name
+            )
+          `)
+          .eq('course_id', schedule.course_id)
+          .eq('status', 'active');
+
+        if (enrollmentError) {
+          console.error(`[Feedback Prompt Job] Error fetching enrollments for schedule ${schedule.id}:`, enrollmentError);
+          errors.push(`Schedule ${schedule.id}: ${enrollmentError.message}`);
+          continue;
+        }
         
-        if (enrolledStudents.length === 0) {
+        if (!enrolledStudentsData || enrolledStudentsData.length === 0) {
           console.log(`[Feedback Prompt Job] No enrolled students for schedule ${schedule.id}`);
           continue;
         }
+
+        const enrolledStudents = enrolledStudentsData.map(e => ({
+          student_id: e.student_id,
+          course_code: (e.courses as any)?.code,
+          course_name: (e.courses as any)?.name
+        }));
 
         console.log(`[Feedback Prompt Job] Found ${enrolledStudents.length} enrolled students for schedule ${schedule.id}`);
 
@@ -128,7 +150,7 @@ Deno.serve(async (req: Request) => {
         const studentIds = enrolledStudents.map(s => s.student_id);
         const { data: attendanceRecords, error: attendanceError } = await supabase
           .from("attendance")
-          .select("student_id")
+          .select("student_id, metadata")
           .eq("course_id", schedule.course_id)
           .eq("date", scheduleDayReference.toISODate())
           .in("status", ["present", "late", "excused"])
@@ -145,32 +167,38 @@ Deno.serve(async (req: Request) => {
           continue;
         }
 
-        // Create a Set for O(1) lookup of students who attended
-        const attendedStudentIds = new Set(
-          attendanceRecords.map((a: { student_id: string }) => a.student_id)
+        // Create a Map for O(1) lookup of students who attended and their metadata
+        const attendedStudentMap = new Map(
+          attendanceRecords.map((a: { student_id: string; metadata: any }) => [a.student_id, a.metadata])
         );
-        console.log(`[Feedback Prompt Job] ${attendedStudentIds.size} students attended for schedule ${schedule.id}`);
+        console.log(`[Feedback Prompt Job] ${attendedStudentMap.size} students attended for schedule ${schedule.id}`);
+
+        // Optimization: Fetch all existing prompts for this schedule at once
+        const { data: existingPrompts, error: existingPromptsError } = await supabase
+          .from("feedback_prompts")
+          .select("student_id")
+          .eq("class_schedule_id", schedule.id);
+
+        if (existingPromptsError) {
+           console.error(`[Feedback Prompt Job] Error fetching existing prompts:`, existingPromptsError);
+           continue;
+        }
+
+        const existingPromptStudentIds = new Set(existingPrompts?.map(p => p.student_id) || []);
 
         // Create feedback prompts for students who attended
         for (const student of enrolledStudents) {
-          if (!attendedStudentIds.has(student.student_id)) {
+          const attendanceMetadata = attendedStudentMap.get(student.student_id);
+          if (!attendanceMetadata) {
             continue; // Student didn't attend
           }
 
+          if (existingPromptStudentIds.has(student.student_id)) {
+             console.log(`[Feedback Prompt Job] Prompt already exists for student ${student.student_id}, schedule ${schedule.id}`);
+             continue;
+          }
+
           try {
-            // Check if prompt already exists
-            const { data: existingPrompt } = await supabase
-              .from("feedback_prompts")
-              .select("id")
-              .eq("student_id", student.student_id)
-              .eq("class_schedule_id", schedule.id)
-              .maybeSingle();
-
-            if (existingPrompt) {
-              console.log(`[Feedback Prompt Job] Prompt already exists for student ${student.student_id}, schedule ${schedule.id}`);
-              continue;
-            }
-
             // Create feedback prompt (expires in 24 hours)
             const expiresAt = now.plus({ hours: 24 }).toISO();
             const { data: newPrompt, error: promptError } = await supabase
@@ -181,6 +209,7 @@ Deno.serve(async (req: Request) => {
                 prompt_sent_at: now.toISO(),
                 expires_at: expiresAt,
                 status: "pending",
+                metadata: attendanceMetadata, // Pass topic/context from attendance
               })
               .select()
               .single();

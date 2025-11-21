@@ -98,7 +98,6 @@ export default async function FeedbackPage({ params }: PageProps) {
   return (
     <VenusChatContainer 
       sessionId={params.sessionId}
-      classScheduleId={classSchedule.id}
       courseName={displayName}
       topic={topic}
     />

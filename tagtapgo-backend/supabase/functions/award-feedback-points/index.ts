@@ -165,6 +165,46 @@ Deno.serve(async (req) => {
       console.error("[Award Points] Error updating prompt:", promptError);
     }
 
+    // 6. Check for "Voice Heard" Achievement (5 feedback submissions)
+    try {
+      // Count feedback submissions
+      const { count, error: countError } = await supabase
+        .from("points")
+        .select("*", { count: "exact", head: true })
+        .eq("student_id", conversation.student_id)
+        .eq("transaction_type", "feedback_reward");
+
+      if (!countError && count && count >= 5) {
+        // Check if achievement already unlocked
+        const { data: achievement } = await supabase
+          .from("achievements")
+          .select("id")
+          .eq("slug", "voice-heard") // Assuming slug or name
+          .single();
+
+        if (achievement) {
+          const { error: achievementError } = await supabase
+            .from("student_achievements")
+            .insert({
+              student_id: conversation.student_id,
+              achievement_id: achievement.id,
+              unlocked: true,
+              unlocked_at: new Date().toISOString(),
+            })
+            .select()
+            .single();
+
+          if (!achievementError) {
+            console.log("[Award Points] 'Voice Heard' achievement unlocked!");
+            // Optionally award bonus points for achievement here or let a trigger do it
+          }
+        }
+      }
+    } catch (achError) {
+      console.error("[Award Points] Error checking achievement:", achError);
+      // Non-fatal
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
