@@ -21,7 +21,7 @@ export default function ChatLayout({ header, children, input }: ChatLayoutProps)
         </div>
       </div>
 
-      <div className="flex-none z-10 bg-white pb-[env(safe-area-inset-bottom)]">
+      <div className="flex-none z-10 bg-white">
         <div className="max-w-2xl mx-auto w-full">
           {input}
         </div>

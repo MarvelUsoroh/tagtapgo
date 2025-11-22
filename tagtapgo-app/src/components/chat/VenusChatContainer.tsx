@@ -26,7 +26,8 @@ export default function VenusChatContainer({ sessionId, courseName, topic }: Ven
     error, 
     quickReplies, 
     sendMessage, 
-    startChat 
+    startChat,
+    endSession
   } = useVenusChat(sessionId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -60,6 +61,16 @@ export default function VenusChatContainer({ sessionId, courseName, topic }: Ven
           <h1 className="font-semibold text-gray-900">Venus</h1>
           <p className="text-xs text-gray-500 truncate max-w-[200px]">{courseName}: {topic}</p>
         </div>
+      </div>
+      <div className="ml-auto">
+        {status !== 'completed' && (
+          <button 
+            onClick={endSession}
+            className="text-xs font-medium text-gray-500 hover:text-red-600 px-3 py-1.5 rounded-full hover:bg-red-50 transition-colors"
+          >
+            End Session
+          </button>
+        )}
       </div>
     </div>
   );

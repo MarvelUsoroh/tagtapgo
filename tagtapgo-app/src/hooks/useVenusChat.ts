@@ -139,8 +139,12 @@ export function useVenusChat(promptId: string) {
         timestamp: new Date()
       }]);
       
-      // Default quick replies for the start
-      setQuickReplies(["It was interesting!", "I'm confused about...", "We learned about..."]);
+      // Use quick replies from backend if available, otherwise default
+      if (data.quickReplies && Array.isArray(data.quickReplies)) {
+        setQuickReplies(data.quickReplies);
+      } else {
+        setQuickReplies(["It was interesting!", "I'm confused about...", "We learned about..."]);
+      }
 
     } catch (err) {
       console.error('Start chat error:', err);
@@ -205,12 +209,24 @@ export function useVenusChat(promptId: string) {
       };
       setMessages(prev => [...prev, aiMsg]);
 
+      // Update quick replies from backend
+      if (data.quickReplies && Array.isArray(data.quickReplies)) {
+        setQuickReplies(data.quickReplies);
+      } else {
+        // Only set generic replies if we are in TUTOR mode (implied by empty quickReplies from backend)
+        // But if backend sends empty array explicitly, we should respect it (e.g. transition)
+        // For now, let's just clear them if backend sends nothing, or set generic if it's a normal chat turn
+        // Actually, let's trust the backend. If it sends nothing, we show nothing (or maybe generic "Tell me more")
+        // Let's default to empty if undefined, but if it's a normal chat, we might want some.
+        // For now, let's just use what backend sends.
+        setQuickReplies([]);
+      }
+
       // Simple heuristic for completion: 
-      // If we have exchanged enough messages (e.g., 3 user messages) OR AI says goodbye
-      const userMessageCount = messages.filter(m => m.role === 'user').length + 1;
+      // Only end if AI explicitly says goodbye. Otherwise, let the user decide.
       const isGoodbye = data.message.toLowerCase().includes('goodbye') || data.message.toLowerCase().includes('see you');
       
-      if (userMessageCount >= 3 || isGoodbye) {
+      if (isGoodbye) {
         setStatus('completed');
         await awardPoints(conversationId);
         setTimeout(() => triggerConfetti(), 500);
@@ -229,6 +245,14 @@ export function useVenusChat(promptId: string) {
     }
   };
 
+  const endSession = async () => {
+    if (conversationId && status !== 'completed') {
+      setStatus('completed');
+      await awardPoints(conversationId);
+      setTimeout(() => triggerConfetti(), 500);
+    }
+  };
+
   return { 
     messages, 
     isTyping, 
@@ -236,6 +260,7 @@ export function useVenusChat(promptId: string) {
     error, 
     quickReplies, 
     sendMessage, 
-    startChat 
+    startChat,
+    endSession
   };
 }

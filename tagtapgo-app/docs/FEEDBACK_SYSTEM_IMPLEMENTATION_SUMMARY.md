@@ -42,7 +42,7 @@ Transform the post-lecture feedback loop from a transactional "rate 1-5 stars" t
 -   **Frontend**: React/Next.js Chat Interface.
 -   **Backend**: Supabase Edge Functions (or similar) to handle AI interaction.
 -   **AI**: OpenAI API (GPT-4o-mini) with strict system prompts.
--   **Database**: Store conversation logs, student reflections, and points.
+-   **Database**: Store conversation logs, student , and points.
 
 ## Roadmap
 -   **Weeks 1-2**: Design & Prototype (Mascot, Templates, UI).

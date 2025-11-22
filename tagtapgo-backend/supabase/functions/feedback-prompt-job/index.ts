@@ -177,7 +177,8 @@ Deno.serve(async (req: Request) => {
         const { data: existingPrompts, error: existingPromptsError } = await supabase
           .from("feedback_prompts")
           .select("student_id")
-          .eq("class_schedule_id", schedule.id);
+          .eq("class_schedule_id", schedule.id)
+          .gte("created_at", scheduleDayReference.toISODate());
 
         if (existingPromptsError) {
            console.error(`[Feedback Prompt Job] Error fetching existing prompts:`, existingPromptsError);

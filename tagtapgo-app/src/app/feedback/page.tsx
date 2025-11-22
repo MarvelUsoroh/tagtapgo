@@ -106,7 +106,7 @@ export default async function FeedbackListPage({
             </Link>
             <div>
               <h1 className="text-xl font-bold" style={{ color: colors.gray[900] }}>
-                Pending Reflections
+                Pending Reviews
               </h1>
               <p className="text-sm" style={{ color: colors.gray[600] }}>
                 {prompts.length} {prompts.length === 1 ? 'class' : 'classes'} waiting for your review
