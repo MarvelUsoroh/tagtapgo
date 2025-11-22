@@ -39,13 +39,13 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
         <div className={cn("prose prose-sm max-w-none break-words", isUser ? "prose-invert" : "")}>
           <ReactMarkdown
             components={{
-              p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
-              ul: ({node, ...props}) => <ul className="list-disc pl-4 mb-2" {...props} />,
-              ol: ({node, ...props}) => <ol className="list-decimal pl-4 mb-2" {...props} />,
-              li: ({node, ...props}) => <li className="mb-1" {...props} />,
-              strong: ({node, ...props}) => <strong className="font-bold" {...props} />,
-              a: ({node, ...props}) => <a className="underline hover:opacity-80" target="_blank" rel="noopener noreferrer" {...props} />,
-              code: ({node, className, children, ...props}: any) => {
+              p: ({...props}) => <p className="mb-2 last:mb-0" {...props} />,
+              ul: ({...props}) => <ul className="list-disc pl-4 mb-2" {...props} />,
+              ol: ({...props}) => <ol className="list-decimal pl-4 mb-2" {...props} />,
+              li: ({...props}) => <li className="mb-1" {...props} />,
+              strong: ({...props}) => <strong className="font-bold" {...props} />,
+              a: ({...props}) => <a className="underline hover:opacity-80" target="_blank" rel="noopener noreferrer" {...props} />,
+              code: ({className, children, ...props}: React.ComponentPropsWithoutRef<'code'>) => {
                 const match = /language-(\w+)/.exec(className || '')
                 return match ? (
                   <code className={cn("bg-black/10 rounded px-1 py-0.5 font-mono text-sm", className)} {...props}>
@@ -57,7 +57,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
                   </code>
                 )
               },
-              pre: ({node, ...props}) => (
+              pre: ({...props}) => (
                 <div className="overflow-x-auto w-full my-2 rounded-lg bg-gray-900 p-3">
                   <pre className="text-gray-100 text-xs font-mono" {...props} />
                 </div>
