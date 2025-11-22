@@ -32,11 +32,11 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
         className={cn(
           "max-w-[80%] p-4 rounded-2xl text-base shadow-sm",
             isUser
-            ? "bg-primary text-white rounded-br-none"
+            ? "bg-green-100 text-green-900 rounded-br-none"
             : "bg-gray-100 text-gray-800 rounded-bl-none"
         )}
       >
-        <div className={cn("prose prose-sm max-w-none break-words", isUser ? "prose-invert" : "")}>
+        <div className={cn("prose prose-sm max-w-none break-words")}>
           <ReactMarkdown
             components={{
               p: ({...props}) => <p className="mb-2 last:mb-0" {...props} />,
@@ -70,7 +70,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
         {message.timestamp && (
           <div className={cn(
             "text-xs mt-1 opacity-70",
-            isUser ? "text-white/70" : "text-gray-500"
+            isUser ? "text-green-800" : "text-gray-500"
           )}>
             {message.timestamp.toLocaleTimeString([], { 
               hour: '2-digit', 

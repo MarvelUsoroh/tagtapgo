@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { colors } from '@/lib/theme';
 import { VALIDATION, ERROR_MESSAGES } from '@/lib/constants';
 import SplashScreen from '@/components/SplashScreen';
+import Logo from '@/components/Logo';
 import useQueryCleanup from '@/hooks/useQueryCleanup';
 
 function LoginContent() {
@@ -141,12 +142,8 @@ function LoginContent() {
       <div className="w-full max-w-md">
         
         {/* Logo and Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
-               style={{ backgroundColor: colors.primary.DEFAULT }}>
-            <LogIn className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back!</h1>
+        <div className="text-center mb-8 flex flex-col items-center">
+          <Logo size="xl" variant="full" animated className="mb-4" />
           <p className="text-gray-600">Log in to continue your streak</p>
         </div>
 

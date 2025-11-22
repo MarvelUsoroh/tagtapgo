@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import ChatLayout from './ChatLayout';
@@ -66,9 +66,10 @@ export default function VenusChatContainer({ sessionId, courseName, topic }: Ven
         {status !== 'completed' && (
           <button 
             onClick={endSession}
-            className="text-xs font-medium text-gray-500 hover:text-red-600 px-3 py-1.5 rounded-full hover:bg-red-50 transition-colors"
+            className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+            aria-label="End Session"
           >
-            End Session
+            <X size={20} />
           </button>
         )}
       </div>

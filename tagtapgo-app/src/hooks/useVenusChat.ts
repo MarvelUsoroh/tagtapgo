@@ -2,20 +2,6 @@ import { useState, useCallback, useEffect } from 'react';
 import { Message } from '@/components/chat/MessageBubble';
 import { supabase } from '@/lib/supabase';
 
-// Lazy load confetti
-const triggerConfetti = async () => {
-  try {
-    const confetti = (await import('canvas-confetti')).default;
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 }
-    });
-  } catch (err) {
-    console.error('Failed to load confetti:', err);
-  }
-};
-
 export function useVenusChat(promptId: string) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -188,7 +174,6 @@ export function useVenusChat(promptId: string) {
       if (data.isComplete) {
         setStatus('completed');
         // Note: Points are now awarded via achievements, not directly
-        setTimeout(() => triggerConfetti(), 500);
       } else {
         setStatus('idle');
       }
@@ -205,8 +190,7 @@ export function useVenusChat(promptId: string) {
   const endSession = async () => {
     if (conversationId && status !== 'completed') {
       setStatus('completed');
-      // Confetti for completion (achievements handled by gamification engine)
-      setTimeout(() => triggerConfetti(), 500);
+      // Achievements handled by gamification engine
     }
   };
 

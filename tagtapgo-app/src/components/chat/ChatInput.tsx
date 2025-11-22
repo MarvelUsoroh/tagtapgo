@@ -38,7 +38,7 @@ export default function ChatInput({ onSend, disabled, placeholder = "Type your t
   }, [value]);
 
   return (
-    <div className="pt-4 px-4 bg-white border-t border-gray-100 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+    <div className="pt-4 px-4 bg-white border-t border-gray-100 pb-4">
       <div className="relative flex items-end gap-2 p-2 bg-gray-50 rounded-xl border border-gray-200 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
         <textarea
           ref={textareaRef}

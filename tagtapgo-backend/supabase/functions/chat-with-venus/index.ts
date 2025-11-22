@@ -251,21 +251,15 @@ serve(async (req) => {
 
       // STEP A: Update Turn Counter
       const currentTurn = (conversation.metadata?.turn || 0) + 1;
-      const maxTurns = 3;
-      const isLastTurn = currentTurn >= maxTurns;
-
+      // Removed maxTurns limit to allow unlimited chat
+      
       await supabaseClient
         .from("feedback_conversations")
         .update({ 
           metadata: { 
             ...conversation.metadata, 
-            turn: currentTurn,
-            ...(isLastTurn && { state: "COMPLETED" })
-          },
-          ...(isLastTurn && { 
-            status: "completed",
-            completed_at: new Date().toISOString()
-          })
+            turn: currentTurn
+          }
         })
         .eq("id", conversationId);
 
@@ -327,17 +321,8 @@ Venus: "What does the word 'foundation' suggest to you in building a house?"
 ADAPTATION (Based on Survey):
 - Pace: ${paceResponse}${paceResponse.includes('Fast') || paceResponse.includes('🐇') ? ' → Keep questions simple' : ''}
 - Clarity: ${clarityResponse}${clarityResponse.includes('Confusing') || clarityResponse.includes('😕') ? ' → Use simple analogies' : ''}
-`;
 
-      if (!isLastTurn) {
-        // TURNS 1 & 2: ACTIVE QUESTIONING
-        systemPrompt += `
-CURRENT STATE: Turn ${currentTurn}/${maxTurns}. Keep probing. Do NOT explain. Ask the next question.`;
-      } else {
-        // TURN 3: GRACEFUL EXIT
-        systemPrompt += `
-CURRENT STATE: Final Turn (${currentTurn}/${maxTurns}). Stop questioning. Say "Great work" and end the session in 1 sentence.`;
-      }
+CURRENT STATE: Turn ${currentTurn}. Keep probing. Do NOT explain. Ask the next question.`;
 
       // STEP F: Send to Gemini with "Stingy Tutor" Prompt + Silent Instruction
       const chat = client.chats.create({
@@ -362,7 +347,7 @@ CURRENT STATE: Final Turn (${currentTurn}/${maxTurns}). Stop questioning. Say "G
       const result = await chat.sendMessage({ message: messageToSend });
       
       // DEBUGGING: Check model behavior
-      console.log("Turn:", currentTurn, "IsLast:", isLastTurn);
+      console.log("Turn:", currentTurn);
       console.log("Finish Reason:", result.candidates?.[0]?.finishReason);
       console.log("Response length:", result.text?.length || 0);
       
@@ -386,9 +371,8 @@ CURRENT STATE: Final Turn (${currentTurn}/${maxTurns}). Stop questioning. Say "G
       return new Response(
         JSON.stringify({ 
           message: aiResponse,
-          isComplete: isLastTurn, // Frontend can show completion UI
-          turn: currentTurn,
-          maxTurns: maxTurns
+          isComplete: false, // Always false to allow unlimited chat
+          turn: currentTurn
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
