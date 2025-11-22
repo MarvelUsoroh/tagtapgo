@@ -310,13 +310,10 @@ export default function FeedbackPromptCard({
                   <p className="text-sm text-gray-600 mt-1">
                     {getClassDateLabel(prompt)} • {getClassTimeLabel(prompt)}
                   </p>
-                  <div className="flex items-center gap-4 mt-2">
+                  <div className="flex items-center gap-2 mt-2">
                     <div className="flex items-center gap-1 text-xs text-gray-500">
                       <Clock size={14} />
                       <span>{timeRemaining[prompt.id] || 'Loading...'}</span>
-                    </div>
-                    <div className="text-xs font-semibold text-primary">
-                      💎 Earn 5-10 pts
                     </div>
                   </div>
                 </div>

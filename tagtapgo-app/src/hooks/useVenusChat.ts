@@ -65,40 +65,7 @@ export function useVenusChat(promptId: string) {
     }
   }, [messages, status, conversationId, promptId]);
 
-  // Award points API call
-  const awardPoints = async (convId: string) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) return;
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/award-feedback-points`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            conversation_id: convId,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to award points');
-      }
-
-      const data = await response.json();
-      
-      // Trigger confetti if points were awarded
-      if (data.success) {
-        triggerConfetti();
-      }
-    } catch (error) {
-      console.error('Error awarding points:', error);
-    }
-  };
+  // Note: Points are now awarded via achievement system, not directly per chat
 
   // Initialize chat
   const startChat = useCallback(async () => {
@@ -209,31 +176,21 @@ export function useVenusChat(promptId: string) {
       };
       setMessages(prev => [...prev, aiMsg]);
 
-      // Update quick replies from backend
+      // Update quick replies from backend (trust the backend completely)
       if (data.quickReplies && Array.isArray(data.quickReplies)) {
         setQuickReplies(data.quickReplies);
       } else {
-        // Only set generic replies if we are in TUTOR mode (implied by empty quickReplies from backend)
-        // But if backend sends empty array explicitly, we should respect it (e.g. transition)
-        // For now, let's just clear them if backend sends nothing, or set generic if it's a normal chat turn
-        // Actually, let's trust the backend. If it sends nothing, we show nothing (or maybe generic "Tell me more")
-        // Let's default to empty if undefined, but if it's a normal chat, we might want some.
-        // For now, let's just use what backend sends.
+        // Backend sends empty array or undefined when no quick replies needed (e.g., TUTOR mode)
         setQuickReplies([]);
       }
 
-      // Simple heuristic for completion: 
-      // Only end if AI explicitly says goodbye. Otherwise, let the user decide.
-      const isGoodbye = data.message.toLowerCase().includes('goodbye') || data.message.toLowerCase().includes('see you');
-      
-      if (isGoodbye) {
+      // Check if conversation is complete (backend sends isComplete flag)
+      if (data.isComplete) {
         setStatus('completed');
-        await awardPoints(conversationId);
+        // Note: Points are now awarded via achievements, not directly
         setTimeout(() => triggerConfetti(), 500);
       } else {
         setStatus('idle');
-        // Generic quick replies for continuation
-        setQuickReplies(["Tell me more", "I'm not sure", "Exactly!"]);
       }
 
     } catch (err) {
@@ -248,7 +205,7 @@ export function useVenusChat(promptId: string) {
   const endSession = async () => {
     if (conversationId && status !== 'completed') {
       setStatus('completed');
-      await awardPoints(conversationId);
+      // Confetti for completion (achievements handled by gamification engine)
       setTimeout(() => triggerConfetti(), 500);
     }
   };

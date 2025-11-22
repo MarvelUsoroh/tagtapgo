@@ -105,7 +105,7 @@ export default function FeedbackClient({
   const pointsIncentive = comment.trim() ? 10 : 5;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-8">
+    <div className="min-h-screen bg-gray-50 safe-area-top" style={{ paddingBottom: 'calc(2rem + env(safe-area-inset-bottom))' }}>
       {/* Header */}
       <div className="bg-white shadow-sm">
         <div className="max-w-2xl mx-auto px-4 py-4">
