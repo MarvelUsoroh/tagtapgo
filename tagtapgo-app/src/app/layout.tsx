@@ -48,9 +48,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={roboto.className}>
         <ServiceWorkerRegistration />
-        <div className="min-h-screen bg-gray-50 safe-area-top">
-          {children}
-        </div>
+        {children}
         <Analytics />
       </body>
     </html>
