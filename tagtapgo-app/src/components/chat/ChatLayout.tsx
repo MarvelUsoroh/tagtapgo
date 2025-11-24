@@ -52,7 +52,16 @@ export default function ChatLayout({ header, children, input }: ChatLayoutProps)
   }, []);
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-white">
+    <div 
+      className="fixed inset-0 flex flex-col bg-white"
+      style={{
+        // Shrink the container height when keyboard is open
+        // This prevents the excessive whitespace issue
+        height: keyboardHeight > 0 
+          ? `${window.innerHeight - keyboardHeight}px`
+          : '100vh'
+      }}
+    >
       <div className="flex-none z-10 bg-white/80 backdrop-blur-md border-b border-gray-100 pt-[env(safe-area-inset-top)]">
         {header}
       </div>
@@ -66,12 +75,6 @@ export default function ChatLayout({ header, children, input }: ChatLayoutProps)
       <div 
         ref={inputContainerRef}
         className="flex-none z-10 bg-white pb-[env(safe-area-inset-bottom)]"
-        style={{
-          // Dynamically adjust bottom padding when keyboard is open
-          paddingBottom: keyboardHeight > 0 
-            ? `${keyboardHeight}px` 
-            : 'env(safe-area-inset-bottom)'
-        }}
       >
         <div className="max-w-2xl mx-auto w-full">
           {input}
