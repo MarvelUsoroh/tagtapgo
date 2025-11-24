@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Coins, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
-import { cn, formatTime, calculatePercentage } from '@/lib/utils';
+import { cn, formatTime } from '@/lib/utils';
 import { colors } from '@/lib/theme';
 import ProgressBar from './ProgressBar';
 import { NoClassesToday } from './EmptyState';
@@ -14,6 +14,8 @@ interface ClassItem {
   id: string;
   course_name: string;
   time: string | null;
+  start_time: string;
+  end_time: string;
   status: 'completed' | 'upcoming' | 'missed';
   points_earned?: number;
 }
@@ -21,6 +23,7 @@ interface ClassItem {
 export default function TodayClasses({ studentId }: { studentId: string }) {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [timeProgress, setTimeProgress] = useState(0);
 
   useEffect(() => {
     if (!studentId) return;
@@ -93,6 +96,8 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
               id: schedule.id,
               course_name: schedule.courses?.name || 'Unknown Course',
               time: schedule.start_time || null,
+              start_time: schedule.start_time,
+              end_time: schedule.end_time,
               status: (attendanceStatus === 'present' ? 'completed' : 
                      attendanceStatus === 'absent' ? 'missed' : 'upcoming') as 'completed' | 'upcoming' | 'missed',
               points_earned: attendanceStatus === 'present' ? 10 : 0,
@@ -112,10 +117,50 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
     };
   }, [studentId]);
 
-  // Calculate progress
+  // Calculate progress based on time for all visible classes
+  useEffect(() => {
+    const updateProgress = () => {
+      if (classes.length === 0) {
+        setTimeProgress(0);
+        return;
+      }
+
+      const now = new Date();
+      const currentTimeStr = format(now, 'HH:mm:ss');
+      const todayStr = format(now, 'yyyy-MM-dd');
+      
+      let totalProgress = 0;
+
+      classes.forEach(c => {
+        // If class is fully in the past (time-wise)
+        if (c.end_time <= currentTimeStr) {
+          totalProgress += 100;
+        } 
+        // If class is fully in the future
+        else if (c.start_time >= currentTimeStr) {
+          totalProgress += 0;
+        }
+        // If class is active
+        else {
+          const start = new Date(`${todayStr}T${c.start_time}`);
+          const end = new Date(`${todayStr}T${c.end_time}`);
+          const total = end.getTime() - start.getTime();
+          const elapsed = now.getTime() - start.getTime();
+          const pct = Math.min(100, Math.max(0, (elapsed / total) * 100));
+          totalProgress += pct;
+        }
+      });
+
+      setTimeProgress(totalProgress / classes.length);
+    };
+
+    const timer = setInterval(updateProgress, 1000);
+    updateProgress(); // Initial call
+    return () => clearInterval(timer);
+  }, [classes]);
+
   const completedCount = classes.filter((c) => c.status === 'completed').length;
   const totalCount = classes.length;
-  const progressPercentage = calculatePercentage(completedCount, totalCount);
 
   if (loading) {
     return (
@@ -148,7 +193,7 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
       {classes.length > 0 && (
         <div className="mb-4">
           <ProgressBar
-            value={progressPercentage}
+            value={timeProgress}
             color="primary"
             height="md"
             animate={true}

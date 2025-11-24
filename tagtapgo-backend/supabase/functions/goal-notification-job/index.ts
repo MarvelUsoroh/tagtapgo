@@ -148,13 +148,13 @@ async function sendNotification(
 async function checkGoalAchievement(supabase: any, studentId: string, goal: AttendanceGoal, progress: GoalProgress) {
   // Check if goal was just achieved (within last 24 hours)
   if (progress.status === "achieved" && progress.current >= progress.target) {
-    // Check if we already sent an achievement notification recently
+    // Check if we already sent an achievement notification recently (within last 3 days to avoid daily spam)
     const { data: recentNotif } = await supabase
       .from("notifications")
       .select("id")
       .eq("student_id", studentId)
       .eq("notification_type", "goal_achieved")
-      .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .gte("created_at", new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString())
       .limit(1)
       .single();
 
@@ -226,7 +226,9 @@ async function sendWeeklyProgressUpdate(supabase: any, studentId: string, goal: 
   if (goal.type === "weekly" || (goal.type === "monthly" && dayOfWeek === 0)) {
     // Check if we already sent a weekly update today
     const todayStart = new Date(now.setHours(0, 0, 0, 0)).toISOString();
-    const { data: recentNotif } = await supabase
+    
+    // Check for goal_progress notification
+    const { data: recentProgress } = await supabase
       .from("notifications")
       .select("id")
       .eq("student_id", studentId)
@@ -235,7 +237,17 @@ async function sendWeeklyProgressUpdate(supabase: any, studentId: string, goal: 
       .limit(1)
       .single();
 
-    if (!recentNotif && progress.total_classes > 0) {
+    // Also check if we sent a goal_achieved notification today (to avoid double notification)
+    const { data: recentAchieved } = await supabase
+      .from("notifications")
+      .select("id")
+      .eq("student_id", studentId)
+      .eq("notification_type", "goal_achieved")
+      .gte("created_at", todayStart)
+      .limit(1)
+      .single();
+
+    if (!recentProgress && !recentAchieved && progress.total_classes > 0) {
       let emoji = "📊";
       let message = "";
 

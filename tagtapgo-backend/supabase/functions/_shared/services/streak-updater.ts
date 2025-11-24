@@ -90,6 +90,34 @@ export async function updateStreaks(
 }
 
 /**
+ * Calculate difference in "class days" between two dates
+ * Ignores weekends (Saturday/Sunday)
+ */
+function getClassDaysDifference(date1: Date, date2: Date): number {
+  // Ensure date1 is the later date
+  const start = date1 > date2 ? date2 : date1;
+  const end = date1 > date2 ? date1 : date2;
+  
+  // Reset times to midnight for accurate day calculation
+  const s = new Date(start); s.setHours(0,0,0,0);
+  const e = new Date(end); e.setHours(0,0,0,0);
+  
+  let days = 0;
+  const current = new Date(s);
+  
+  while (current < e) {
+    current.setDate(current.getDate() + 1);
+    const day = current.getDay();
+    // If it's a weekday (1-5), count it
+    if (day !== 0 && day !== 6) {
+      days++;
+    }
+  }
+  
+  return days;
+}
+
+/**
  * Update streak for a single student
  */
 async function updateStudentStreak(
@@ -128,10 +156,35 @@ async function updateStudentStreak(
   // Process each date
   for (const date of uniqueDates) {
     const attendanceForDate = sortedAttendance.filter(a => a.date === date);
+    
+    // Check for ANY positive attendance
     const hasAttendance = attendanceForDate.some(a => 
       a.status === 'present' || a.status === 'late' || a.status === 'excused'
     );
+
+    // Check for explicit absence (only if no positive attendance exists for that day)
+    const isAbsent = !hasAttendance && attendanceForDate.some(a => a.status === 'absent');
     
+    if (isAbsent) {
+      // Explicit absence breaks streak immediately
+      if (result.current_streak > 0) {
+        // Check for freeze
+        const canUseFreeze = await canUseStreakFreeze(supabase, studentId, streakRecord);
+        
+        if (canUseFreeze) {
+          result.freeze_used = true;
+          // Freeze preserves the streak, doesn't increment it
+          await useStreakFreeze(supabase, studentId);
+          console.log(`[Streak Updater] Student ${studentId} used streak freeze on absence`);
+        } else {
+          result.streak_broken = true;
+          result.current_streak = 0;
+          console.log(`[Streak Updater] Student ${studentId} streak broken by absence`);
+        }
+      }
+      continue;
+    }
+
     if (hasAttendance) {
       // Student attended - increment streak
       const dateObj = new Date(date);
@@ -140,17 +193,17 @@ async function updateStudentStreak(
         : null;
       
       if (lastAttendanceDate) {
-        const daysDiff = Math.floor(
-          (dateObj.getTime() - lastAttendanceDate.getTime()) / (1000 * 60 * 60 * 24)
-        );
+        // Use new helper to ignore weekends
+        const daysDiff = getClassDaysDifference(dateObj, lastAttendanceDate);
         
         if (daysDiff === 1) {
-          // Consecutive day - increment streak
+          // Consecutive class day - increment streak
           result.current_streak++;
         } else if (daysDiff > 1) {
           // Gap detected - check for freeze
           const canUseFreeze = await canUseStreakFreeze(supabase, studentId, streakRecord);
           
+          // If gap is exactly 2 class days (missed 1 day), we can use a freeze
           if (canUseFreeze && daysDiff === 2) {
             // Use freeze for 1 missed day
             result.freeze_used = true;
@@ -165,7 +218,7 @@ async function updateStudentStreak(
             result.streak_broken = true;
             result.current_streak = 1; // Start new streak
             
-            console.log(`[Streak Updater] Student ${studentId} streak broken (gap: ${daysDiff} days)`);
+            console.log(`[Streak Updater] Student ${studentId} streak broken (gap: ${daysDiff} class days)`);
           }
         } else if (daysDiff === 0) {
           // Same day - no change to streak
