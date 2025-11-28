@@ -77,11 +77,22 @@ export default async function DashboardPage() {
     }
 
     // Process enrollments to get course IDs
-    const enrolledCourseIds = (classesData.data || []).map((e: any) => e.course_id);
+    type EnrollmentRow = { course_id: string };
+    const enrolledCourseIds = (classesData.data || []).map((e: EnrollmentRow) => e.course_id);
 
     // Fetch Today's Classes based on enrolled courses
     // We do this in a second step because class_schedules is normalized (per course, not per student)
-    let todayClasses: any[] = [];
+    type ClassSchedule = {
+      class: {
+        id: string;
+        name: string;
+        location: string;
+      };
+      start_time: string;
+      end_time: string;
+    };
+
+    let todayClasses: ClassSchedule[] = [];
     
     if (enrolledCourseIds.length > 0) {
       const { data: schedules } = await supabase
@@ -109,31 +120,27 @@ export default async function DashboardPage() {
 
     // Determine active and next class
     const now = new Date();
-    const classes = todayClasses;
+    const classes = todayClasses.map((c) => ({
+      id: c.class.id,
+      name: c.class.name,
+      location: c.class.location,
+      start_time: c.start_time,
+      end_time: c.end_time,
+    }));
 
-    interface ClassSchedule {
-      start_time: string;
-      end_time: string;
-      class: {
-        id: string;
-        name: string;
-        location: string;
-      };
-    }
-
-    const activeClass = classes.find((c: ClassSchedule) => {
+    const activeClass = classes.find((c) => {
       const start = new Date(c.start_time);
       const end = new Date(c.end_time);
       return now >= start && now <= end;
     });
 
-    const nextClass = classes.find((c: ClassSchedule) => {
+    const nextClass = classes.find((c) => {
       const start = new Date(c.start_time);
       return now < start;
     });
 
     // Compute today's stats (completed vs total)
-    const completedToday = classes.filter((c: ClassSchedule) => new Date(c.end_time) < now).length;
+    const completedToday = classes.filter((c) => new Date(c.end_time) < now).length;
 
     // Pass all data to client component
     return (
