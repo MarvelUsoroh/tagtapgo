@@ -18,6 +18,7 @@ interface ClassItem {
   end_time: string;
   status: 'completed' | 'upcoming' | 'missed';
   points_earned?: number;
+  potential_points?: number;
 }
 
 export default function TodayClasses({ studentId }: { studentId: string }) {
@@ -76,7 +77,7 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
         // Fetch today's attendance to check completion status
         const { data: attendanceData } = await supabase
           .from('attendance')
-          .select('course_id, status')
+          .select('id, course_id, status')
           .eq('student_id', studentId)
           .eq('date', today);
 
@@ -85,6 +86,23 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
           (attendanceData || []).map(att => [att.course_id, att.status])
         );
 
+        // Fetch points for these attendance records
+        const attendanceIds = (attendanceData || []).map(a => a.id);
+        const pointsMap = new Map<string, number>();
+        
+        if (attendanceIds.length > 0) {
+          const { data: pointsData } = await supabase
+            .from('points')
+            .select('reference_id, points')
+            .in('reference_id', attendanceIds);
+            
+          if (pointsData) {
+            pointsData.forEach(p => {
+              pointsMap.set(p.reference_id, p.points);
+            });
+          }
+        }
+
         // Transform data
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const classItems: ClassItem[] = ((scheduleData as any[]) || [])
@@ -92,7 +110,18 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
           .map((schedule: any) => {
             const courseId = schedule.course_id;
             const attendanceStatus = attendanceMap.get(courseId);
+            const attendanceRecord = (attendanceData || []).find(a => a.course_id === courseId);
+            const points = attendanceRecord ? pointsMap.get(attendanceRecord.id) : 0;
             
+            // Calculate potential points based on duration (2 pts/hour)
+            let potentialPoints = 0;
+            if (schedule.start_time && schedule.end_time) {
+              const start = new Date(`1970-01-01T${schedule.start_time}`);
+              const end = new Date(`1970-01-01T${schedule.end_time}`);
+              const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+              potentialPoints = Math.round(durationHours * 2);
+            }
+
             return {
               id: schedule.id,
               course_name: schedule.courses?.name || 'Unknown Course',
@@ -101,7 +130,8 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
               end_time: schedule.end_time,
               status: (attendanceStatus === 'present' ? 'completed' : 
                      attendanceStatus === 'absent' ? 'missed' : 'upcoming') as 'completed' | 'upcoming' | 'missed',
-              points_earned: attendanceStatus === 'present' ? 10 : 0,
+              points_earned: points || 0,
+              potential_points: potentialPoints,
             };
           })
           .filter(item => item.time !== null); // Filter out items with no time
@@ -255,6 +285,12 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
                     <Coins size={14} />
                     <span>{classItem.points_earned}</span>
                   </div>
+                </div>
+              )}
+              {classItem.status === 'upcoming' && classItem.potential_points && classItem.potential_points > 0 && (
+                <div className="flex items-center space-x-1 text-xs font-medium text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+                  <Coins size={12} />
+                  <span>{classItem.potential_points} pts</span>
                 </div>
               )}
             </motion.div>
