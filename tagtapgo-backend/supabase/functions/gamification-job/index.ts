@@ -233,13 +233,15 @@ serve(async (_req: Request) => {
     try {
       console.log("[GAMIFICATION JOB] Step 4: Updating leaderboards...");
       console.log(
-        `[GAMIFICATION JOB] Processing ${studentIds.length} students for leaderboard updates`
+        `[GAMIFICATION JOB] Processing ${studentIds.length} impacted students; recalculating all leaderboards for consistency`
       );
       console.log(
         "[GAMIFICATION JOB] Class leaderboards will calculate primary classes based on attendance patterns"
       );
 
-      const leaderboardResults = await updateLeaderboards(supabase, studentIds);
+      // Recalculate every leaderboard to keep ranks accurate even for students
+      // who did not earn new points in this batch.
+      const leaderboardResults = await updateLeaderboards(supabase);
 
       result.leaderboards_updated = leaderboardResults.reduce(
         (sum, r) => sum + r.entries_updated,

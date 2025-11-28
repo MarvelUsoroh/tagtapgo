@@ -5,7 +5,10 @@
  * Implements idempotent points awarding using transaction ledger pattern.
  * 
  * Point Rules:
- * - Base: 10 points per attendance
+ * - Base: status weight × class duration (hours)
+ *     • Present → 2 points per hour
+ *     • Late / Excused → 1 point per hour
+ *     • Absent → 0 points (no ledger entry)
  * - Early Arrival Bonus: +5 points if 5+ minutes early
  * - Perfect Week Bonus: +50 points for 5/5 days attendance
  * - Perfect Month Bonus: +200 points for 20/20 days attendance
@@ -17,24 +20,46 @@ import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // Point values
 const POINTS = {
-  BASE_ATTENDANCE: 10,
   EARLY_ARRIVAL_BONUS: 5,
   PERFECT_WEEK_BONUS: 50,
   PERFECT_MONTH_BONUS: 200,
 } as const;
 
+const STATUS_POINT_WEIGHTS: Record<AttendanceStatus, number> = {
+  present: 2,
+  late: 1,
+  excused: 1,
+  absent: 0,
+  unknown: 0,
+};
+
+const DEFAULT_SESSION_DURATION_HOURS = 1;
+
 // Early arrival threshold (minutes)
 const EARLY_ARRIVAL_THRESHOLD_MINUTES = 5;
+
+type AttendanceStatus = 'present' | 'late' | 'excused' | 'absent' | 'unknown';
+
+interface AttendanceMetadata {
+  session_duration_seconds?: number;
+  session_duration_minutes?: number;
+  session_duration_hours?: number;
+  session_description?: string;
+  [key: string]: unknown;
+}
 
 export interface AttendanceRecord {
   id: string;
   student_id: string;
   course_id: string;
   date: string;
-  status: 'present' | 'late' | 'excused' | 'absent';
+  status: AttendanceStatus;
+  class_id?: string;
+  session_id?: string;
   check_in_time?: string;
   scheduled_time?: string;
   created_at: string;
+  metadata?: AttendanceMetadata | null;
 }
 
 export interface PointsAwardResult {
@@ -92,18 +117,11 @@ export async function calculateAndAwardPoints(
           continue;
         }
         
-        // Calculate base points
-        const baseTransaction: PointTransaction = {
-          transaction_type: 'attendance',
-          points: POINTS.BASE_ATTENDANCE,
-          description: `Attendance for ${record.date}`,
-          reference_id: record.id,
-          metadata: {
-            course_id: record.course_id,
-            date: record.date,
-            status: record.status,
-          },
-        };
+        // Calculate base points based on class duration and Moodle weight
+        const baseTransaction = buildBaseAttendanceTransaction(record);
+        if (!baseTransaction) {
+          continue;
+        }
         
         result.transactions.push(baseTransaction);
         result.total_points_awarded += baseTransaction.points;
@@ -191,6 +209,57 @@ export async function calculateAndAwardPoints(
   }
   
   return results;
+}
+
+function buildBaseAttendanceTransaction(record: AttendanceRecord): PointTransaction | null {
+  const statusWeight = STATUS_POINT_WEIGHTS[record.status] ?? 0;
+  if (statusWeight <= 0) {
+    return null;
+  }
+
+  const durationHours = resolveSessionDurationHours(record);
+  const rawPoints = statusWeight * durationHours;
+  const roundedPoints = Math.max(0, Math.round(rawPoints));
+
+  if (roundedPoints <= 0) {
+    return null;
+  }
+
+  return {
+    transaction_type: 'attendance',
+    points: roundedPoints,
+    description: `Attendance for ${record.date}`,
+    reference_id: record.id,
+    metadata: {
+      course_id: record.course_id,
+      date: record.date,
+      status: record.status,
+      status_weight: statusWeight,
+      duration_hours: durationHours,
+    },
+  };
+}
+
+function resolveSessionDurationHours(record: AttendanceRecord): number {
+  const metadata: AttendanceMetadata = record.metadata || {};
+  const asNumber = (value: unknown) => (typeof value === 'number' && !Number.isNaN(value) ? value : null);
+
+  const hours = asNumber(metadata.session_duration_hours);
+  if (hours && hours > 0) {
+    return hours;
+  }
+
+  const minutes = asNumber(metadata.session_duration_minutes);
+  if (minutes && minutes > 0) {
+    return minutes / 60;
+  }
+
+  const seconds = asNumber(metadata.session_duration_seconds);
+  if (seconds && seconds > 0) {
+    return seconds / 3600;
+  }
+
+  return DEFAULT_SESSION_DURATION_HOURS;
 }
 
 /**

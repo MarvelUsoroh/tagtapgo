@@ -355,26 +355,16 @@ async function updateUnifiedClassLeaderboard(
         };
       });
 
-      // Delete existing entries for these students in this period (class leaderboard)
-      const { error: deleteError } = await supabase
+      // Upsert entries using the unique constraint (student_id, leaderboard_type, period, period_start)
+      const { error: upsertError } = await supabase
         .from("leaderboards")
-        .delete()
-        .eq("leaderboard_type", "class")
-        .eq("period", period)
-        .eq("period_start", periodStart)
-        .in("student_id", studentIds);
+        .upsert(entries, {
+          onConflict: 'student_id,leaderboard_type,period,period_start',
+          ignoreDuplicates: false,
+        });
 
-      if (deleteError) {
-        throw new Error(`Failed to delete existing class leaderboard entries: ${deleteError.message}`);
-      }
-
-      // Insert new entries
-      const { error: insertError } = await supabase
-        .from("leaderboards")
-        .insert(entries);
-
-      if (insertError) {
-        throw new Error(`Failed to insert unified class leaderboard entries: ${insertError.message}`);
+      if (upsertError) {
+        throw new Error(`Failed to upsert unified class leaderboard entries: ${upsertError.message}`);
       }
 
       result.entries_updated = entries.length;
@@ -512,34 +502,16 @@ async function updateLeaderboard(
       };
     });
 
-    // Delete existing entries for these students in this period (year/school leaderboard)
-    let deleteQuery = supabase
+    // Upsert entries using the unique constraint (student_id, leaderboard_type, period, period_start)
+    const { error: upsertError } = await supabase
       .from("leaderboards")
-      .delete()
-      .eq("leaderboard_type", type)
-      .eq("period", period)
-      .eq("period_start", period_start)
-      .in("student_id", studentIds);
+      .upsert(entries, {
+        onConflict: 'student_id,leaderboard_type,period,period_start',
+        ignoreDuplicates: false,
+      });
 
-    if (courseId) {
-      deleteQuery = deleteQuery.eq("course_id", courseId);
-    } else {
-      deleteQuery = deleteQuery.is("course_id", null);
-    }
-
-    const { error: deleteError } = await deleteQuery;
-
-    if (deleteError) {
-      throw new Error(`Failed to delete existing ${type} leaderboard entries: ${deleteError.message}`);
-    }
-
-    // Insert new entries
-    const { error: insertError } = await supabase
-      .from("leaderboards")
-      .insert(entries);
-
-    if (insertError) {
-      throw new Error(`Failed to insert ${type} leaderboard entries: ${insertError.message}`);
+    if (upsertError) {
+      throw new Error(`Failed to upsert ${type} leaderboard entries: ${upsertError.message}`);
     }
 
     result.entries_updated = entries.length;
@@ -630,6 +602,10 @@ async function getExistingEntries(
 
 /**
  * Calculate rankings based on hybrid score (streak * 100 + points)
+ * 
+ * IMPORTANT: Rankings are calculated GLOBALLY across ALL students to ensure
+ * correct relative positioning. Only entries for the specified studentIds
+ * are returned for updating.
  */
 async function calculateRankings(
   supabase: SupabaseClient,
@@ -649,11 +625,26 @@ async function calculateRankings(
     score: number;
   }>
 > {
-  // Get points for each student in the period
+  // Get ALL students for global ranking calculation
+  const { data: allStudents, error: allStudentsError } = await supabase
+    .from("students")
+    .select("id")
+    .eq("status", "active");
+
+  if (allStudentsError) {
+    throw new Error(`Failed to get all students: ${allStudentsError.message}`);
+  }
+
+  const allStudentIds = allStudents?.map(s => s.id) || [];
+  
+  if (allStudentIds.length === 0) {
+    return [];
+  }
+
+  // Get points for ALL students in the period (for global ranking)
   let pointsQuery = supabase
     .from("points")
-    .select("student_id, points")
-    .in("student_id", studentIds);
+    .select("student_id, points");
 
   // Filter by period
   if (period !== "all_time") {
@@ -668,11 +659,10 @@ async function calculateRankings(
     throw new Error(`Failed to get points: ${pointsError.message}`);
   }
 
-  // Get streak data for all students
+  // Get streak data for ALL students (for global ranking)
   const { data: streaksData, error: streaksError } = await supabase
     .from("streaks")
-    .select("student_id, current_streak, longest_streak")
-    .in("student_id", studentIds);
+    .select("student_id, current_streak, longest_streak");
 
   if (streaksError) {
     throw new Error(`Failed to get streaks: ${streaksError.message}`);
@@ -699,8 +689,8 @@ async function calculateRankings(
     });
   }
 
-  // Calculate scores and prepare for sorting
-  const studentsWithScores = studentIds.map((student_id) => {
+  // Calculate scores for ALL students (for global ranking)
+  const allStudentsWithScores = allStudentIds.map((student_id) => {
     const points = studentPoints.get(student_id) || 0;
     const streakData = studentStreaks.get(student_id) || {
       current_streak: 0,
@@ -717,15 +707,18 @@ async function calculateRankings(
     };
   });
 
-  // Sort by score (descending), then by current_streak, then by points
-  const sortedStudents = studentsWithScores.sort((a, b) => {
+  // Sort ALL students by score (descending), then by current_streak, then by points
+  const sortedAllStudents = allStudentsWithScores.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
     if (b.current_streak !== a.current_streak)
       return b.current_streak - a.current_streak;
     return b.points - a.points;
   });
 
-  // Assign ranks (handle ties based on score)
+  // Create a set of studentIds we need to return for quick lookup
+  const targetStudentIds = new Set(studentIds);
+
+  // Assign GLOBAL ranks (handle ties based on score)
   const rankings: Array<{
     student_id: string;
     rank: number;
@@ -736,29 +729,28 @@ async function calculateRankings(
   }> = [];
   let currentRank = 1;
   let previousScore = -1;
-  let studentsAtRank = 0;
 
-  for (let i = 0; i < sortedStudents.length; i++) {
-    const student = sortedStudents[i];
+  for (let i = 0; i < sortedAllStudents.length; i++) {
+    const student = sortedAllStudents[i];
 
     if (student.score !== previousScore) {
       // New rank
       currentRank = i + 1;
       previousScore = student.score;
-      studentsAtRank = 1;
-    } else {
-      // Tie - same rank as previous
-      studentsAtRank++;
     }
+    // Ties get the same rank (no increment)
 
-    rankings.push({
-      student_id: student.student_id,
-      rank: currentRank,
-      points: student.points,
-      current_streak: student.current_streak,
-      longest_streak: student.longest_streak,
-      score: student.score,
-    });
+    // Only include in results if this student is in the target list
+    if (targetStudentIds.has(student.student_id)) {
+      rankings.push({
+        student_id: student.student_id,
+        rank: currentRank,
+        points: student.points,
+        current_streak: student.current_streak,
+        longest_streak: student.longest_streak,
+        score: student.score,
+      });
+    }
   }
 
   return rankings;

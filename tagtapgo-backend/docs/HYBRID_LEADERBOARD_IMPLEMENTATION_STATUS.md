@@ -37,6 +37,7 @@
   - Sort by score → current_streak → points (as tiebreakers)
 - Updated entry creation to include streak and score data
 - Added documentation header explaining hybrid scoring
+- `gamification-job` now calls `updateLeaderboards` without a student filter, forcing a full-table rebuild each run so ranks stay accurate even for students who were idle in the latest batch
 
 ### Step 4: Documentation Updates ✅
 **Files Updated:**

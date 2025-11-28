@@ -7,8 +7,13 @@ The Points Calculation Service is responsible for calculating and awarding point
 ## Point Rules
 
 ### Base Points
-- **10 points** per attendance (present, late, or excused)
-- **0 points** for absent
+- Points are calculated as **status weight × class duration (hours)**
+- Status weights mirror the Moodle attendance scale:
+  - Present (**P**) → 2 points per hour
+  - Late (**L**) → 1 point per hour
+  - Excused (**E**) → 1 point per hour
+  - Absent (**A**) → 0 points (no transaction)
+- Session duration comes from Moodle's `mod_attendance_get_sessions` feed and is stored with every attendance record
 
 ### Bonuses
 
@@ -75,6 +80,9 @@ const attendanceRecords = [
     check_in_time: '2024-10-26T09:55:00Z',
     scheduled_time: '2024-10-26T10:00:00Z',
     created_at: '2024-10-26T09:55:00Z',
+    metadata: {
+      session_duration_hours: 2,
+    },
   },
 ];
 
@@ -84,14 +92,20 @@ const results = await calculateAndAwardPoints(supabase, attendanceRecords);
 // [
 //   {
 //     student_id: 'student-456',
-//     total_points_awarded: 15, // 10 base + 5 early
+//     total_points_awarded: 9, // (2 pts/hour × 2h) + 5 early
 //     transactions: [
 //       {
 //         transaction_type: 'attendance',
-//         points: 10,
+//         points: 4,
 //         description: 'Attendance for 2024-10-26',
 //         reference_id: 'att-123',
-//         metadata: { course_id: 'course-789', date: '2024-10-26', status: 'present' }
+//         metadata: {
+//           course_id: 'course-789',
+//           date: '2024-10-26',
+//           status: 'present',
+//           status_weight: 2,
+//           duration_hours: 2,
+//         }
 //       },
 //       {
 //         transaction_type: 'early_arrival',
@@ -181,7 +195,7 @@ The service handles errors gracefully:
 
 1. **Database errors**: Logged and returned in `errors` array
 2. **Duplicate points**: Detected via `reference_id` check (idempotency)
-3. **Invalid data**: Skipped with error logged
+3. **Invalid data**: Skipped with error logged (falls back to 1 hour duration if Moodle omits the value)
 4. **Per-student isolation**: One student's error doesn't affect others
 
 ## Performance Considerations

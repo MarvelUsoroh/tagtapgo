@@ -52,9 +52,7 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
         }
 
         // Fetch today's scheduled classes for enrolled courses
-        // Only show classes that haven't ended yet (current time <= end_time)
-        const currentTime = format(new Date(), 'HH:mm:ss');
-        
+        // Filter by effective_from/effective_to to get only today's specific sessions
         const { data: scheduleData } = await supabase
           .from('class_schedules')
           .select(`
@@ -62,6 +60,8 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
             start_time,
             end_time,
             course_id,
+            effective_from,
+            effective_to,
             courses (
               id,
               name
@@ -69,7 +69,8 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
           `)
           .eq('day_of_week', todayName)
           .in('course_id', enrolledCourseIds)
-          .gte('end_time', currentTime)
+          .lte('effective_from', today)
+          .gte('effective_to', today)
           .order('start_time');
 
         // Fetch today's attendance to check completion status

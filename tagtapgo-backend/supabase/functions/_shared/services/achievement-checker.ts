@@ -573,8 +573,9 @@ async function updateProgress(
  * Send achievement unlock notification
  * Note: Requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables
  * 
- * Strategy: Store notification in database FIRST, then attempt to send push notification.
- * This ensures the notification is always recorded even if push delivery fails.
+ * Strategy: Only send push notification via send-push-notification Edge Function.
+ * The Edge Function handles both database storage AND push delivery.
+ * DO NOT store notification here to avoid duplicates.
  */
 async function sendAchievementNotification(
   supabase: SupabaseClient,
@@ -582,44 +583,16 @@ async function sendAchievementNotification(
   achievement: Achievement
 ): Promise<void> {
   try {
-    // Step 1: Store notification in database FIRST (ensures it's always recorded)
-    const notificationData = {
-      student_id: studentId,
-      notification_type: 'achievement',
-      title: '🏆 Achievement Unlocked!',
-      message: `You earned "${achievement.name}" and ${achievement.points_reward} points!`,
-      data: {
-        type: 'achievement',
-        achievementName: achievement.name,
-        achievementDescription: achievement.description,
-        pointsEarned: achievement.points_reward,
-        rarity: achievement.rarity,
-        trigger_confetti: true,
-      },
-      read: false,
-    };
-    
-    const { error: notifError } = await supabase
-      .from('notifications')
-      .insert(notificationData);
-    
-    if (notifError) {
-      console.error('[Achievement Checker] Failed to store notification in database:', notifError);
-      // Continue to try push notification anyway
-    } else {
-      console.log(`[Achievement Checker] Stored notification in database for achievement: ${achievement.name}`);
-    }
-    
-    // Step 2: Attempt to send push notification (best effort)
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
     if (!supabaseUrl || !serviceRoleKey) {
-      console.warn('[Achievement Checker] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY, skipping push notification delivery');
+      console.warn('[Achievement Checker] Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY, skipping notification');
       return;
     }
     
-    // Dynamic import to avoid circular dependencies
+    // Send via send-push-notification Edge Function
+    // This function handles BOTH database storage AND push delivery
     const { sendAchievementNotification: sendPush } = await import('./notification-sender.ts');
     
     await sendPush(
@@ -632,11 +605,11 @@ async function sendAchievementNotification(
       achievement.rarity
     );
     
-    console.log(`[Achievement Checker] Sent push notification for achievement: ${achievement.name}`);
+    console.log(`[Achievement Checker] Sent notification for achievement: ${achievement.name}`);
   } catch (error) {
-    console.error('[Achievement Checker] Error in notification flow:', error);
+    console.error('[Achievement Checker] Error sending notification:', error);
     const errorDetails = error instanceof Error ? error.message : String(error);
     console.error('[Achievement Checker] Error details:', errorDetails);
-    // Don't throw - achievement is already unlocked and notification is stored
+    // Don't throw - achievement is already unlocked
   }
 }

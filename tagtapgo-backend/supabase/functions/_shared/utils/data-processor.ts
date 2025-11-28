@@ -8,6 +8,20 @@
  * - Change detection for updates
  */
 
+// deno-lint-ignore no-import-prefix
+import { generate } from "https://deno.land/std@0.168.0/uuid/v5.ts";
+
+/**
+ * Generate a deterministic UUID v5 based on a namespace (university ID) and a value (SIS ID)
+ */
+export async function generateId(namespace: string, value: string | number): Promise<string> {
+  // Ensure namespace is a valid UUID, otherwise use a nil UUID or hash it
+  // For now, we assume universityId is a valid UUID.
+  // If value is number, convert to string.
+  const data = new TextEncoder().encode(String(value));
+  return await generate(namespace, data);
+}
+
 import type {
   CanonicalCourse,
   CanonicalStudent,
@@ -71,7 +85,8 @@ export function toUTC(isoTimestamp: string): string {
  * Convert time string (HH:MM:SS) to UTC time
  * Assumes time is in the source timezone
  */
-export function timeToUTC(timeString: string, sourceTz: string): string {
+// deno-lint-ignore no-unused-vars
+export function timeToUTC(timeString: string, _sourceTz: string): string {
   // For MVP, we'll store times as-is since they're relative to the schedule
   // In production, you'd use a library like date-fns-tz for proper conversion
   return timeString;
@@ -115,7 +130,7 @@ export function validateCourse(course: CanonicalCourse): string[] {
   if (course.startAt && course.endAt) {
     const start = new Date(course.startAt);
     const end = new Date(course.endAt);
-    if (start >= end) {
+    if (start > end) {
       errors.push('Start date must be before end date');
     }
   }
@@ -223,9 +238,13 @@ export function validateSchedule(schedule: CanonicalSchedule): string[] {
  * Compare two objects and return changed fields
  */
 export function detectChanges(
+  // deno-lint-ignore no-explicit-any
   oldData: Record<string, any>,
+  // deno-lint-ignore no-explicit-any
   newData: Record<string, any>
+  // deno-lint-ignore no-explicit-any
 ): Record<string, any> {
+  // deno-lint-ignore no-explicit-any
   const changes: Record<string, any> = {};
   
   for (const key in newData) {
@@ -257,64 +276,75 @@ export function hasAttendanceChanged(
 /**
  * Normalize course data for database insert
  */
-export function normalizeCourse(
+export async function normalizeCourse(
   universityId: string,
   course: CanonicalCourse
-): Record<string, any> {
+  // deno-lint-ignore no-explicit-any
+): Promise<Record<string, any>> {
   return {
-    id: course.id,
+    id: await generateId(universityId, `course-${course.id}`),
     university_id: universityId,
+    external_id: course.id.toString(),
     code: course.code,
     name: course.name,
     short_name: course.shortName,
     start_at: toUTC(course.startAt),
     end_at: toUTC(course.endAt),
     updated_at: new Date().toISOString(),
+    metadata: { sis_id: course.id }
   };
 }
 
 /**
  * Normalize student data for database insert
  */
-export function normalizeStudent(
+export async function normalizeStudent(
   universityId: string,
   student: CanonicalStudent
-): Record<string, any> {
+  // deno-lint-ignore no-explicit-any
+): Promise<Record<string, any>> {
   return {
-    id: student.id,
+    id: await generateId(universityId, `student-${student.id}`),
     university_id: universityId,
+    external_id: student.id.toString(),
     username: student.username || null,
     email: student.email,
     first_name: student.firstName,
     last_name: student.lastName,
-    full_name: student.fullName,
+    // full_name is a generated column, do not insert
     status: student.status,
     grade_level: student.gradeLevel || null,
     student_number: student.studentNumber || null,
     updated_at: new Date().toISOString(),
+    metadata: { sis_id: student.id }
   };
 }
 
 /**
  * Normalize attendance data for database insert
  */
-export function normalizeAttendance(
+export async function normalizeAttendance(
   universityId: string,
-  attendance: CanonicalAttendance
-): Record<string, any> {
+  attendance: CanonicalAttendance,
+  actualStudentUuid?: string
+  // deno-lint-ignore no-explicit-any
+): Promise<Record<string, any>> {
+  const courseUuid = await generateId(universityId, `course-${attendance.courseId}`);
+  const studentUuid = actualStudentUuid || await generateId(universityId, `student-${attendance.userId}`);
+
   return {
-    id: attendance.id,
+    id: await generateId(universityId, `attendance-${attendance.id}`),
     university_id: universityId,
-    course_id: attendance.courseId,
-    session_id: attendance.sessionId,
-    student_id: attendance.userId,
+    course_id: courseUuid,
+    session_id: attendance.sessionId.toString(),
+    student_id: studentUuid,
     status: attendance.status,
     status_code: attendance.statusCode,
     recorded_at: toUTC(attendance.recordedAt),
     source_tz: attendance.sourceTz,
     period: attendance.period || null,
     date: attendance.date || null,
-    metadata: attendance.metadata || {},
+    metadata: { ...attendance.metadata, sis_id: attendance.id } || { sis_id: attendance.id },
     updated_at: new Date().toISOString(),
   };
 }
@@ -322,38 +352,49 @@ export function normalizeAttendance(
 /**
  * Normalize schedule data for database insert
  */
-export function normalizeSchedule(
+export async function normalizeSchedule(
   universityId: string,
   schedule: CanonicalSchedule
-): Record<string, any> {
+  // deno-lint-ignore no-explicit-any
+): Promise<Record<string, any>> {
+  const courseUuid = await generateId(universityId, `course-${schedule.courseId}`);
+
   return {
-    id: schedule.id,
+    id: await generateId(universityId, `schedule-${schedule.id}`),
     university_id: universityId,
-    course_id: schedule.courseId,
+    course_id: courseUuid,
     day_of_week: schedule.dayOfWeek,
     period: schedule.period || null,
     start_time: schedule.startTime,
     end_time: schedule.endTime,
     location: schedule.location || null,
-    instructor_id: schedule.instructorId || null,
+    instructor_id: schedule.instructorId ? schedule.instructorId.toString() : null,
     effective_from: schedule.effectiveFrom,
     effective_to: schedule.effectiveTo,
     updated_at: new Date().toISOString(),
+    metadata: { sis_id: schedule.id }
   };
 }
 
 /**
  * Normalize enrollment data for database insert
  */
-export function normalizeEnrollment(
-  courseId: number,
-  studentId: number
-): Record<string, any> {
+export async function normalizeEnrollment(
+  universityId: string,
+  courseId: number | string,
+  studentId: number | string,
+  actualStudentUuid?: string
+  // deno-lint-ignore no-explicit-any
+): Promise<Record<string, any>> {
+  const courseUuid = await generateId(universityId, `course-${courseId}`);
+  const studentUuid = actualStudentUuid || await generateId(universityId, `student-${studentId}`);
+
   return {
-    course_id: courseId,
-    student_id: studentId,
+    id: await generateId(universityId, `enrollment-${courseId}-${studentId}`),
+    course_id: courseUuid,
+    student_id: studentUuid,
     enrolled_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+    status: 'active',
   };
 }
 

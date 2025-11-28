@@ -198,6 +198,11 @@ export interface IAdapter {
    * @returns Promise<boolean> - true if healthy, false otherwise
    */
   healthCheck(): Promise<boolean>;
+
+  /**
+   * Execution logs for debugging
+   */
+  logs: string[];
 }
 
 // ============================================================================
@@ -209,6 +214,7 @@ export interface IAdapter {
  * Specific adapters (Moodle, openSIS) extend this class
  */
 export abstract class BaseAdapter implements IAdapter {
+  public logs: string[] = [];
   protected capabilities: AdapterCapabilities = {
     courses: false,
     roster: false,
@@ -293,6 +299,7 @@ export abstract class BaseAdapter implements IAdapter {
    */
   protected log(level: 'info' | 'warn' | 'error', message: string, details?: unknown): void {
     const logMessage = `[${this.config.type.toUpperCase()}] [${this.config.universityId}] ${message}`;
+    this.logs.push(`${level.toUpperCase()}: ${message} ${details ? JSON.stringify(details) : ''}`);
     
     if (level === 'error') {
       console.error(logMessage, details);

@@ -13,12 +13,21 @@ type AuthUser = {
 };
 
 export async function ensureStudentProfile(supabase: SupabaseClient, user: AuthUser) {
-  // Check if a profile already exists
-  const { data: existing, error: selectError } = await supabase
+  // Check if a profile already exists by ID or Email
+  // We check email too because the sync job might have created the student profile
+  // with a different ID (Moodle UUID) before the user signed up.
+  let query = supabase
     .from('students')
     .select('id')
-    .eq('id', user.id)
     .limit(1);
+    
+  if (user.email) {
+    query = query.or(`id.eq.${user.id},email.eq.${user.email}`);
+  } else {
+    query = query.eq('id', user.id);
+  }
+
+  const { data: existing, error: selectError } = await query;
 
   if (!selectError && Array.isArray(existing) && existing.length > 0) {
     return { created: false } as const;
@@ -74,6 +83,27 @@ export async function ensureStudentProfile(supabase: SupabaseClient, user: AuthU
   if (upsertError) {
     // Swallow insert errors to avoid hard-failing dashboard; caller may handle gracefully
     return { created: false, error: upsertError } as const;
+  }
+
+  try {
+    // Fire-and-forget call to backend edge function to enrol the
+    // student into the demo Moodle course for the MVP.
+    const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const functionUrl = baseUrl
+      ? `${baseUrl}/functions/v1/enrol-student-in-demo-course`
+      : undefined;
+
+    if (functionUrl) {
+      fetch(functionUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: user.id }),
+      }).catch(() => {
+        // Ignore enrolment failures in ensure path; dashboard should still load.
+      });
+    }
+  } catch {
+    // Ignore errors – enrolment is best-effort.
   }
 
   return { created: true } as const;

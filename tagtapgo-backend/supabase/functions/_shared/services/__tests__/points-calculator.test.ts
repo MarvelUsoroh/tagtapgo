@@ -21,23 +21,25 @@ function createMockSupabase() {
     from: (table: string) => ({
       select: (columns: string) => ({
         eq: (column: string, value: any) => {
-          const query = {
-            single: () => {
-              if (table === 'points') {
-                const found = pointsData.find(p => p[column] === value);
-                return { data: found || null, error: found ? null : { code: 'PGRST116' } };
-              }
-              return { data: null, error: { code: 'PGRST116' } };
-            },
-            eq: (column2: string, value2: any) => ({
-              single: () => {
-                if (table === 'points') {
-                  const found = pointsData.find(p => p[column] === value && p[column2] === value2);
-                  return { data: found || null, error: found ? null : { code: 'PGRST116' } };
-                }
-                return { data: null, error: { code: 'PGRST116' } };
+          if (table === 'points') {
+            const filters: Record<string, any> = { [column]: value };
+            const query: any = {
+              eq: (nextColumn: string, nextValue: any) => {
+                filters[nextColumn] = nextValue;
+                return query;
               },
-            }),
+              single: () => {
+                const found = pointsData.find((p) =>
+                  Object.entries(filters).every(([key, val]) => p[key] === val)
+                );
+                return { data: found || null, error: found ? null : { code: 'PGRST116' } };
+              },
+            };
+            return query;
+          }
+
+          const query = {
+            single: () => ({ data: null, error: { code: 'PGRST116' } }),
             in: (column2: string, values: any[]) => ({
               gte: (column3: string, value3: any) => ({
                 lte: (column4: string, value4: any) => {
@@ -76,6 +78,9 @@ Deno.test('Points Calculator - Base attendance points', async () => {
       date: '2024-10-26',
       status: 'present',
       created_at: '2024-10-26T10:00:00Z',
+      metadata: {
+        session_duration_hours: 2,
+      },
     },
   ];
   
@@ -83,10 +88,10 @@ Deno.test('Points Calculator - Base attendance points', async () => {
   
   assertEquals(results.length, 1);
   assertEquals(results[0].student_id, 'student-1');
-  assertEquals(results[0].total_points_awarded, 10);
+  assertEquals(results[0].total_points_awarded, 4);
   assertEquals(results[0].transactions.length, 1);
   assertEquals(results[0].transactions[0].transaction_type, 'attendance');
-  assertEquals(results[0].transactions[0].points, 10);
+  assertEquals(results[0].transactions[0].points, 4);
 });
 
 Deno.test('Points Calculator - Early arrival bonus', async () => {
@@ -102,13 +107,16 @@ Deno.test('Points Calculator - Early arrival bonus', async () => {
       check_in_time: '2024-10-26T09:50:00Z',
       scheduled_time: '2024-10-26T10:00:00Z',
       created_at: '2024-10-26T09:50:00Z',
+      metadata: {
+        session_duration_hours: 2,
+      },
     },
   ];
   
   const results = await calculateAndAwardPoints(supabase, attendance);
   
   assertEquals(results.length, 1);
-  assertEquals(results[0].total_points_awarded, 15); // 10 base + 5 early
+  assertEquals(results[0].total_points_awarded, 9); // 4 base + 5 early
   assertEquals(results[0].transactions.length, 2);
   assertEquals(results[0].transactions[1].transaction_type, 'early_arrival');
   assertEquals(results[0].transactions[1].points, 5);
@@ -125,6 +133,9 @@ Deno.test('Points Calculator - No points for absent', async () => {
       date: '2024-10-26',
       status: 'absent',
       created_at: '2024-10-26T10:00:00Z',
+      metadata: {
+        session_duration_hours: 2,
+      },
     },
   ];
   
@@ -146,6 +157,9 @@ Deno.test('Points Calculator - Multiple students', async () => {
       date: '2024-10-26',
       status: 'present',
       created_at: '2024-10-26T10:00:00Z',
+      metadata: {
+        session_duration_hours: 2,
+      },
     },
     {
       id: 'att-5',
@@ -154,6 +168,9 @@ Deno.test('Points Calculator - Multiple students', async () => {
       date: '2024-10-26',
       status: 'present',
       created_at: '2024-10-26T10:00:00Z',
+      metadata: {
+        session_duration_hours: 2,
+      },
     },
   ];
   
@@ -161,9 +178,9 @@ Deno.test('Points Calculator - Multiple students', async () => {
   
   assertEquals(results.length, 2);
   assertEquals(results[0].student_id, 'student-1');
-  assertEquals(results[0].total_points_awarded, 10);
+  assertEquals(results[0].total_points_awarded, 4);
   assertEquals(results[1].student_id, 'student-2');
-  assertEquals(results[1].total_points_awarded, 10);
+  assertEquals(results[1].total_points_awarded, 4);
 });
 
 console.log('✓ All points calculator tests passed');

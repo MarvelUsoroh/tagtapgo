@@ -25,35 +25,48 @@ export default async function DashboardPage() {
   // Ensure the student profile exists for this authenticated user (SSO/email agnostic)
   await ensureStudentProfile(supabase, { id: userId, email: user.email, user_metadata: user.user_metadata });
 
+  // Resolve the correct Student ID. 
+  // It might be the Auth User ID (if they signed up first) 
+  // OR a Moodle-derived UUID (if the sync job ran first).
+  // We trust the email link.
+  let studentId = userId;
+  
+  const { data: studentProfile } = await supabase
+    .from('students')
+    .select('id')
+    .eq('email', user.email)
+    .maybeSingle();
+    
+  if (studentProfile) {
+    studentId = studentProfile.id;
+  }
+
   try {
     // Fetch all data in parallel for better performance
     const [studentData, pointsData, streakData, attendanceData, classesData, badgesCountData] = await Promise.all([
       // Student profile (allow missing without hard error)
-      supabase.from('students').select('*').eq('id', userId).maybeSingle(),
+      supabase.from('students').select('*').eq('id', studentId).maybeSingle(),
 
       // Points (sum all points for current balance)
-      supabase.from('points').select('points').eq('student_id', userId),
+      supabase.from('points').select('points').eq('student_id', studentId),
 
       // Current streak
-      supabase.from('streaks').select('*').eq('student_id', userId).single(),
+      supabase.from('streaks').select('*').eq('student_id', studentId).single(),
 
       // Recent attendance (last 30 days for rate calculation)
-      supabase.from('attendance').select('status').eq('student_id', userId)
+      supabase.from('attendance').select('status').eq('student_id', studentId)
         .gte('date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
 
-      // Today's classes
-      supabase.from('class_schedules').select(`
-        *,
-        class:classes(*)
-      `).eq('student_id', userId)
-        .gte('start_time', new Date().toISOString().split('T')[0] + 'T00:00:00')
-        .lte('start_time', new Date().toISOString().split('T')[0] + 'T23:59:59')
-        .order('start_time'),
+      // Get enrolled course IDs first
+      supabase.from('enrollments')
+        .select('course_id')
+        .eq('student_id', studentId)
+        .eq('status', 'active'),
 
       // Badges (only count unlocked achievements)
       supabase.from('student_achievements')
         .select('*', { count: 'exact', head: true })
-        .eq('student_id', userId)
+        .eq('student_id', studentId)
         .eq('unlocked', true),
     ]);
 
@@ -61,6 +74,28 @@ export default async function DashboardPage() {
     if (studentData.error) {
       console.error('Error fetching student:', studentData.error);
       // Continue without redirect; handle null student gracefully in the client
+    }
+
+    // Process enrollments to get course IDs
+    const enrolledCourseIds = (classesData.data || []).map((e: any) => e.course_id);
+
+    // Fetch Today's Classes based on enrolled courses
+    // We do this in a second step because class_schedules is normalized (per course, not per student)
+    let todayClasses: any[] = [];
+    
+    if (enrolledCourseIds.length > 0) {
+      const { data: schedules } = await supabase
+        .from('class_schedules')
+        .select(`
+          *,
+          class:classes(*)
+        `)
+        .in('course_id', enrolledCourseIds)
+        .gte('start_time', new Date().toISOString().split('T')[0] + 'T00:00:00')
+        .lte('start_time', new Date().toISOString().split('T')[0] + 'T23:59:59')
+        .order('start_time');
+        
+      todayClasses = schedules || [];
     }
 
     // Calculate derived data
@@ -74,7 +109,7 @@ export default async function DashboardPage() {
 
     // Determine active and next class
     const now = new Date();
-    const classes = classesData.data || [];
+    const classes = todayClasses;
 
     interface ClassSchedule {
       start_time: string;
