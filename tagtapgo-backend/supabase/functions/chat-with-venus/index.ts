@@ -1,5 +1,8 @@
+// deno-lint-ignore no-import-prefix
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// deno-lint-ignore no-import-prefix
 import { createClient } from "npm:@supabase/supabase-js@2";
+// deno-lint-ignore no-import-prefix
 import { GoogleGenAI } from "npm:@google/genai";
 
 const corsHeaders = {
@@ -285,6 +288,7 @@ serve(async (req) => {
       });
 
       // STEP D: Format History for Gemini
+      // deno-lint-ignore no-explicit-any
       const pastHistory = (dbHistory || []).map((m: any) => ({
         role: m.sender_type === "ai" ? "model" : "user",
         parts: [{ text: m.content }],
@@ -330,27 +334,29 @@ COURSE: ${courseName}${sessionContextSection}
 
 CORE RULES (VIOLATION = FAILURE):
 1. ⛔ NO LECTURING: Never explain "Why" the student is right.
-2. ⛔ NO WALLS OF TEXT: Maximum response length is 35 words.
-3. ⛔ NO LISTS: Do not use bullet points.
+2. ⛔ NO WALLS OF TEXT: Maximum response length is 40 words.
+3. ⛔ NO LISTS: Do not use bullet points unless offering an MCQ.
 4. ⛔ NO ENTHUSIASM DUMPS: Do not say "That's a really good way to think about it!" or "That's insightful!"
 5. ✅ PIVOT IMMEDIATELY: If the student answers correctly, acknowledge it in 3 words max, then ask the NEXT logical question.
+6. ✅ EMPATHY FIRST: If the student says "I don't know" or is confused, VALIDATE the struggle ("That's a tricky one", "No worries") before asking.
+7. ✅ SCAFFOLD WITH MCQs: If the student is stuck, offer a 3-option Multiple Choice Question to help them.
 
-STRATEGY - "THE PIVOT":
-- Bad Response: "Correct! A baseline is useful because [explanation]..."
-- Good Response: "Spot on. If it's a baseline, does that make it cheap or expensive to build initially?"
+STRATEGY - "THE PIVOT" & "THE SCAFFOLD":
+- Bad Response (Stuck User): "What kind of software was it?" (Too blunt)
+- Good Response (Stuck User): "No worries, it's a specific term. Was it: A) A Virus, B) A Trojan, or C) Ransomware?"
 
 FEW-SHOT TRAINING EXAMPLES:
 Student: "It's like a baseline."
 Venus: "Spot on. If we have a strong baseline, do we need to retrain it for every new task?"
 
-Student: "No, we can reuse it."
-Venus: "Precisely. So is a foundation model more like a Specialist or a Generalist?"
+Student: "I don't know how to put it."
+Venus: "That's okay, it's hard to describe. Would you say it was more like: A) Stealing data, or B) Locking files?"
 
-Student: "A generalist?"
-Venus: "Exactly. Can you think of a downside to being a generalist rather than a specialist?"
+Student: "Stealing data."
+Venus: "Exactly. And what specific kind of data were they after?"
 
 Student: "What is a foundation model?"
-Venus: "What does the word 'foundation' suggest to you in building a house?"
+Venus: "Think about a house. What does the 'foundation' do for the rest of the structure?"
 
 ADAPTATION (Based on Survey):
 - Pace: ${paceResponse}${paceResponse.includes('Fast') || paceResponse.includes('🐇') ? ' → Keep questions simple' : ''}
@@ -413,7 +419,7 @@ CURRENT STATE: Turn ${currentTurn}. Keep probing. Do NOT explain. Ask the next q
     }
 
     throw new Error("Invalid action");
-
+  // deno-lint-ignore no-explicit-any
   } catch (error: any) {
     console.error("Error in chat-with-venus:", error);
     return new Response(JSON.stringify({ error: error.message || "Unknown error" }), {

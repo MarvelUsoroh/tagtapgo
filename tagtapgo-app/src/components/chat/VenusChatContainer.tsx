@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { ArrowLeft, X } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import ChatLayout from './ChatLayout';
@@ -22,12 +22,11 @@ export default function VenusChatContainer({ sessionId, courseName, topic }: Ven
   const { 
     messages, 
     isTyping, 
-    status, 
+ 
     error, 
     quickReplies, 
     sendMessage, 
-    startChat,
-    endSession
+    startChat
   } = useVenusChat(sessionId);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -37,7 +36,10 @@ export default function VenusChatContainer({ sessionId, courseName, topic }: Ven
 
   // Auto-scroll
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const timeoutId = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    }, 100);
+    return () => clearTimeout(timeoutId);
   }, [messages, isTyping]);
 
   const handleBack = () => {
@@ -63,15 +65,6 @@ export default function VenusChatContainer({ sessionId, courseName, topic }: Ven
         </div>
       </div>
       <div className="ml-auto">
-        {status !== 'completed' && (
-          <button 
-            onClick={endSession}
-            className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
-            aria-label="End Session"
-          >
-            <X size={20} />
-          </button>
-        )}
       </div>
     </div>
   );
@@ -80,27 +73,13 @@ export default function VenusChatContainer({ sessionId, courseName, topic }: Ven
     <ChatLayout
       header={Header}
       input={
-        status === 'completed' ? (
-          <div className="p-4 flex flex-col gap-3 bg-white border-t border-gray-100">
-            <div className="text-center bg-green-50 text-green-700 font-medium p-3 rounded-lg border border-green-100">
-              Conversation Complete! 🎉
-            </div>
-            <button 
-              onClick={() => router.push('/')}
-              className="w-full py-3 bg-black text-white rounded-xl font-semibold hover:bg-gray-800 transition-colors shadow-sm"
-            >
-              Back to Dashboard
-            </button>
-          </div>
-        ) : (
-          <div>
-            <QuickReplyOptions options={quickReplies} onSelect={handleQuickReply} />
-            <ChatInput 
-              onSend={sendMessage} 
-              disabled={isTyping} 
-            />
-          </div>
-        )
+        <div>
+          <QuickReplyOptions options={quickReplies} onSelect={handleQuickReply} />
+          <ChatInput 
+            onSend={sendMessage} 
+            disabled={isTyping} 
+          />
+        </div>
       }
     >
       <div className="py-4">

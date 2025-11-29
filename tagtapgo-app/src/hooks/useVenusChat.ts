@@ -197,13 +197,6 @@ export function useVenusChat(promptId: string) {
     }
   };
 
-  const endSession = async () => {
-    if (conversationId && status !== 'completed') {
-      setStatus('completed');
-      // Achievements handled by gamification engine
-    }
-  };
-
   return { 
     messages, 
     isTyping, 
@@ -211,7 +204,6 @@ export function useVenusChat(promptId: string) {
     error, 
     quickReplies, 
     sendMessage, 
-    startChat,
-    endSession
+    startChat
   };
 }
