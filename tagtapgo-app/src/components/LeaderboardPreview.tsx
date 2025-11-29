@@ -8,6 +8,12 @@ import { supabase } from '@/lib/supabase';
 // import { colors } from '@/lib/theme';
 import { cn, formatNumber } from '@/lib/utils';
 
+// Extract first name from full name
+const getFirstName = (fullName: string | undefined | null): string => {
+  if (!fullName || !fullName.trim()) return 'Student';
+  return fullName.trim().split(' ')[0];
+};
+
 interface LeaderboardEntry {
   id: string;
   student_id: string;
@@ -199,7 +205,7 @@ export default function LeaderboardPreview({
                       isCurrentUser ? 'text-primary' : 'text-gray-900'
                     )}
                   >
-                    {(entry.student_name && entry.student_name.trim()) || 'Student'}
+                    {getFirstName(entry.student_name)}
                     {isCurrentUser && ' (You)'}
                   </p>
                   <p className="text-sm text-gray-500">Rank #{entry.rank}</p>

@@ -33,14 +33,24 @@ After testing all 10 available Moodle API functions, we discovered that `mod_att
 }
 ```
 
-## Minimal Function Set (3-4 Functions)
+## Minimal Function Set (Core Functions)
+
+### Attendance Sync Functions (attendance-sync-job)
 
 | Function | Why We're Actively Using It Today | Privacy Lens |
 |----------|----------------------------------|--------------|
 | `core_webservice_get_site_info` | Every sync run starts here to validate the token, discover enabled WS functions, and short-circuit if `mod_attendance_get_sessions` isn’t exposed. | ✅ Low – capability metadata only |
-| `mod_attendance_get_sessions` | Primary data feed for sessions, durations, statuses, attendance logs, and minimal user stubs. Feeds both `attendance-sync-job` and the new duration-aware points calculator. | ✅ Low – class/attendance context only |
+| `mod_attendance_get_sessions` | Primary data feed for sessions, durations, statuses, attendance logs, and minimal user stubs. Also provides `session.description` used for Venus AI context. | ✅ Low – class/attendance context only |
 | `core_enrol_get_enrolled_users` *(optional but enabled in prod)* | Used when available to filter to true `student` roles so we never import TAs/instructors. Falls back to the session’s `users` array if the function isn’t exposed. | ✅ Low – role metadata only |
 | `core_course_get_courses` *(optional)* | Pulled only to hydrate real course names/codes for dashboards. When disabled, we rely on Moodle attendance metadata. | ✅ Low – course metadata only |
+
+### Enrollment Functions (moodle-adapter - for write operations)
+
+| Function | Purpose | Privacy Lens |
+|----------|---------|--------------|
+| `core_user_get_users_by_field` | Look up existing Moodle users by email before creating duplicates. Used in the enrollment adapter. | ✅ Low – single user lookup |
+| `core_user_create_users` | Create new Moodle user accounts when students need to be enrolled but don't exist in Moodle yet. | ⚠️ Medium – creates user records |
+| `enrol_manual_enrol_users` | Enroll students into Moodle courses. Used after user creation/lookup to establish course membership. | ⚠️ Medium – modifies enrollments |
 
 ## Functions Removed (Data Minimization)
 
@@ -100,7 +110,8 @@ The minimal API returns only:
 | Approach | API Calls per Sync | Data Fetched |
 |----------|-------------------|--------------|
 | v1 (Original) | 6-10 calls | All courses, all users, calendar events |
-| v2 (Minimal) | 3-4 calls per attendance | Only attendance data + course name + role filtering |
+| v2 (Minimal Sync) | 3-4 calls per attendance | Only attendance data + course name + role filtering |
+| Enrollment Adapter | 3 calls per enrollment | User lookup, user creation (if needed), enrollment |
 
 ## Configuration
 

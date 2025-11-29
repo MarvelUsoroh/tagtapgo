@@ -14,6 +14,12 @@ import { colors } from '@/lib/theme';
 import { LEADERBOARD_CONFIG } from '@/lib/constants';
 import { cn, formatNumber, getInitials } from '@/lib/utils';
 import BottomNav from '@/components/BottomNav';
+
+// Extract first name from full name
+const getFirstName = (fullName: string | undefined | null): string => {
+  if (!fullName || !fullName.trim()) return 'Student';
+  return fullName.trim().split(' ')[0];
+};
 import PageHeader from '@/components/PageHeader';
 
 type LeaderboardType = 'class' | 'year' | 'school';
@@ -57,6 +63,7 @@ export default function LeaderboardClient({
   const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
   const [userPrimaryClass, setUserPrimaryClass] = useState<string | null>(null);
   const [className, setClassName] = useState<string>('Class');
+  const [classCode, setClassCode] = useState<string | null>(null);
 
   // Get user's primary class for the current period
   const getUserPrimaryClass = useCallback(async (period: TimePeriod): Promise<string | null> => {
@@ -182,13 +189,15 @@ export default function LeaderboardClient({
         if (activeTab === 'class' && primaryClassId) {
           const { data: courseData } = await supabase
             .from('courses')
-            .select('name')
+            .select('name, code')
             .eq('id', primaryClassId)
             .single();
           
           setClassName(courseData?.name || 'Class');
+          setClassCode(courseData?.code || null);
         } else {
           setClassName('Class');
+          setClassCode(null);
         }
       }
     } catch (error) {
@@ -354,7 +363,14 @@ export default function LeaderboardClient({
                   borderBottom: activeTab === tab ? `2px solid ${colors.primary.DEFAULT}` : '2px solid transparent',
                 }}
               >
-                {tab === 'class' ? className : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {tab === 'class' ? (
+                  <>
+                    <span className="sm:hidden">{classCode || 'Class'}</span>
+                    <span className="hidden sm:inline">{className}</span>
+                  </>
+                ) : (
+                  tab.charAt(0).toUpperCase() + tab.slice(1)
+                )}
               </button>
             ))}
           </div>
@@ -417,7 +433,7 @@ export default function LeaderboardClient({
                   {entry.student_avatar_url ? (
                     <Image
                       src={entry.student_avatar_url}
-                      alt={entry.student_name}
+                      alt={getFirstName(entry.student_name)}
                       width={40}
                       height={40}
                       className="rounded-full object-cover"
@@ -433,7 +449,7 @@ export default function LeaderboardClient({
                     className="font-medium truncate"
                     style={{ color: colors.gray[900] }}
                   >
-                    {entry.student_name || 'Student'}
+                    {getFirstName(entry.student_name)}
                     {entry.student_id === currentStudentId && (
                       <span
                         className="ml-2 text-xs font-normal"

@@ -56,6 +56,12 @@ module.exports = {
         'glow': '0 0 20px rgba(74, 222, 128, 0.5)',
         'glow-lg': '0 0 30px rgba(74, 222, 128, 0.6)',
       },
+      padding: {
+        'safe': 'env(safe-area-inset-bottom, 0px)',
+        'safe-top': 'env(safe-area-inset-top, 0px)',
+        'safe-left': 'env(safe-area-inset-left, 0px)',
+        'safe-right': 'env(safe-area-inset-right, 0px)',
+      },
     },
   },
   plugins: [],

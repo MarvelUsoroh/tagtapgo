@@ -202,6 +202,17 @@ Deno.serve(async (req: Request) => {
           try {
             // Create feedback prompt (expires in 24 hours)
             const expiresAt = now.plus({ hours: 24 }).toISO();
+            
+            // Extract session description from attendance metadata for Venus context
+            const sessionDescription = attendanceMetadata?.session_description || null;
+            const promptMetadata = {
+              ...attendanceMetadata,
+              topic: sessionDescription || "today's lecture",
+              sessionContext: sessionDescription ? {
+                lessonTitle: sessionDescription,
+              } : null,
+            };
+            
             const { data: newPrompt, error: promptError } = await supabase
               .from("feedback_prompts")
               .insert({
@@ -210,12 +221,17 @@ Deno.serve(async (req: Request) => {
                 prompt_sent_at: now.toISO(),
                 expires_at: expiresAt,
                 status: "pending",
-                metadata: attendanceMetadata, // Pass topic/context from attendance
+                metadata: promptMetadata,
               })
               .select()
               .single();
 
             if (promptError) {
+              // Handle Foreign Key Violation (schedule deleted during processing)
+              if (promptError.code === '23503') {
+                 console.warn(`[Feedback Prompt Job] Schedule ${schedule.id} no longer exists (FK violation). Skipping prompt for student ${student.student_id}.`);
+                 continue;
+              }
               console.error(`[Feedback Prompt Job] Error creating prompt for student ${student.student_id}:`, promptError);
               errors.push(`Student ${student.student_id}: ${promptError.message}`);
               continue;

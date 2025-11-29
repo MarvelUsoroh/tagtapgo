@@ -9,6 +9,7 @@ export function useVenusChat(promptId: string) {
   const [error, setError] = useState<string | null>(null);
   const [quickReplies, setQuickReplies] = useState<string[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -18,7 +19,8 @@ export function useVenusChat(promptId: string) {
         const { 
           messages: savedMessages, 
           status: savedStatus,
-          conversationId: savedConvId
+          conversationId: savedConvId,
+          quickReplies: savedQuickReplies
         } = JSON.parse(saved);
         
         // Add timestamps if missing
@@ -30,31 +32,39 @@ export function useVenusChat(promptId: string) {
         setMessages(messagesWithTimestamps);
         setStatus(savedStatus);
         if (savedConvId) setConversationId(savedConvId);
+        if (savedQuickReplies) setQuickReplies(savedQuickReplies);
       }
     } catch (err) {
       console.error('Failed to load saved chat:', err);
+    } finally {
+      setIsLoaded(true);
     }
   }, [promptId]);
 
   // Save to localStorage when state changes
   useEffect(() => {
-    if (messages.length > 0) {
+    if (isLoaded && messages.length > 0) {
       try {
         localStorage.setItem(`venus-chat-${promptId}`, JSON.stringify({ 
           messages, 
           status,
-          conversationId
+          conversationId,
+          quickReplies
         }));
       } catch (err) {
         console.error('Failed to save chat:', err);
       }
     }
-  }, [messages, status, conversationId, promptId]);
+  }, [messages, status, conversationId, quickReplies, promptId, isLoaded]);
 
   // Note: Points are now awarded via achievement system, not directly per chat
 
   // Initialize chat
   const startChat = useCallback(async () => {
+    // Wait for localStorage to be loaded first
+    if (!isLoaded) return;
+    
+    // Don't restart if we already have messages
     if (messages.length > 0) return;
     
     setIsTyping(true);
@@ -106,7 +116,7 @@ export function useVenusChat(promptId: string) {
       setIsTyping(false);
       setStatus('idle');
     }
-  }, [messages.length, promptId]);
+  }, [isLoaded, messages.length, promptId]);
 
   const sendMessage = async (content: string) => {
     try {

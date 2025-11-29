@@ -3,10 +3,13 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import { Trophy, Flame, Clock, Users, Gift, Star } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { Achievement, StudentAchievement } from '@/lib/supabase';
 import { NoRecentAchievements } from './EmptyState';
 import BadgeIcon from './BadgeIcon';
+import { categoryPalette, colors } from '@/lib/theme';
+import { triggerConfetti } from '@/lib/utils';
 
 interface StudentAchievementWithAchievement extends StudentAchievement {
   achievement: Achievement;
@@ -15,6 +18,15 @@ interface StudentAchievementWithAchievement extends StudentAchievement {
 interface RecentAchievementsProps {
   studentId: string;
 }
+
+const categoryIcons = {
+  attendance: Trophy,
+  streak: Flame,
+  time: Clock,
+  social: Users,
+  reward: Gift,
+  special: Star,
+};
 
 export default function RecentAchievements({ studentId }: RecentAchievementsProps) {
   const router = useRouter();
@@ -119,10 +131,63 @@ export default function RecentAchievements({ studentId }: RecentAchievementsProp
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      {/* Mobile: Compact circle badges - hidden on sm and up */}
+      <div className="flex justify-center gap-4 sm:hidden">
+        {achievements.filter(item => item.achievement).map((item, index) => {
+          const Icon = categoryIcons[item.achievement.category] || Trophy;
+          const catColors = categoryPalette[item.achievement.category] ?? { gradFrom: colors.primary.light, gradTo: colors.primary.dark };
+          
+          return (
+            <motion.button
+              key={`mobile-${item.id}`}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.1 }}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                triggerConfetti({
+                  particleCount: 50,
+                  spread: 70,
+                  colors: [catColors.gradFrom, catColors.gradTo],
+                });
+                router.push('/achievements');
+              }}
+              className="relative w-16 h-16 rounded-full flex items-center justify-center shadow-lg cursor-pointer"
+              style={{
+                background: `linear-gradient(135deg, ${catColors.gradFrom}, ${catColors.gradTo})`,
+              }}
+            >
+              <Icon size={24} className="text-white" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
+              {/* Glow effect */}
+              <motion.div
+                className="absolute inset-0 rounded-full -z-10"
+                style={{
+                  background: `linear-gradient(135deg, ${catColors.gradFrom}, ${catColors.gradTo})`,
+                  filter: 'blur(8px)',
+                  opacity: 0.4,
+                }}
+                animate={{
+                  scale: [1, 1.15, 1],
+                  opacity: [0.4, 0.6, 0.4],
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                  delay: index * 0.3,
+                }}
+              />
+            </motion.button>
+          );
+        })}
+      </div>
+
+      {/* Desktop: Full badge cards - hidden below sm */}
+      <div className="hidden sm:grid sm:grid-cols-3 gap-3">
         {achievements.filter(item => item.achievement).map((item, index) => (
           <motion.div
-            key={item.id}
+            key={`desktop-${item.id}`}
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: index * 0.1 }}

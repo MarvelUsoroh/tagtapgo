@@ -86,14 +86,24 @@ export default async function FeedbackPage({ params }: PageProps) {
   const courseData = Array.isArray(courseInfo) ? courseInfo[0] : courseInfo;
   
   const courseCode = courseData?.code || '';
-  const courseName = courseData?.name || 'Class';
+  const rawCourseName = courseData?.name || 'Class';
   const section = classInfo?.section || '';
+
+  // Clean the course name if it starts with the code to avoid redundancy
+  let cleanCourseName = rawCourseName;
+  if (courseCode && rawCourseName.startsWith(courseCode)) {
+    cleanCourseName = rawCourseName.substring(courseCode.length).replace(/^[\s–:\-]+/, '');
+  }
+
+  // Use code+section as the identifier, and the cleaned name as the topic
+  // This prevents "CS101: CS101 - Intro" redundancy
   const displayName = courseCode 
-    ? `${courseCode}${section ? ` (${section})` : ''}: ${courseName}` 
-    : courseName;
+    ? `${courseCode}${section ? ` (${section})` : ''}` 
+    : cleanCourseName;
   
-  // For topic, use the course name
-  const topic = courseName || 'Today\'s Lecture';
+  // For topic, use the cleaned course name
+  // If no code exists, displayName is already the name, so use a generic topic to avoid "Name: Name"
+  const topic = courseCode ? cleanCourseName : 'Today\'s Lecture';
 
   return (
     <VenusChatContainer 

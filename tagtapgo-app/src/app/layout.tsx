@@ -37,6 +37,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   themeColor: '#6366F1',
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -45,8 +46,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={roboto.className}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={roboto.className} suppressHydrationWarning>
         <ServiceWorkerRegistration />
         {children}
         <Analytics />

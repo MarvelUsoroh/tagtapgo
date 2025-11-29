@@ -304,6 +304,12 @@ export default function FeedbackPromptCard({
                       const schedule = getClassSchedule(prompt);
                       const courseCode = schedule?.class?.course?.code;
                       const courseName = schedule?.class?.course?.name || 'Class';
+                      
+                      // If the name already starts with the code (e.g. "CS101 - Intro"), don't prepend it again
+                      if (courseCode && courseName.startsWith(courseCode)) {
+                        return courseName;
+                      }
+                      
                       return courseCode ? `${courseCode}: ${courseName}` : courseName;
                     })()}
                   </p>

@@ -37,8 +37,15 @@ export default function ChatInput({ onSend, disabled, placeholder = "Type your t
     }
   }, [value]);
 
+  // Auto-focus when not disabled (e.g., after Venus responds)
+  useEffect(() => {
+    if (!disabled && textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  }, [disabled]);
+
   return (
-    <div className="pt-4 px-4 bg-white border-t border-gray-100 pb-4">
+    <div className="pt-3 px-4 bg-white border-t border-gray-100 pb-6 sm:pb-3">
       <div className="relative flex items-end gap-2 p-2 bg-gray-50 rounded-xl border border-gray-200 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
         <textarea
           ref={textareaRef}

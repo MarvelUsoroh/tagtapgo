@@ -74,7 +74,10 @@ export default function ChatLayout({ header, children, input }: ChatLayoutProps)
 
       <div 
         ref={inputContainerRef}
-        className="flex-none z-10 bg-white pb-[env(safe-area-inset-bottom)]"
+        className="flex-none z-10 bg-white border-t border-gray-100 pb-safe"
+        style={{
+          paddingBottom: 'calc(max(env(safe-area-inset-bottom, 0px), 20px) + 8px)'
+        }}
       >
         <div className="max-w-2xl mx-auto w-full">
           {input}

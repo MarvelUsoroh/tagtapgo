@@ -474,12 +474,12 @@ serve(async (_req: Request) => {
           }
 
           // Step 6: Extract and upsert schedules (sessions = class times)
-          const schedules = sessions.map(session => {
+          const schedules = await Promise.all(sessions.map(async session => {
             const startDate = new Date(session.sessdate * 1000);
             const endDate = new Date((session.sessdate + session.duration) * 1000);
             
             return {
-              id: crypto.randomUUID(),
+              id: await generateUUID(uni.id, `schedule-${session.id}`),
               university_id: uni.id,
               course_id: actualCourseId,  // Use actual course ID, not generated UUID
               class_id: actualClassId,    // Use actual class ID, not generated UUID
@@ -491,13 +491,23 @@ serve(async (_req: Request) => {
               metadata: { session_id: session.id, description: session.description },
               updated_at: new Date().toISOString(),
             };
-          });
+          }));
 
           if (schedules.length > 0) {
-            // Clear old schedules for this class and insert new ones
-            await supabase.from('class_schedules').delete().eq('class_id', actualClassId);
-            const { error } = await supabase.from('class_schedules').insert(schedules);
-            if (error) console.error('[SYNC] Schedule insert error:', error.message);
+            // Upsert schedules (preserves IDs to avoid breaking FKs)
+            const { error: upsertError } = await supabase.from('class_schedules').upsert(schedules, { onConflict: 'id' });
+            if (upsertError) console.error('[SYNC] Schedule upsert error:', upsertError.message);
+
+            // Remove stale schedules that are no longer in the source
+            const activeScheduleIds = schedules.map(s => s.id);
+            const { error: deleteError } = await supabase
+              .from('class_schedules')
+              .delete()
+              .eq('class_id', actualClassId)
+              .not('id', 'in', `(${activeScheduleIds.join(',')})`);
+            
+            if (deleteError) console.error('[SYNC] Schedule cleanup error:', deleteError.message);
+
             totalSchedules += schedules.length;
           }
         }

@@ -60,7 +60,13 @@ serve(async (req) => {
       const topic = prompt.metadata?.topic || "today's lecture";
       const courseName = prompt.class_schedules?.courses?.name || "class";
       
+      // Extract session context from metadata (populated by Moodle sync)
+      const sessionContext = prompt.metadata?.sessionContext || null;
+      
       console.log(`Starting chat for Course: ${courseName}, Topic: ${topic}`);
+      if (sessionContext) {
+        console.log(`Session context available:`, JSON.stringify(sessionContext));
+      }
 
       // 2. Create Conversation
       const { data: conversation, error: convError } = await supabaseClient
@@ -72,6 +78,7 @@ serve(async (req) => {
             topic, 
             courseName, 
             prompt_id: promptId,
+            sessionContext, // Pass session context to conversation
             state: "SURVEY_PACE" // Start in Survey Mode
           },
           status: "active",
@@ -288,11 +295,38 @@ serve(async (req) => {
       const courseName = conversation?.metadata?.courseName || "class";
       const paceResponse = conversation?.metadata?.pace_response || "";
       const clarityResponse = conversation?.metadata?.clarity_response || "";
+      const sessionContext = conversation?.metadata?.sessionContext || null;
+      
+      // Build session context section if available
+      let sessionContextSection = "";
+      if (sessionContext) {
+        const parts: string[] = [];
+        
+        if (sessionContext.lessonTitle) {
+          parts.push(`Lesson: ${sessionContext.lessonTitle}`);
+        }
+        if (sessionContext.learningObjectives && sessionContext.learningObjectives.length > 0) {
+          parts.push(`Learning Objectives: ${sessionContext.learningObjectives.join(", ")}`);
+        }
+        if (sessionContext.keyTopics && sessionContext.keyTopics.length > 0) {
+          parts.push(`Key Topics Covered: ${sessionContext.keyTopics.join(", ")}`);
+        }
+        if (sessionContext.keyTerms && sessionContext.keyTerms.length > 0) {
+          parts.push(`Key Terms: ${sessionContext.keyTerms.join(", ")}`);
+        }
+        if (sessionContext.summary) {
+          parts.push(`Summary: ${sessionContext.summary}`);
+        }
+        
+        if (parts.length > 0) {
+          sessionContextSection = `\n\nSESSION CONTEXT (Use this to guide your questions):\n${parts.join("\n")}`;
+        }
+      }
       
       // Build ultra-strict prompt that prevents lecture dumps
       let systemPrompt = `IDENTITY: You are Venus, a "Stingy Socratic Tutor".
 TOPIC: ${topic}
-COURSE: ${courseName}
+COURSE: ${courseName}${sessionContextSection}
 
 CORE RULES (VIOLATION = FAILURE):
 1. ⛔ NO LECTURING: Never explain "Why" the student is right.

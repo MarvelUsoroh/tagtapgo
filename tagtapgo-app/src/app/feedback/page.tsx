@@ -48,10 +48,10 @@ export default async function FeedbackListPage({
 
   // Error messages for different scenarios
   const errorMessages: Record<string, string> = {
-    session_not_found: 'Feedback session not found or you don\'t have access to it.',
-    session_expired: 'This feedback session has expired.',
-    already_completed: 'You\'ve already completed this feedback session.',
-    not_yet_available: 'This feedback session is not yet available.',
+    session_not_found: 'Review session not found or you don\'t have access to it.',
+    session_expired: 'This review session has expired.',
+    already_completed: 'You\'ve already completed this review session.',
+    not_yet_available: 'This review session is not yet available.',
   };
 
   const errorMessage = searchParams.error ? errorMessages[searchParams.error] : null;
@@ -129,7 +129,7 @@ export default async function FeedbackListPage({
         {prompts.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-lg font-medium mb-2" style={{ color: colors.gray[600] }}>
-              No pending feedback right now
+              No pending reviews right now
             </p>
             <p className="text-sm" style={{ color: colors.gray[500] }}>
               Check back after your classes
@@ -148,10 +148,18 @@ export default async function FeedbackListPage({
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold truncate" style={{ color: colors.gray[900] }}>
-                      {classSchedule?.class?.course?.code
-                        ? `${classSchedule.class.course.code}: `
-                        : ''}
-                      {classSchedule?.class?.course?.name ?? 'Class'}
+                      {(() => {
+                        const code = classSchedule?.class?.course?.code || '';
+                        const rawName = classSchedule?.class?.course?.name || 'Class';
+                        
+                        // Clean the course name if it starts with the code
+                        let cleanName = rawName;
+                        if (code && rawName.startsWith(code)) {
+                          cleanName = rawName.substring(code.length).replace(/^[\s–:\-]+/, '');
+                        }
+                        
+                        return code ? `${code}: ${cleanName}` : cleanName;
+                      })()}
                     </p>
                     {(() => {
                       // Use prompt_sent_at for the date label

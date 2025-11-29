@@ -112,24 +112,6 @@ export default function NotificationSettingsPage() {
       title: 'Challenge Invitations',
       description: 'Get notified when friends challenge you',
     },
-    {
-      key: 'goal_achieved' as keyof NotificationPreferences,
-      icon: '🎯',
-      title: 'Goal Achieved',
-      description: 'Celebrate when you reach your attendance goal',
-    },
-    {
-      key: 'goal_behind' as keyof NotificationPreferences,
-      icon: '⚠️',
-      title: 'Goal Reminders',
-      description: 'Get reminded when falling behind on your attendance goal',
-    },
-    {
-      key: 'goal_progress' as keyof NotificationPreferences,
-      icon: '📊',
-      title: 'Weekly Progress Updates',
-      description: 'Receive weekly updates on your attendance goal progress',
-    },
   ];
 
   return (
