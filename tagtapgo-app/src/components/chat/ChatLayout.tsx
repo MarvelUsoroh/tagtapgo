@@ -59,7 +59,7 @@ export default function ChatLayout({ header, children, input }: ChatLayoutProps)
         // This prevents the excessive whitespace issue
         height: keyboardHeight > 0 
           ? `${window.innerHeight - keyboardHeight}px`
-          : '100vh'
+          : '100dvh'
       }}
     >
       <div className="flex-none z-10 bg-white/80 backdrop-blur-md border-b border-gray-100 pt-[env(safe-area-inset-top)]">
