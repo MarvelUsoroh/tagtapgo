@@ -17,7 +17,8 @@ type University = { id: string; name: string };
 
 function SignupContent() {
   const router = useRouter();
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [universityId, setUniversityId] = useState('');
@@ -94,18 +95,18 @@ function SignupContent() {
   }
 
   const validateForm = (): boolean => {
-    if (!name || !email || !password || !universityId) {
+    if (!firstName || !lastName || !email || !password || !universityId) {
       setError('Please fill in all fields');
       return false;
     }
 
-    if (name.length < VALIDATION.NAME_MIN_LENGTH) {
-      setError(`Name must be at least ${VALIDATION.NAME_MIN_LENGTH} characters`);
+    if (firstName.length < 2) {
+      setError('First name must be at least 2 characters');
       return false;
     }
 
-    if (name.length > VALIDATION.NAME_MAX_LENGTH) {
-      setError(`Name must be less than ${VALIDATION.NAME_MAX_LENGTH} characters`);
+    if (lastName.length < 2) {
+      setError('Last name must be at least 2 characters');
       return false;
     }
 
@@ -135,12 +136,16 @@ function SignupContent() {
 
     try {
       // Create auth user
+      const fullName = `${firstName} ${lastName}`.trim();
+      
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            name,
+            name: fullName,
+            first_name: firstName,
+            last_name: lastName,
             university_id: universityId,
           },
         },
@@ -155,11 +160,6 @@ function SignupContent() {
         // This client-side insert is kept as a fallback but will likely be blocked by RLS
         // The trigger on auth.users will handle profile creation reliably
         
-        // Split name into first and last name
-        const nameParts = name.split(' ');
-        const firstName = nameParts[0];
-        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : undefined;
-
         const { error: profileError } = await supabase
           .from('students')
           .insert({
@@ -231,30 +231,57 @@ function SignupContent() {
                 </div>
               )}
 
-              {/* Name Input */}
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                  Full Name
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    id="name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className={cn(
-                      'w-full pl-10 pr-4 py-3 border rounded-lg',
-                      'focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all',
-                      error && !name ? 'border-red-300' : 'border-gray-300'
-                    )}
-                    style={{ 
-                      '--tw-ring-color': colors.primary.DEFAULT 
-                    } as React.CSSProperties}
-                    placeholder="John Doe"
-                    disabled={loading}
-                    autoComplete="name"
-                  />
+              {/* Name Inputs */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                    First Name
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      id="firstName"
+                      type="text"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className={cn(
+                        'w-full pl-10 pr-4 py-3 border rounded-lg',
+                        'focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all',
+                        error && !firstName ? 'border-red-300' : 'border-gray-300'
+                      )}
+                      style={{ 
+                        '--tw-ring-color': colors.primary.DEFAULT 
+                      } as React.CSSProperties}
+                      placeholder="John"
+                      disabled={loading}
+                      autoComplete="given-name"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+                    Last Name
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      id="lastName"
+                      type="text"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className={cn(
+                        'w-full pl-10 pr-4 py-3 border rounded-lg',
+                        'focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all',
+                        error && !lastName ? 'border-red-300' : 'border-gray-300'
+                      )}
+                      style={{ 
+                        '--tw-ring-color': colors.primary.DEFAULT 
+                      } as React.CSSProperties}
+                      placeholder="Doe"
+                      disabled={loading}
+                      autoComplete="family-name"
+                    />
+                  </div>
                 </div>
               </div>
 

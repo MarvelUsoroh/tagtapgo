@@ -94,12 +94,7 @@ export default function NotificationSettingsPage() {
       title: 'Perfect Month Bonus',
       description: 'Get notified when you attend 20+ days in a month',
     },
-    {
-      key: 'feedback_prompt' as keyof NotificationPreferences,
-      icon: '💬',
-      title: 'Feedback Prompts',
-      description: 'Reminders to share feedback after class and earn bonus points',
-    },
+
     {
       key: 'reward' as keyof NotificationPreferences,
       icon: '🎁',

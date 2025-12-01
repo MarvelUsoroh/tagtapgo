@@ -38,10 +38,22 @@ export async function ensureStudentProfile(supabase: SupabaseClient, user: AuthU
   let universityId = user.user_metadata?.university_id as string | undefined;
   const externalId = (user.user_metadata?.external_id as string | undefined) || emailLocal || user.id;
 
-  // Split full name into first and last name (simple split on first space)
-  const nameParts = fullNameFromMeta.split(' ');
-  const firstName = nameParts[0];
-  const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : undefined;
+  // Extract name parts from metadata if available (from new signup flow)
+  const firstNameMeta = user.user_metadata?.first_name as string | undefined;
+  const lastNameMeta = user.user_metadata?.last_name as string | undefined;
+
+  let firstName: string | undefined;
+  let lastName: string | undefined;
+
+  if (firstNameMeta && lastNameMeta) {
+    firstName = firstNameMeta;
+    lastName = lastNameMeta;
+  } else {
+    // Fallback: Split full name into first and last name (simple split on first space)
+    const nameParts = fullNameFromMeta.split(' ');
+    firstName = nameParts[0];
+    lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : undefined;
+  }
 
   // Helper: basic UUID v4 format check
   const isUuid = (v?: string) => !!v && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(v);
