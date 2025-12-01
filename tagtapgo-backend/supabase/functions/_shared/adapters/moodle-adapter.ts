@@ -162,17 +162,18 @@ class MoodleClient {
         if (Array.isArray(existing) && existing.length > 0 && typeof existing[0].id === "number") {
           return { id: existing[0].id };
         }
-      } catch (_err) {
+      } catch (err) {
+        console.error(`[MoodleClient] Error looking up user:`, err);
         // Fall through to create
       }
     }
 
-    const usernameBase = email ? email.split("@")[0] : externalId || `tgg_${Date.now()}`;
-
+    const usernameBase = email ? email.split("@")[0] : externalId || `user_${Date.now()}`;
+    const username = `tgg_${usernameBase}`;
     const created = await this.request<any[]>("core_user_create_users", {
       users: [
         {
-          username: usernameBase,
+          username,
           firstname,
           lastname,
           email: email || `${usernameBase}@placeholder.edu`,
@@ -184,7 +185,6 @@ class MoodleClient {
     if (!Array.isArray(created) || created.length === 0 || typeof created[0].id !== "number") {
       throw new FetchError("Failed to create Moodle user", { wsfunction: "core_user_create_users" });
     }
-
     return { id: created[0].id };
   }
 
@@ -391,11 +391,20 @@ export class MoodleAdapter extends BaseAdapter {
       },
     ];
 
-    await this.client.request("enrol_manual_enrol_users", {
-      enrolments,
-    });
-
-    this.log("info", `Enrolled user ${user.id} into course ${courseId}`);
+    try {
+      await this.client.request("enrol_manual_enrol_users", {
+        enrolments,
+      });
+      this.log("info", `Enrolled user ${user.id} into course ${courseId}`);
+    } catch (err: any) {
+      // Moodle returns "Message was not sent" if user is already enrolled
+      // Treat this as success since the desired state is achieved
+      if (err?.details?.errorcode === "Message was not sent." || err?.message?.includes("Message was not sent")) {
+        this.log("info", `User ${user.id} already enrolled in course ${courseId}, skipping`);
+      } else {
+        throw err; // Re-throw other errors
+      }
+    }
 
     return { moodle_user_id: user.id };
   }

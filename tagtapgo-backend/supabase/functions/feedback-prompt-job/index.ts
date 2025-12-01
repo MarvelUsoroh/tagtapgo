@@ -34,7 +34,19 @@ Deno.serve(async (req: Request) => {
       now.plus({ hours: 12 }).toFormat("EEEE"),
     ]));
 
+    // Also gather candidate dates for effective_from filtering (today, yesterday in various timezones)
+    const candidateDates = Array.from(new Set([
+      now.minus({ hours: 24 }).toISODate(),
+      now.minus({ hours: 12 }).toISODate(),
+      now.toISODate(),
+      now.plus({ hours: 12 }).toISODate(),
+    ])).filter(Boolean) as string[];
+
+    console.log(`[Feedback Prompt Job] Candidate days: ${candidateDays.join(", ")}`);
+    console.log(`[Feedback Prompt Job] Candidate dates: ${candidateDates.join(", ")}`);
+
     // Find class schedules whose local end time is within the 15-20 minute window
+    // Filter by effective_from to only get schedules for today/yesterday (not future sessions)
     // Join through courses → universities to capture timezone context
     const { data: classSchedules, error: scheduleError } = await supabase
       .from("class_schedules")
@@ -44,6 +56,8 @@ Deno.serve(async (req: Request) => {
         day_of_week,
         end_time,
         class_id,
+        effective_from,
+        effective_to,
         courses:course_id (
           id,
           code,
@@ -55,7 +69,8 @@ Deno.serve(async (req: Request) => {
           )
         )
       `)
-      .in("day_of_week", candidateDays);
+      .in("day_of_week", candidateDays)
+      .in("effective_from", candidateDates);
 
     if (scheduleError) {
       console.error("[Feedback Prompt Job] Error fetching class schedules:", scheduleError);
