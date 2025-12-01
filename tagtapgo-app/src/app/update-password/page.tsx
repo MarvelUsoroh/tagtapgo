@@ -25,7 +25,8 @@ export default function UpdatePasswordPage() {
     const verifyToken = async () => {
       // Get token from URL parameters
       const params = new URLSearchParams(window.location.search);
-      const token = params.get('token');
+      // Support both 'token_hash' (preferred) and 'token' (legacy) parameter names
+      const token = params.get('token_hash') || params.get('token');
       const type = params.get('type');
 
       if (token && type === 'recovery') {

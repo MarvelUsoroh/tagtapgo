@@ -34,12 +34,25 @@ export default function VenusChatContainer({ sessionId, courseName, topic }: Ven
     startChat();
   }, [startChat]);
 
-  // Auto-scroll
+  // Auto-scroll to latest message
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-    }, 100);
-    return () => clearTimeout(timeoutId);
+    let timeoutId: NodeJS.Timeout;
+    
+    // Use requestAnimationFrame to ensure DOM has updated after render
+    const rafId = requestAnimationFrame(() => {
+      // Additional delay to account for message animations and markdown rendering
+      timeoutId = setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ 
+          behavior: "smooth", 
+          block: "end" 
+        });
+      }, 150);
+    });
+    
+    return () => {
+      cancelAnimationFrame(rafId);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [messages, isTyping]);
 
   const handleBack = () => {
