@@ -16,7 +16,7 @@ interface ClassItem {
   time: string | null;
   start_time: string;
   end_time: string;
-  status: 'completed' | 'upcoming' | 'missed';
+  status: 'completed' | 'in_session' | 'upcoming' | 'missed' | 'ended';
   points_earned?: number;
   potential_points?: number;
 }
@@ -122,14 +122,33 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
               potentialPoints = Math.round(durationHours * 2);
             }
 
+            // Determine status based on time and attendance
+            const now = new Date();
+            const currentTimeStr = format(now, 'HH:mm:ss');
+            let status: ClassItem['status'] = 'upcoming';
+
+            if (attendanceStatus === 'present') {
+              status = 'completed';
+            } else if (attendanceStatus === 'absent') {
+              status = 'missed';
+            } else {
+              // Time-based status
+              if (schedule.end_time < currentTimeStr) {
+                status = 'ended'; // Class is over
+              } else if (schedule.start_time <= currentTimeStr && schedule.end_time >= currentTimeStr) {
+                status = 'in_session'; // Class is happening now
+              } else {
+                status = 'upcoming'; // Class is in the future
+              }
+            }
+
             return {
               id: schedule.id,
               course_name: schedule.courses?.name || 'Unknown Course',
               time: schedule.start_time || null,
               start_time: schedule.start_time,
               end_time: schedule.end_time,
-              status: (attendanceStatus === 'present' ? 'completed' : 
-                     attendanceStatus === 'absent' ? 'missed' : 'upcoming') as 'completed' | 'upcoming' | 'missed',
+              status,
               points_earned: points || 0,
               potential_points: potentialPoints,
             };
@@ -212,7 +231,7 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
       className="bg-white rounded-xl shadow-md p-6"
     >
       <div className="flex items-center justify-between mb-4">
-  <h2 className="text-lg font-bold text-gray-900">Today&apos;s Classes</h2>
+        <h2 className="text-lg font-bold text-gray-900">Today&apos;s Classes</h2>
         {classes.length > 0 && (
           <span className="text-sm font-medium" style={{ color: colors.gray[600] }}>
             {completedCount}/{totalCount}
@@ -245,9 +264,10 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
               transition={{ delay: index * 0.1 }}
               className={cn(
                 'flex items-center justify-between p-3 rounded-lg transition-colors',
-                classItem.status === 'completed' 
-                  ? 'bg-green-50' 
-                  : 'bg-gray-50'
+                classItem.status === 'completed' ? 'bg-green-50' :
+                classItem.status === 'in_session' ? 'bg-green-50 border border-green-200' :
+                classItem.status === 'ended' ? 'bg-gray-100' :
+                'bg-white border border-gray-100' // upcoming
               )}
             >
               <div className="flex items-center space-x-3">
@@ -255,21 +275,27 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
                   className={cn(
                     'w-3 h-3 rounded-full',
                     classItem.status === 'completed' && 'bg-green-500',
+                    classItem.status === 'in_session' && 'bg-green-500 animate-pulse',
                     classItem.status === 'upcoming' && 'bg-amber-500',
-                    classItem.status === 'missed' && 'bg-gray-300'
+                    classItem.status === 'ended' && 'bg-gray-400',
+                    classItem.status === 'missed' && 'bg-red-400'
                   )}
                   style={
-                    classItem.status === 'completed'
-                      ? { backgroundColor: colors.success }
-                      : classItem.status === 'upcoming'
-                      ? { backgroundColor: colors.warning }
-                      : undefined
+                    classItem.status === 'completed' ? { backgroundColor: colors.success } :
+                    classItem.status === 'in_session' ? { backgroundColor: colors.success } :
+                    classItem.status === 'upcoming' ? { backgroundColor: colors.warning } :
+                    undefined
                   }
                 />
                 <div>
-                  <p className="font-medium text-gray-900">{classItem.course_name}</p>
+                  <p className={cn(
+                    "font-medium",
+                    classItem.status === 'ended' ? "text-gray-500" : "text-gray-900"
+                  )}>{classItem.course_name}</p>
                   <p className="text-sm" style={{ color: colors.gray[500] }}>
                     {classItem.time ? formatTime(new Date(`2024-01-01T${classItem.time}`)) : 'Time TBA'}
+                    {classItem.status === 'in_session' && <span className="ml-2 text-green-600 font-medium text-xs">● Live</span>}
+                    {classItem.status === 'ended' && <span className="ml-2 text-gray-400 text-xs">(Ended)</span>}
                   </p>
                 </div>
               </div>
@@ -287,8 +313,11 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
                   </div>
                 </div>
               )}
-              {classItem.status === 'upcoming' && classItem.potential_points && classItem.potential_points > 0 && (
-                <div className="flex items-center space-x-1 text-xs font-medium text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+              {(classItem.status === 'upcoming' || classItem.status === 'in_session') && classItem.potential_points && classItem.potential_points > 0 && (
+                <div className={cn(
+                  "flex items-center space-x-1 text-xs font-medium px-2 py-1 rounded-full",
+                  classItem.status === 'in_session' ? "text-green-700 bg-green-100" : "text-gray-400 bg-gray-100"
+                )}>
                   <Coins size={12} />
                   <span>{classItem.potential_points} pts</span>
                 </div>

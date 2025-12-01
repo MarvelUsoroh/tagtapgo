@@ -18,7 +18,7 @@ export async function ensureStudentProfile(supabase: SupabaseClient, user: AuthU
   // with a different ID (Moodle UUID) before the user signed up.
   let query = supabase
     .from('students')
-    .select('id')
+    .select('id, metadata')
     .limit(1);
     
   if (user.email) {
@@ -29,8 +29,34 @@ export async function ensureStudentProfile(supabase: SupabaseClient, user: AuthU
 
   const { data: existing, error: selectError } = await query;
 
+  // If profile exists, check if we need to trigger enrollment (missing moodle_user_id)
   if (!selectError && Array.isArray(existing) && existing.length > 0) {
-    return { created: false } as const;
+    const student = existing[0];
+
+    const moodleId = student.metadata?.moodle_user_id;
+    
+    if (moodleId) {
+      return { created: false } as const;
+    }
+    // If no moodle_user_id, fall through to trigger enrollment (but skip upsert if we want to be safe, or just let upsert handle it)
+    // Actually, let's just trigger enrollment directly here to avoid re-running the full upsert logic which might overwrite things
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const functionUrl = baseUrl
+        ? `${baseUrl}/functions/v1/enrol-student-in-demo-course`
+        : undefined;
+
+      if (functionUrl) {
+        fetch(functionUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ student_id: student.id }),
+        }).catch(() => {});
+      }
+    } catch {
+      // ignore
+    }
+    return { created: false, enrolled: true } as const;
   }
 
   const emailLocal = user.email ? user.email.split('@')[0] : undefined;
