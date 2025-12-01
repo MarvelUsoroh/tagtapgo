@@ -3,7 +3,7 @@
 import { useState, FormEvent, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Mail, Lock, User, GraduationCap, AlertCircle, CheckCircle } from 'lucide-react';
+import { Mail, Lock, User, GraduationCap, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { colors } from '@/lib/theme';
@@ -28,6 +28,7 @@ function SignupContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   
   // Always start with false to match server render, then check in useEffect
   const [showSplash, setShowSplash] = useState<boolean>(false);
@@ -321,11 +322,11 @@ function SignupContent() {
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     id="password"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className={cn(
-                      'w-full pl-10 pr-4 py-3 border rounded-lg',
+                      'w-full pl-10 pr-12 py-3 border rounded-lg',
                       'focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all',
                       error && !password ? 'border-red-300' : 'border-gray-300'
                     )}
@@ -336,6 +337,15 @@ function SignupContent() {
                     disabled={loading}
                     autoComplete="new-password"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 focus:outline-none"
+                    tabIndex={-1}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
                 </div>
                 {/* Password Strength Indicator */}
                 {password && (

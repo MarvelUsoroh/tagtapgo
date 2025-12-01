@@ -3,7 +3,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Lock, AlertCircle, CheckCircle } from 'lucide-react';
+import { Lock, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { colors } from '@/lib/theme';
@@ -14,6 +14,8 @@ export default function UpdatePasswordPage() {
   const router = useRouter();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -28,14 +30,24 @@ export default function UpdatePasswordPage() {
 
       if (token && type === 'recovery') {
         try {
-          // Verify the recovery token
-          const { error } = await supabase.auth.verifyOtp({
+          // Verify the recovery token and get the session
+          const { data, error } = await supabase.auth.verifyOtp({
             token_hash: token,
             type: 'recovery',
           });
 
           if (error) {
             throw error;
+          }
+
+          // Persist the session returned from verifyOtp
+          // This is required for updateUser to work
+          const session = data?.session;
+          if (session?.access_token && session?.refresh_token) {
+            await supabase.auth.setSession({
+              access_token: session.access_token,
+              refresh_token: session.refresh_token,
+            });
           }
 
           setValidSession(true);
@@ -188,11 +200,11 @@ export default function UpdatePasswordPage() {
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     id="password"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className={cn(
-                      'w-full pl-10 pr-4 py-3 border rounded-lg',
+                      'w-full pl-10 pr-12 py-3 border rounded-lg',
                       'focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all',
                       error && !password ? 'border-red-300' : 'border-gray-300'
                     )}
@@ -203,6 +215,14 @@ export default function UpdatePasswordPage() {
                     disabled={loading}
                     autoComplete="new-password"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
                 </div>
                 {/* Password Strength Indicator */}
                 {password && (
@@ -237,11 +257,11 @@ export default function UpdatePasswordPage() {
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     id="confirmPassword"
-                    type="password"
+                    type={showConfirmPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className={cn(
-                      'w-full pl-10 pr-4 py-3 border rounded-lg',
+                      'w-full pl-10 pr-12 py-3 border rounded-lg',
                       'focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all',
                       error && !confirmPassword ? 'border-red-300' : 'border-gray-300'
                     )}
@@ -252,6 +272,14 @@ export default function UpdatePasswordPage() {
                     disabled={loading}
                     autoComplete="new-password"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    tabIndex={-1}
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
                 </div>
                 {confirmPassword && password !== confirmPassword && (
                   <p className="mt-2 text-xs text-red-600">Passwords do not match</p>
