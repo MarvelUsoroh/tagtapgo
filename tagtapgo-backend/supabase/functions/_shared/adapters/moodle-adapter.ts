@@ -101,9 +101,28 @@ class MoodleClient {
     url.searchParams.set("wsfunction", wsfunction);
     url.searchParams.set("moodlewsrestformat", "json");
 
-    for (const [key, value] of Object.entries(params)) {
-      url.searchParams.set(key, String(value));
-    }
+    // Flatten nested objects/arrays for Moodle's REST API format
+    // e.g., { users: [{ username: "foo" }] } becomes users[0][username]=foo
+    const flattenParams = (obj: any, prefix = ""): void => {
+      for (const [key, value] of Object.entries(obj)) {
+        const paramKey = prefix ? `${prefix}[${key}]` : key;
+        if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+          flattenParams(value, paramKey);
+        } else if (Array.isArray(value)) {
+          value.forEach((item, index) => {
+            if (item !== null && typeof item === "object") {
+              flattenParams(item, `${paramKey}[${index}]`);
+            } else {
+              url.searchParams.set(`${paramKey}[${index}]`, String(item));
+            }
+          });
+        } else {
+          url.searchParams.set(paramKey, String(value));
+        }
+      }
+    };
+
+    flattenParams(params);
 
     const response = await fetch(url.toString());
     if (!response.ok) {

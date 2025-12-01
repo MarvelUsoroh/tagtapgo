@@ -69,9 +69,16 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: "university_not_moodle" }), { status: 400, headers: { "Content-Type": "application/json" } });
     }
 
+    let baseUrl = apiConfig.baseUrl;
+    if (DEMO_UNIVERSITY_DOMAIN) {
+      baseUrl = DEMO_UNIVERSITY_DOMAIN.startsWith("http") 
+        ? DEMO_UNIVERSITY_DOMAIN 
+        : `https://${DEMO_UNIVERSITY_DOMAIN}`;
+    }
+
     const moodleConfig: MoodleConfig = {
       type: "moodle",
-      baseUrl: apiConfig.baseUrl,
+      baseUrl,
       token: apiConfig.token,
       timezone: apiConfig.timezone || "UTC",
       universityId: university.id,
@@ -113,8 +120,9 @@ serve(async (req: Request) => {
     }
 
     return new Response(JSON.stringify({ status: "enrolled", moodle_user_id: moodleUserId }), { status: 200, headers: { "Content-Type": "application/json" } });
-  } catch (error) {
-    console.error("Unexpected error in enrol-student-in-demo-course", error);
-    return new Response(JSON.stringify({ error: "unexpected_error" }), { status: 500, headers: { "Content-Type": "application/json" } });
+  } catch (error: any) {
+    console.error("Unexpected error in enrol-student-in-demo-course:", error);
+    console.error("Error details:", error.message, error.stack);
+    return new Response(JSON.stringify({ error: "unexpected_error", details: error.message }), { status: 500, headers: { "Content-Type": "application/json" } });
   }
 });
