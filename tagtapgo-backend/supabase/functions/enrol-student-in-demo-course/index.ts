@@ -110,9 +110,18 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: "moodle_enrol_failed" }), { status: 502, headers: { "Content-Type": "application/json" } });
     }
 
+    // Update both metadata AND external_id to prevent duplicate student creation during sync
+    // The sync job uses external_id to match students, so we must set it here
     const { error: updateError } = await supabase
       .from("students")
-      .update({ metadata: { ...(student.metadata || {}), moodle_user_id: moodleUserId, moodle_demo_course_id: Number(DEMO_MOODLE_COURSE_ID) } })
+      .update({ 
+        external_id: String(moodleUserId),
+        metadata: { 
+          ...(student.metadata || {}), 
+          moodle_user_id: moodleUserId, 
+          moodle_demo_course_id: Number(DEMO_MOODLE_COURSE_ID) 
+        } 
+      })
       .eq("id", student.id);
 
     if (updateError) {

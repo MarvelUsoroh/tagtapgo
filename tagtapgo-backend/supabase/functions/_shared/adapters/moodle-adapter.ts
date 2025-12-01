@@ -170,10 +170,15 @@ class MoodleClient {
 
     const usernameBase = email ? email.split("@")[0] : externalId || `user_${Date.now()}`;
     const username = `tgg_${usernameBase}`;
+    
+    // Generate a random password - user won't need it since they auth via TagTapGo
+    const randomPassword = `Tgg_${crypto.randomUUID().slice(0, 12)}!`;
+    
     const created = await this.request<any[]>("core_user_create_users", {
       users: [
         {
           username,
+          password: randomPassword,
           firstname,
           lastname,
           email: email || `${usernameBase}@placeholder.edu`,

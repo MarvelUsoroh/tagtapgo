@@ -351,24 +351,50 @@ serve(async (_req: Request) => {
             const userData = moodleUserData.get(moodleId) || { firstname: 'Unknown', lastname: 'Student' };
             const studentUuid = await generateUUID(uni.id, `student-${moodleId}`);
             
-            // Check if student already exists by external_id (DEFERRABLE constraints don't support ON CONFLICT)
-            const { data: existingStudent } = await supabase
+            // Check if student already exists by external_id OR metadata.moodle_user_id
+            // Students created via signup have moodle_user_id in metadata, not external_id
+            let existingStudent = null;
+            
+            // First, check by external_id (standard sync path)
+            const { data: byExternalId } = await supabase
               .from('students')
-              .select('id')
+              .select('id, external_id')
               .eq('university_id', uni.id)
               .eq('external_id', String(moodleId))
               .maybeSingle();
+            
+            if (byExternalId) {
+              existingStudent = byExternalId;
+            } else {
+              // Fallback: check by metadata.moodle_user_id (signup path)
+              const { data: byMetadata } = await supabase
+                .from('students')
+                .select('id, external_id')
+                .eq('university_id', uni.id)
+                .eq('metadata->>moodle_user_id', String(moodleId))
+                .maybeSingle();
+              
+              existingStudent = byMetadata;
+            }
             
             const actualStudentId = existingStudent?.id || studentUuid;
             
             // Insert or update student record
             if (existingStudent) {
-              const { error: studentError } = await supabase.from('students').update({
+              // Also set external_id if missing (for students created via signup with only metadata.moodle_user_id)
+              const updateData: Record<string, unknown> = {
                 first_name: userData.firstname,
                 last_name: userData.lastname,
                 status: 'active',
                 updated_at: new Date().toISOString(),
-              }).eq('id', existingStudent.id);
+              };
+              
+              // If external_id is not set, set it now to prevent future duplicates
+              if (!existingStudent.external_id) {
+                updateData.external_id = String(moodleId);
+              }
+              
+              const { error: studentError } = await supabase.from('students').update(updateData).eq('id', existingStudent.id);
               
               if (studentError) {
                 console.error(`[SYNC] Student update error for ${moodleId}:`, studentError.message);

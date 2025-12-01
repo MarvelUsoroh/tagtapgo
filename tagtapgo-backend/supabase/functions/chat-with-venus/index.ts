@@ -39,7 +39,6 @@ serve(async (req) => {
     const body = await req.json();
     console.log("Request body:", JSON.stringify(body));
     const { action, promptId, conversationId, message } = body;
-    const client = new GoogleGenAI({ apiKey: Deno.env.get("GEMINI_API_KEY") });
 
     // Initialize Chat
     if (action === "start") {
@@ -71,7 +70,48 @@ serve(async (req) => {
         console.log(`Session context available:`, JSON.stringify(sessionContext));
       }
 
-      // 2. Create Conversation
+      // 2. Check if conversation already exists for this student + schedule
+      const { data: existingConversation } = await supabaseClient
+        .from("feedback_conversations")
+        .select("*")
+        .eq("student_id", user.id)
+        .eq("class_schedule_id", prompt.class_schedule_id)
+        .single();
+
+      if (existingConversation) {
+        // Resume existing conversation - fetch the last AI message
+        const { data: lastMessages } = await supabaseClient
+          .from("feedback_messages")
+          .select("*")
+          .eq("conversation_id", existingConversation.id)
+          .order("created_at", { ascending: false })
+          .limit(1);
+
+        const lastMessage = lastMessages?.[0];
+        const currentState = existingConversation.metadata?.state || "TUTOR";
+        
+        // Determine quick replies based on state
+        let quickReplies: string[] = [];
+        if (currentState === "SURVEY_PACE") {
+          quickReplies = ["Too Fast 🐇", "Just Right 👌", "Too Slow 🐢"];
+        } else if (currentState === "SURVEY_CLARITY") {
+          quickReplies = ["Confusing 😕", "Mostly Clear 🤔", "Crystal Clear 💎"];
+        }
+
+        console.log(`Resuming existing conversation ${existingConversation.id}, state: ${currentState}`);
+
+        return new Response(
+          JSON.stringify({ 
+            conversationId: existingConversation.id, 
+            message: lastMessage?.content || "Welcome back! Let's continue our chat.",
+            quickReplies,
+            resumed: true
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // 3. Create New Conversation (no existing one found)
       const { data: conversation, error: convError } = await supabaseClient
         .from("feedback_conversations")
         .insert({
@@ -91,11 +131,11 @@ serve(async (req) => {
 
       if (convError) throw convError;
 
-      // 3. Generate First Question (Survey)
+      // 4. Generate First Question (Survey)
       const aiMessage = `Hi! 👋 Before we review ${courseName}, how was the pace of the lecture today?`;
       const quickReplies = ["Too Fast 🐇", "Just Right 👌", "Too Slow 🐢"];
 
-      // 4. Save AI Message
+      // 5. Save AI Message
       await supabaseClient.from("feedback_messages").insert({
         conversation_id: conversation.id,
         sender_type: "ai",
@@ -259,6 +299,9 @@ serve(async (req) => {
 
       // --- TUTOR MODE (Socratic Chat) ---
 
+      // Initialize Gemini client (only needed for Tutor mode)
+      const client = new GoogleGenAI({ apiKey: Deno.env.get("GEMINI_API_KEY") });
+
       // STEP A: Update Turn Counter
       const currentTurn = (conversation.metadata?.turn || 0) + 1;
       // Removed maxTurns limit to allow unlimited chat
@@ -294,6 +337,10 @@ serve(async (req) => {
         parts: [{ text: m.content }],
       }));
 
+      // STEP D2: Detect user confusion for MCQ scaffolding
+      const confusionPatterns = /\b(idk|i don'?t know|i dont know|no idea|not sure|i'?m not sure|confused|i'?m confused|help|what\??|huh\??|i forgot|i don'?t remember|i dont remember|no clue|beats me|unsure|i'?m unsure)\b/i;
+      const isConfused = confusionPatterns.test(message);
+
       // STEP E: Build "Stingy Tutor" System Prompt (Pivot, Don't Explain)
       const topic = conversation?.metadata?.topic || "the lecture";
       const courseName = conversation?.metadata?.courseName || "class";
@@ -328,7 +375,7 @@ serve(async (req) => {
       }
       
       // Build ultra-strict prompt that prevents lecture dumps
-      let systemPrompt = `IDENTITY: You are Venus, a "Stingy Socratic Tutor".
+      const systemPrompt = `IDENTITY: You are Venus, a "Stingy Socratic Tutor".
 TOPIC: ${topic}
 COURSE: ${courseName}${sessionContextSection}
 
@@ -376,12 +423,17 @@ CURRENT STATE: Turn ${currentTurn}. Keep probing. Do NOT explain. Ask the next q
       });
 
       // Add silent instruction to prevent "Keyword Trap" (AI explaining topics)
+      // If user is confused, force MCQ response
+      const confusionBoost = isConfused 
+        ? "\n(⚠️ USER IS CONFUSED - YOU MUST respond with a supportive phrase + a 3-option MCQ. Do NOT ask an open-ended question.)" 
+        : "";
+      
       const silentInstruction = `
 (SYSTEM INJECTION: 
 1. Do NOT explain this topic. 
 2. Do NOT say "Let's break it down". 
 3. Instead, ask me a checking question to see what I remember about it. 
-4. Keep response under 30 words.)`;
+4. Keep response under 30 words.)${confusionBoost}`;
 
       const messageToSend = `${message} ${silentInstruction}`;
       const result = await chat.sendMessage({ message: messageToSend });
