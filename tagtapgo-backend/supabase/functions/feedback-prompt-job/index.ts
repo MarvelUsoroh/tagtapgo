@@ -262,8 +262,8 @@ Deno.serve(async (req: Request) => {
 
               const notificationPayload = {
                 studentId: student.student_id,
-                title: "Share Your Feedback",
-                body: `How was ${classCode}? Earn 5-10 points for your feedback!`,
+                title: "Care for a review?",
+                body: `How was ${classCode}? Chat with Venus to review!`,
                 data: {
                   type: "feedback_prompt",
                   promptId: newPrompt.id,

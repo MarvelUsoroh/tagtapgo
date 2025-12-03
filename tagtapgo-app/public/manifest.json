@@ -1,21 +1,24 @@
 {
   "name": "tagtapgo - Student Engagement Platform",
   "short_name": "tagtapgo",
-  "description": "Gamified attendance tracking for students",
+  "description": "Making student attendance rewarding, one tap at a time",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#6366F1",
+  "background_color": "#4ADE80",
+  "theme_color": "#4ADE80",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/icons/ttg-icon.svg",
+      "src": "/icons/ttg-icon-maskable.svg",
       "sizes": "192x192 512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ],
-  "categories": ["education", "productivity"],
+  "categories": [
+    "education",
+    "productivity"
+  ],
   "permissions": [
     "notifications"
   ]
