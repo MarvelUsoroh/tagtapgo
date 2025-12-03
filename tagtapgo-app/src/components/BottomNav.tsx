@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Home, Trophy, Users, Gift, User } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { colors, iconSizes } from '@/lib/theme';
+import { colors } from '@/lib/theme';
 import { UI_CONFIG } from '@/lib/constants';
 import { buttonPress } from '@/lib/animations';
 
@@ -57,7 +57,7 @@ export default function BottomNav() {
                   transition={{ duration: 0.3 }}
                 >
                   <Icon
-                    size={iconSizes.md}
+                    size={22}
                     className="transition-colors duration-300"
                     style={{ 
                       color: isActive ? colors.primary.DEFAULT : colors.gray[400]
@@ -65,7 +65,7 @@ export default function BottomNav() {
                   />
                 </motion.div>
                 <span
-                  className="text-xs mt-1 transition-all duration-300"
+                  className="text-[10px] mt-1 transition-all duration-300"
                   style={{ 
                     color: isActive ? colors.primary.DEFAULT : colors.gray[400],
                     fontWeight: isActive ? 600 : 400

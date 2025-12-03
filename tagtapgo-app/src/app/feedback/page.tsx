@@ -105,7 +105,7 @@ export default async function FeedbackListPage({
               <ArrowLeft className="w-6 h-6" style={{ color: colors.gray[700] }} />
             </Link>
             <div>
-              <h1 className="text-xl font-bold" style={{ color: colors.gray[900] }}>
+              <h1 className="text-xl font-medium" style={{ color: colors.gray[900] }}>
                 Pending Reviews
               </h1>
               <p className="text-sm" style={{ color: colors.gray[600] }}>
