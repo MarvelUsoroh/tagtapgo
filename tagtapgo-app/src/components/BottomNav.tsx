@@ -57,7 +57,7 @@ export default function BottomNav() {
                   transition={{ duration: 0.3 }}
                 >
                   <Icon
-                    size={22}
+                    size={24}
                     className="transition-colors duration-300"
                     style={{ 
                       color: isActive ? colors.primary.DEFAULT : colors.gray[400]

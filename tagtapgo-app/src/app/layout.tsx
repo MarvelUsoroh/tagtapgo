@@ -15,12 +15,12 @@ export const metadata: Metadata = {
   description: 'Gamified attendance tracking for students',
   manifest: '/manifest.json',
   icons: {
-    icon: '/icons/ttg-icon.svg',
-    apple: '/icons/ttg-icon.svg',
+    icon: '/icons/ttg-icon-maskable.svg',
+    apple: '/icons/ttg-icon-maskable.svg',
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'tagtapgo',
   },
   other: {
@@ -36,7 +36,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#6366F1',
+  themeColor: '#4ADE80',
   viewportFit: 'cover',
 };
 
