@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, useMotionValue, animate } from 'framer-motion';
 import { Flame, Coins, Trophy, TrendingUp, Calendar, Zap, Clock, AlertCircle, Snowflake } from 'lucide-react';
@@ -13,6 +13,8 @@ import { supabase } from '@/lib/supabase';
 import type { Student, Streak } from '@/lib/supabase';
 import { useStore } from '@/store/useStore';
 import { useDataRefresh } from '@/hooks/useDataRefresh';
+import { useScrollAware } from '@/hooks/useScrollAware';
+import { useTickLoop } from '@/hooks/useTickLoop';
 import BottomNav from '@/components/BottomNav';
 import PageHeader from '@/components/PageHeader';
 import StatCard from '@/components/StatCard';
@@ -62,6 +64,9 @@ export default function DashboardClient({
   const searchParams = useSearchParams();
   const store = useStore();
   const { refreshGamification } = useDataRefresh(student?.id);
+  
+  // Scroll-aware optimization: pause expensive timers during scroll
+  const isScrolling = useScrollAware();
   
   // Sync initial SSR data to global store on mount
   useEffect(() => {
@@ -254,17 +259,64 @@ export default function DashboardClient({
     };
   }, [student?.id, store, refreshGamification]);
 
-  // Recompute today's completed classes as time passes
-  useEffect(() => {
-    const computeCompleted = () => {
-      const now = new Date();
-      const completed = todayClasses.filter(c => new Date(c.end_time) < now).length;
-      setTodayCompleted(completed);
-    };
-    computeCompleted();
-    const interval = setInterval(computeCompleted, 60000); // every minute
-    return () => clearInterval(interval);
+  // Memoized timer callbacks to avoid recreation on each render
+  const computeCompleted = useCallback(() => {
+    const now = new Date();
+    const completed = todayClasses.filter(c => new Date(c.end_time) < now).length;
+    setTodayCompleted(completed);
   }, [todayClasses]);
+
+  const updateCountdown = useCallback(() => {
+    if (!nextClass) {
+      setCountdown('');
+      return;
+    }
+
+    const now = new Date();
+    const classTime = new Date(nextClass.start_time);
+    const diff = classTime.getTime() - now.getTime();
+
+    if (diff <= 0) {
+      setCountdown('');
+      return;
+    }
+
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    if (hours > 0) {
+      setCountdown(`${hours}h ${minutes}m`);
+    } else if (minutes > 0) {
+      setCountdown(`${minutes}m ${seconds}s`);
+    } else {
+      setCountdown(`${seconds}s`);
+    }
+  }, [nextClass]);
+
+  // Consolidated tick loop - pauses during scroll for smooth UX
+  const tickCallbacks = useMemo(() => ({
+    countdown: updateCountdown,
+    completed: computeCompleted,
+  }), [updateCountdown, computeCompleted]);
+
+  const tickIntervals = useMemo(() => ({
+    countdown: 1000,    // Update countdown every second
+    completed: 60000,   // Update completed count every minute
+  }), []);
+
+  useTickLoop({
+    callbacks: tickCallbacks,
+    intervals: tickIntervals,
+    isScrolling,
+    minInterval: 1000,
+  });
+
+  // Run initial calculations on mount
+  useEffect(() => {
+    computeCompleted();
+    updateCountdown();
+  }, [computeCompleted, updateCountdown]);
 
   // Realtime attendance changes -> recompute 30-day attendance rate and goal progress
   useEffect(() => {
@@ -297,39 +349,6 @@ export default function DashboardClient({
       supabase.removeChannel(attendanceChannel);
     };
   }, [student?.id, store, refreshGamification]);
-
-  // Countdown timer for next class
-  useEffect(() => {
-    if (!nextClass) return;
-
-    const updateCountdown = () => {
-      const now = new Date();
-      const classTime = new Date(nextClass.start_time);
-      const diff = classTime.getTime() - now.getTime();
-
-      if (diff <= 0) {
-        setCountdown('');
-        return;
-      }
-
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-      if (hours > 0) {
-        setCountdown(`${hours}h ${minutes}m`);
-      } else if (minutes > 0) {
-        setCountdown(`${minutes}m ${seconds}s`);
-      } else {
-        setCountdown(`${seconds}s`);
-      }
-    };
-
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
-
-    return () => clearInterval(interval);
-  }, [nextClass]);
 
   // Check if streak is at risk
   useEffect(() => {

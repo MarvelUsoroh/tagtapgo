@@ -88,9 +88,6 @@ student_survey.md
 TagTapGo_Proposal.docx
 TagTapGo_Proposal.md
 
-# Demo app (removed from production)
-tagtapgo-demo/
-
 # Vercel
 .vercel
 
@@ -106,3 +103,7 @@ tagtapgo-demo/
 # Misc
 .turbo
 .contentlayer
+
+
+# Tests
+test/

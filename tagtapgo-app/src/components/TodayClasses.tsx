@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Coins, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -9,6 +9,8 @@ import { cn, formatTime } from '@/lib/utils';
 import { colors } from '@/lib/theme';
 import ProgressBar from './ProgressBar';
 import { NoClassesToday } from './EmptyState';
+import { useScrollAware } from '@/hooks/useScrollAware';
+import { useTickLoop } from '@/hooks/useTickLoop';
 
 interface ClassItem {
   id: string;
@@ -25,6 +27,9 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeProgress, setTimeProgress] = useState(0);
+  
+  // Scroll-aware optimization: pause expensive timer during scroll
+  const isScrolling = useScrollAware();
 
   useEffect(() => {
     if (!studentId) return;
@@ -167,47 +172,62 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
     };
   }, [studentId]);
 
-  // Calculate progress based on time for all visible classes
-  useEffect(() => {
-    const updateProgress = () => {
-      if (classes.length === 0) {
-        setTimeProgress(0);
-        return;
+  // Memoized progress update function
+  const updateProgress = useCallback(() => {
+    if (classes.length === 0) {
+      setTimeProgress(0);
+      return;
+    }
+
+    const now = new Date();
+    const currentTimeStr = format(now, 'HH:mm:ss');
+    const todayStr = format(now, 'yyyy-MM-dd');
+    
+    let totalProgress = 0;
+
+    classes.forEach(c => {
+      // If class is fully in the past (time-wise)
+      if (c.end_time <= currentTimeStr) {
+        totalProgress += 100;
+      } 
+      // If class is fully in the future
+      else if (c.start_time >= currentTimeStr) {
+        totalProgress += 0;
       }
+      // If class is active
+      else {
+        const start = new Date(`${todayStr}T${c.start_time}`);
+        const end = new Date(`${todayStr}T${c.end_time}`);
+        const total = end.getTime() - start.getTime();
+        const elapsed = now.getTime() - start.getTime();
+        const pct = Math.min(100, Math.max(0, (elapsed / total) * 100));
+        totalProgress += pct;
+      }
+    });
 
-      const now = new Date();
-      const currentTimeStr = format(now, 'HH:mm:ss');
-      const todayStr = format(now, 'yyyy-MM-dd');
-      
-      let totalProgress = 0;
-
-      classes.forEach(c => {
-        // If class is fully in the past (time-wise)
-        if (c.end_time <= currentTimeStr) {
-          totalProgress += 100;
-        } 
-        // If class is fully in the future
-        else if (c.start_time >= currentTimeStr) {
-          totalProgress += 0;
-        }
-        // If class is active
-        else {
-          const start = new Date(`${todayStr}T${c.start_time}`);
-          const end = new Date(`${todayStr}T${c.end_time}`);
-          const total = end.getTime() - start.getTime();
-          const elapsed = now.getTime() - start.getTime();
-          const pct = Math.min(100, Math.max(0, (elapsed / total) * 100));
-          totalProgress += pct;
-        }
-      });
-
-      setTimeProgress(totalProgress / classes.length);
-    };
-
-    const timer = setInterval(updateProgress, 1000);
-    updateProgress(); // Initial call
-    return () => clearInterval(timer);
+    setTimeProgress(totalProgress / classes.length);
   }, [classes]);
+
+  // Consolidated tick loop - pauses during scroll for smooth UX
+  const tickCallbacks = useMemo(() => ({
+    progress: updateProgress,
+  }), [updateProgress]);
+
+  const tickIntervals = useMemo(() => ({
+    progress: 1000, // Update progress every second
+  }), []);
+
+  useTickLoop({
+    callbacks: tickCallbacks,
+    intervals: tickIntervals,
+    isScrolling,
+    minInterval: 1000,
+  });
+
+  // Run initial calculation on mount
+  useEffect(() => {
+    updateProgress();
+  }, [updateProgress]);
 
   const completedCount = classes.filter((c) => c.status === 'completed').length;
   const totalCount = classes.length;

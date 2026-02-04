@@ -67,11 +67,13 @@ const { data: newAttendance } = await supabase
 const pointsResults = await calculateAndAwardPoints(supabase, newAttendance);
 ```
 
-**Awards:**
-- Base: 10 points per attendance
-- Early arrival: +5 points (5+ min early)
-- Perfect week: +50 points (5/5 days)
-- Perfect month: +200 points (20/20 days)
+**Awards (Moodle-style weights × class hours):**
+- Present: 2 pts/hour
+- Late/Excused: 1 pt/hour
+- Absent: 0 pts
+- Early arrival bonus: +5 pts (if 5+ min early)
+- Perfect week bonus: +50 pts (5/5 days)
+- Perfect month bonus: +200 pts (20/20 days)
 
 **See:** [Points Calculation](./POINTS_CALCULATION.md)
 
