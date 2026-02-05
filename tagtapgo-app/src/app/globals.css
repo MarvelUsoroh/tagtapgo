@@ -12,10 +12,12 @@
 
 :root {
   /* Layout constants */
-  --bottom-nav-height: 3.25rem; /* 52px - matches MIN_TOUCH_TARGET + padding */
+  --bottom-nav-height: 3.25rem;
+  /* 52px - matches MIN_TOUCH_TARGET + padding */
 }
 
 @layer base {
+
   html,
   body {
     @apply bg-gray-50 text-gray-900;
@@ -53,6 +55,7 @@
     transform: translateY(100%);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -63,6 +66,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -72,6 +76,7 @@
   0% {
     background-position: -1000px 0;
   }
+
   100% {
     background-position: 1000px 0;
   }
@@ -87,13 +92,11 @@
 
 .animate-shimmer {
   animation: shimmer 2s infinite linear;
-  background: linear-gradient(
-    to right,
-    #f3f4f6 0%,
-    #e5e7eb 20%,
-    #f3f4f6 40%,
-    #f3f4f6 100%
-  );
+  background: linear-gradient(to right,
+      #f3f4f6 0%,
+      #e5e7eb 20%,
+      #f3f4f6 40%,
+      #f3f4f6 100%);
   background-size: 1000px 100%;
 }
 
@@ -122,7 +125,12 @@
   padding-right: env(safe-area-inset-right);
 }
 
-/* Prevent pull-to-refresh on mobile */
+/* Fix Chrome/Brave Chromium 144+ scroll regression */
 body {
-  overscroll-behavior-y: contain;
+  /* Changed from 'contain' to 'auto' - Chromium 144+ blocks scroll with 'contain' */
+  overscroll-behavior-y: auto;
+  /* Fix Chrome Android scroll issues - must explicitly allow pan-y (Chromium bug #391788831) */
+  touch-action: pan-y pinch-zoom;
+  /* Prevent iOS rubber-banding that can interfere with scroll */
+  -webkit-overflow-scrolling: touch;
 }

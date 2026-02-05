@@ -35,7 +35,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  userScalable: false,
+  // userScalable removed - causes scroll issues on Chrome Android (Chromium bug #391788831)
   themeColor: '#f0fdf4',
   viewportFit: 'cover',
 };

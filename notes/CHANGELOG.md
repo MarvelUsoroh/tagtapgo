@@ -34,6 +34,29 @@
 
 ---
 
+### Chrome Android Scroll Fix (2026-02-05)
+
+**Change:** Fixed Chrome-specific scroll failure that worked on Samsung Browser but not Chrome.
+
+**Root Cause (Chromium Bug #391788831):**
+- Chrome respects `userScalable: false` differently than Samsung Browser
+- Missing `touch-action` CSS caused Chrome to mishandle touch scrolling
+
+**Solution:**
+- Removed `userScalable: false` from viewport meta in `layout.tsx`
+- Added `touch-action: pan-y pinch-zoom` to body in `globals.css`
+- Added `-webkit-overflow-scrolling: touch` for iOS compatibility
+
+**Files Modified:**
+- `tagtapgo-app/src/app/layout.tsx` - Removed userScalable from viewport
+- `tagtapgo-app/src/app/globals.css` - Added touch-action CSS, changed overscroll-behavior-y to auto
+
+**Update (2026-02-05 20:30):**
+- Changed `overscroll-behavior-y: contain` to `auto` to fix Chromium 144+ scroll blocking
+- Chrome/Brave use bleeding-edge Chromium that treats `contain` too aggressively
+
+---
+
 ## October 2025 Updates
 
 ## Major Updates
