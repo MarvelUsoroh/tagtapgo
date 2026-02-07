@@ -3,6 +3,7 @@ import { Roboto } from 'next/font/google';
 import './globals.css';
 import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
 import { Analytics } from '@vercel/analytics/react';
+import { ToastProvider } from '@/context/ToastContext';
 
 const roboto = Roboto({ 
   subsets: ['latin'],
@@ -48,9 +49,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={roboto.className} suppressHydrationWarning>
-        <ServiceWorkerRegistration />
-        {children}
-        <Analytics />
+        <ToastProvider>
+          <ServiceWorkerRegistration />
+          {children}
+          <Analytics />
+        </ToastProvider>
       </body>
     </html>
   );

@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Home, Trophy, Users, Gift, User } from 'lucide-react';
+import { Home, MessageSquare, Users, Gift, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { colors } from '@/lib/theme';
 import { UI_CONFIG } from '@/lib/constants';
@@ -10,7 +10,7 @@ import { buttonPress } from '@/lib/animations';
 
 const navItems = [
   { href: '/', icon: Home, label: 'Home' },
-  { href: '/achievements', icon: Trophy, label: 'Badges' },
+  { href: '/myview', icon: MessageSquare, label: 'MyView' },
   { href: '/leaderboard', icon: Users, label: 'Ranks' },
   { href: '/rewards', icon: Gift, label: 'Rewards' },
   { href: '/profile', icon: User, label: 'Profile' },

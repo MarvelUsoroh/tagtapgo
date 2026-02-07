@@ -134,3 +134,23 @@ body {
   /* Prevent iOS rubber-banding that can interfere with scroll */
   -webkit-overflow-scrolling: touch;
 }
+
+/* Bottom padding with safe area fallback */
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
+}
+
+/* Slide-in animation for panels */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.25s ease-out;
+}

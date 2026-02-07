@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { 
@@ -220,15 +221,21 @@ export default function ProfileClient({
             </div>
 
             {/* Achievements Unlocked */}
-            <div className="flex items-center justify-between py-3 border-b border-gray-100">
+            <Link 
+              href="/achievements"
+              className="flex items-center justify-between py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors -mx-4 px-4"
+            >
               <div className="flex items-center space-x-2">
                 <Trophy size={20} style={{ color: colors.rank.gold }} />
                 <span className="text-sm font-medium text-gray-700">Achievements Unlocked</span>
               </div>
-              <span className="text-lg font-bold text-gray-900">
-                <motion.span>{achievementsAnimated}</motion.span>/{stats.totalAchievements}
-              </span>
-            </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-lg font-bold text-gray-900">
+                  <motion.span>{achievementsAnimated}</motion.span>/{stats.totalAchievements}
+                </span>
+                <ChevronRight size={16} className="text-gray-400" />
+              </div>
+            </Link>
 
             {/* Total Points Earned */}
             <div className="flex items-center justify-between py-3 border-b border-gray-100">

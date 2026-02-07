@@ -6,6 +6,9 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 // Use @supabase/ssr for proper cookie handling
 export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
 
+// Factory function for creating client instances (matches import pattern)
+export const createClient = () => createBrowserClient(supabaseUrl, supabaseAnonKey);
+
 // Database types
 export type Student = {
   id: string;
