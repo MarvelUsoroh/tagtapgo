@@ -1,7 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { LucideIcon } from 'lucide-react';
+import { LucideIcon, ArrowLeft } from 'lucide-react';
 import { colors } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 
@@ -12,6 +12,7 @@ interface PageHeaderProps {
   variant?: 'white' | 'gradient';
   children?: ReactNode;
   actions?: ReactNode;
+  onBack?: () => void;
 }
 
 export default function PageHeader({
@@ -21,6 +22,7 @@ export default function PageHeader({
   variant = 'white',
   children,
   actions,
+  onBack,
 }: PageHeaderProps) {
   const isGradient = variant === 'gradient';
 
@@ -41,6 +43,20 @@ export default function PageHeader({
         {/* Title Section */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors"
+                style={{
+                  backgroundColor: isGradient ? 'rgba(255, 255, 255, 0.1)' : undefined,
+                }}
+              >
+                <ArrowLeft
+                  size={20}
+                  style={{ color: isGradient ? 'white' : colors.gray[600] }}
+                />
+              </button>
+            )}
             {Icon && (
               <div
                 className="p-3 rounded-xl"

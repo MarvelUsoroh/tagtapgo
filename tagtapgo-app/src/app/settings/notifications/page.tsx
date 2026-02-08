@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Bell, BellOff, Check } from 'lucide-react';
+import { Bell, BellOff, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { colors } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 import { useNotifications } from '@/hooks/useNotifications';
+import PageHeader from '@/components/PageHeader';
 import type { NotificationPreferences } from '@/lib/notifications';
 
 export default function NotificationSettingsPage() {
@@ -112,25 +113,12 @@ export default function NotificationSettingsPage() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       {/* Header */}
-      <div
-        className="sticky top-0 z-10 px-6 py-4 bg-white border-b border-gray-200"
-      >
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.back()}
-            className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors"
-          >
-            <ArrowLeft className="w-6 h-6 text-gray-700" />
-          </button>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">
-              Notification Settings
-            </h1>
-            <p className="text-sm text-gray-600">
-              Manage your notification preferences
-            </p>
-          </div>
-        </div>
+      <div className="sticky top-0 z-10">
+        <PageHeader
+          title="Notification Settings"
+          subtitle="Manage your notification preferences"
+          onBack={() => router.back()}
+        />
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-6 space-y-6">

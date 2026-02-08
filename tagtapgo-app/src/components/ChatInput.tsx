@@ -55,6 +55,8 @@ export default function ChatInput({
   const [uploading, setUploading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const courseDropdownRef = useRef<HTMLDivElement>(null);
+  const mentionDropdownRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
   const toast = useToast();
 
@@ -139,6 +141,35 @@ export default function ChatInput({
     }
   }, [content]);
 
+  // Click-outside handler for course dropdown
+  useEffect(() => {
+    if (!showCourseDropdown) return;
+    
+    const handleClickOutside = (e: MouseEvent) => {
+      if (courseDropdownRef.current && !courseDropdownRef.current.contains(e.target as Node)) {
+        setShowCourseDropdown(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showCourseDropdown]);
+
+  // Click-outside handler for mention dropdown
+  useEffect(() => {
+    if (mentionResults.length === 0) return;
+    
+    const handleClickOutside = (e: MouseEvent) => {
+      if (mentionDropdownRef.current && !mentionDropdownRef.current.contains(e.target as Node)) {
+        setMentionResults([]);
+        setMentionQuery(null);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [mentionResults]);
+
   // Handle file selection
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -174,11 +205,11 @@ export default function ChatInput({
   };
 
   // Upload files to storage
-  const uploadAttachments = async (): Promise<{ url: string; type: string; name: string; size: number }[]> => {
+  const uploadAttachments = async (): Promise<{ path: string; type: string; name: string; size: number }[]> => {
     if (attachments.length === 0) return [];
 
     setUploading(true);
-    const uploaded: { url: string; type: string; name: string; size: number }[] = [];
+    const uploaded: { path: string; type: string; name: string; size: number }[] = [];
 
     try {
       for (const att of attachments) {
@@ -192,12 +223,9 @@ export default function ChatInput({
           continue;
         }
 
-        const { data: urlData } = supabase.storage
-          .from('chat-attachments')
-          .getPublicUrl(data.path);
-
+        // Store path instead of public URL for signed URL generation later
         uploaded.push({
-          url: urlData.publicUrl,
+          path: data.path,
           type: att.file.type,
           name: att.file.name,
           size: att.file.size,
@@ -300,7 +328,7 @@ export default function ChatInput({
     course.code || course.shortName || course.name;
 
   return (
-    <div className="bg-white border-t px-4 py-3 safe-area-bottom">
+    <div className="bg-white border-t px-4 py-3">
       {/* Attachments preview */}
       {attachments.length > 0 && (
         <div className="flex gap-2 mb-2 overflow-x-auto pb-2">
@@ -365,7 +393,7 @@ export default function ChatInput({
 
         {/* Mention Popup */}
         {mentionResults.length > 0 && (
-          <div className="absolute bottom-full left-10 mb-2 w-64 bg-white rounded-lg shadow-xl border overflow-hidden z-30 animate-slide-up">
+          <div ref={mentionDropdownRef} className="absolute bottom-full left-10 mb-2 w-64 bg-white rounded-lg shadow-xl border overflow-hidden z-30 animate-slide-up">
             <div className="px-3 py-2 bg-gray-50 border-b text-xs font-medium text-gray-500">
               Mentioning...
             </div>
@@ -394,7 +422,7 @@ export default function ChatInput({
         )}
 
         {/* Course tag selector */}
-        <div className="relative">
+        <div ref={courseDropdownRef} className="relative">
           <button
             onClick={() => setShowCourseDropdown(!showCourseDropdown)}
             className={`p-2 transition-colors rounded-lg ${
@@ -444,7 +472,7 @@ export default function ChatInput({
           onKeyDown={handleKeyDown}
           onClick={(e) => setCursorPos(e.currentTarget.selectionStart)}
           onBlur={() => setTimeout(() => setMentionQuery(null), 200)}
-          placeholder={parentId ? 'Reply to thread...' : 'Message MyView...'}
+          placeholder={parentId ? 'Reply to thread...' : 'Message Community...'}
           rows={1}
           className="flex-1 resize-none border rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50"
         />

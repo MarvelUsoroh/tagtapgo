@@ -1,5 +1,5 @@
 /**
- * MyView Chat Page (Server Component)
+ * Community Chat Page (Server Component)
  * University-scoped chat with #course-tags for targeted visibility
  */
 
@@ -9,7 +9,7 @@ import { redirect } from 'next/navigation';
 import { createServerClient } from '@/lib/supabase-server';
 import CommunityChat from '@/components/CommunityChat';
 
-export default async function MyViewPage() {
+export default async function CommunityPage() {
   const supabase = createServerClient();
   const {
     data: { user },
@@ -65,7 +65,7 @@ export default async function MyViewPage() {
         .filter((word: string) => word.length > 2 || word.toUpperCase() === word) // Skip small words like "of", "the" unless acronym
         .map((word: string) => word[0].toUpperCase())
         .join('')
-    : 'MV';
+    : 'C';
 
   return (
     <CommunityChat
@@ -77,7 +77,7 @@ export default async function MyViewPage() {
         fullName: student.full_name,
         avatarUrl: student.avatar_url,
       }}
-      universityName={university?.name || 'MyView'}
+      universityName={university?.name || 'Community'}
       universityAbbrev={universityAbbrev}
       enrolledCourses={courses}
     />

@@ -9,6 +9,7 @@
 import { formatDistanceToNow } from 'date-fns';
 import { MessageCircle, Hash, Smile } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import { createClient } from '@/lib/supabase';
 import type { Message } from './CommunityChat';
 
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '🎉', '🙏', '👀'];
@@ -29,7 +30,9 @@ export default function MessageItem({
   isThreadParent = false,
 }: MessageItemProps) {
   const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const reactionPickerRef = useRef<HTMLDivElement>(null);
+  const supabase = createClient();
   const isOwnMessage = message.author?.id === currentUserId;
 
   // Close emoji picker when clicking outside
@@ -45,6 +48,32 @@ export default function MessageItem({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showReactionPicker]);
+
+  // Generate signed URLs for private bucket attachments
+  useEffect(() => {
+    const generateSignedUrls = async () => {
+      if (message.attachments.length === 0) return;
+      
+      const urls: Record<string, string> = {};
+      for (const att of message.attachments) {
+        if (!att.path || signedUrls[att.path]) continue;
+        
+        const { data, error } = await supabase.storage
+          .from('chat-attachments')
+          .createSignedUrl(att.path, 3600); // 1 hour expiry
+        
+        if (!error && data?.signedUrl) {
+          urls[att.path] = data.signedUrl;
+        }
+      }
+      
+      if (Object.keys(urls).length > 0) {
+        setSignedUrls(prev => ({ ...prev, ...urls }));
+      }
+    };
+    
+    generateSignedUrls();
+  }, [message.attachments]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Get author display name
   const authorName = message.author?.full_name ||
@@ -81,7 +110,7 @@ export default function MessageItem({
         <div className="flex-1 min-w-0">
           {/* Header: Name, Course Badge, Time */}
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="font-medium text-gray-900 text-sm">{authorName}</span>
+            <span className="font-medium text-gray-900 text-base sm:text-sm">{authorName}</span>
             
             {message.course && (
               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-medium">
@@ -101,30 +130,42 @@ export default function MessageItem({
                 : 'bg-white shadow-sm border border-gray-100'
             }`}
           >
-            <p className={`text-sm whitespace-pre-wrap break-words ${isOwnMessage ? 'text-green-900' : 'text-gray-800'}`}>
+            <p className={`text-base sm:text-sm whitespace-pre-wrap break-words ${isOwnMessage ? 'text-green-900' : 'text-gray-800'}`}>
               {message.content}
             </p>
 
             {/* Attachments */}
             {message.attachments.length > 0 && (
               <div className="mt-2 space-y-1">
-                {message.attachments.map((att, i) => (
-                  <a
-                    key={i}
-                    href={att.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`flex items-center gap-2 text-xs ${
-                      isOwnMessage ? 'text-green-700 hover:text-green-800' : 'text-blue-600 hover:underline'
-                    }`}
-                  >
-                    {att.type.startsWith('image/') ? (
-                      <img src={att.url} alt={att.name} className="max-w-[200px] max-h-[150px] rounded-lg mt-1" />
-                    ) : (
-                      <>📎 {att.name}</>
-                    )}
-                  </a>
-                ))}
+                {message.attachments.map((att, i) => {
+                  const signedUrl = signedUrls[att.path];
+                  
+                  if (!signedUrl) {
+                    // Loading state while signed URL is being generated
+                    return (
+                      <div key={i} className="text-xs text-gray-400">
+                        Loading attachment...
+                      </div>
+                    );
+                  }
+                  return (
+                    <a
+                      key={i}
+                      href={signedUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`flex items-center gap-2 text-xs ${
+                        isOwnMessage ? 'text-green-700 hover:text-green-800' : 'text-blue-600 hover:underline'
+                      }`}
+                    >
+                      {att.type.startsWith('image/') ? (
+                        <img src={signedUrl} alt={att.name} className="max-w-[200px] max-h-[150px] rounded-lg mt-1" />
+                      ) : (
+                        <>📎 {att.name}</>
+                      )}
+                    </a>
+                  );
+                })}
               </div>
             )}
           </div>

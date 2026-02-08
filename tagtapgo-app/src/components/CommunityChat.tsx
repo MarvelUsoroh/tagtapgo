@@ -2,7 +2,7 @@
 // @ts-nocheck - Supabase join type inference limitation with !foreign_key syntax
 
 /**
- * MyViewChat Component
+ * CommunityChat Component
  * Real-time chat with #course-tag targeting and threaded replies
  */
 
@@ -52,7 +52,7 @@ export interface Message {
   parentId: string | null;
   replyCount: number;
   reactions: Reaction[];
-  attachments: { url: string; type: string; name: string; size: number }[];
+  attachments: { path: string; type: string; name: string; size: number }[];
   createdAt: string;
 }
 
@@ -79,9 +79,40 @@ export default function CommunityChat({
   const PAGE_SIZE = 50;
   const [showSearch, setShowSearch] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputContainerRef = useRef<HTMLDivElement>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const supabase = createClient();
   const toast = useToast();
   const router = useRouter();
+
+  // Keyboard detection for mobile
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+
+    const handleViewportResize = () => {
+      const viewport = window.visualViewport!;
+      const windowHeight = window.innerHeight;
+      const viewportHeight = viewport.height;
+      const calculatedKeyboardHeight = windowHeight - viewportHeight;
+
+      if (calculatedKeyboardHeight > 100) {
+        setKeyboardHeight(calculatedKeyboardHeight);
+        setTimeout(() => {
+          inputContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }, 100);
+      } else {
+        setKeyboardHeight(0);
+      }
+    };
+
+    window.visualViewport.addEventListener('resize', handleViewportResize);
+    window.visualViewport.addEventListener('scroll', handleViewportResize);
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', handleViewportResize);
+      window.visualViewport?.removeEventListener('scroll', handleViewportResize);
+    };
+  }, []);
 
   // Fetch messages
   const fetchMessages = useCallback(async (beforeTimestamp?: string) => {
@@ -210,7 +241,7 @@ export default function CommunityChat({
   // Real-time subscription
   useEffect(() => {
     const channel = supabase
-      .channel('myview-chat')
+      .channel('community-chat')
       .on(
         'postgres_changes',
         {
@@ -342,7 +373,14 @@ export default function CommunityChat({
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 pb-safe">
+    <div 
+      className="fixed inset-0 flex flex-col bg-gray-50"
+      style={{
+        height: keyboardHeight > 0 
+          ? `${window.innerHeight - keyboardHeight}px`
+          : '100dvh'
+      }}
+    >
       {/* Header */}
       <header className="bg-white border-b px-4 py-3 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-3">
@@ -357,7 +395,7 @@ export default function CommunityChat({
           </div>
           <div>
             <h1 className="font-semibold text-gray-900">{universityAbbrev}</h1>
-            <p className="text-xs text-gray-500">MyView Feed</p>
+            <p className="text-xs text-gray-500">Community Feed</p>
           </div>
         </div>
         <button
@@ -453,13 +491,23 @@ export default function CommunityChat({
       </div>
 
       {/* Chat input */}
-      <ChatInput
-        currentUser={currentUser}
-        enrolledCourses={enrolledCourses}
-        selectedCourse={selectedCourse}
-        parentId={null}
-        onMessageSent={fetchMessages}
-      />
+      <div 
+        ref={inputContainerRef}
+        className="flex-none z-10 bg-white border-t border-gray-100"
+        style={{
+          paddingBottom: 'calc(max(env(safe-area-inset-bottom, 0px), 12px) + 8px)'
+        }}
+      >
+        <div className="max-w-2xl mx-auto w-full">
+          <ChatInput
+            currentUser={currentUser}
+            enrolledCourses={enrolledCourses}
+            selectedCourse={selectedCourse}
+            parentId={null}
+            onMessageSent={fetchMessages}
+          />
+        </div>
+      </div>
 
       {/* Thread panel */}
       {threadMessage && (

@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Trophy, Sparkles } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
@@ -32,6 +33,7 @@ export default function AchievementsClient({
   unlockedCount: initialUnlockedCount,
   bonusPoints: initialBonusPoints,
 }: Props) {
+  const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState<CategoryKey>('all');
   const [celebratedAchievements, setCelebratedAchievements] = useState<Set<string>>(new Set());
 
@@ -85,6 +87,7 @@ export default function AchievementsClient({
         subtitle="Unlock badges and earn bonus points"
         icon={Trophy}
         variant="white"
+        onBack={() => router.back()}
       >
         {/* Stats */}
         <div className="flex gap-4">

@@ -10,7 +10,7 @@ import { buttonPress } from '@/lib/animations';
 
 const navItems = [
   { href: '/', icon: Home, label: 'Home' },
-  { href: '/myview', icon: MessageSquare, label: 'MyView' },
+  { href: '/community', icon: MessageSquare, label: 'Community' },
   { href: '/leaderboard', icon: Users, label: 'Ranks' },
   { href: '/rewards', icon: Gift, label: 'Rewards' },
   { href: '/profile', icon: User, label: 'Profile' },

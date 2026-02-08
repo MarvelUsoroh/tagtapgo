@@ -1,14 +1,10 @@
-/**
- * Coming Soon Page
- * Placeholder for features under development
- */
-
 'use client';
 
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Wrench } from 'lucide-react';
+import { Wrench } from 'lucide-react';
 import { colors } from '@/lib/theme';
+import PageHeader from '@/components/PageHeader';
 
 export default function ComingSoonPage() {
   const router = useRouter();
@@ -16,18 +12,10 @@ export default function ComingSoonPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 safe-area-top" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
-        <div className="max-w-5xl mx-auto px-4 py-4">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
-            style={{ minHeight: '44px' }}
-          >
-            <ArrowLeft size={20} />
-            <span className="font-medium">Back</span>
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Coming Soon"
+        onBack={() => router.back()}
+      />
 
       {/* Content */}
       <div className="flex-1 flex items-center justify-center p-6">
