@@ -8,11 +8,70 @@
 
 import { formatDistanceToNow } from 'date-fns';
 import { MessageCircle, Hash, Smile } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase';
 import type { Message } from './CommunityChat';
 
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '🎉', '🙏', '👀'];
+
+/**
+ * Renders message content with @mentions and #tags highlighted
+ */
+function RichContent({ text, isOwn }: { text: string; isOwn: boolean }) {
+  const parts = useMemo(() => {
+    // Split at @mentions and #tags while keeping delimiters
+    const regex = /(@[\w\s]+?(?=\s@|\s#|$))|(#[\w]+)/g;
+    const result: { type: 'text' | 'mention' | 'tag'; value: string }[] = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        result.push({ type: 'text', value: text.slice(lastIndex, match.index) });
+      }
+      if (match[1]) {
+        result.push({ type: 'mention', value: match[1] });
+      } else if (match[2]) {
+        result.push({ type: 'tag', value: match[2] });
+      }
+      lastIndex = regex.lastIndex;
+    }
+
+    if (lastIndex < text.length) {
+      result.push({ type: 'text', value: text.slice(lastIndex) });
+    }
+
+    return result;
+  }, [text]);
+
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.type === 'mention') {
+          return (
+            <span
+              key={i}
+              className={`font-semibold ${isOwn ? 'text-green-700' : 'text-green-600'}`}
+            >
+              {part.value}
+            </span>
+          );
+        }
+        if (part.type === 'tag') {
+          return (
+            <span
+              key={i}
+              className={`font-medium ${isOwn ? 'text-green-700' : 'text-green-600'}`}
+            >
+              {part.value}
+            </span>
+          );
+        }
+        return <span key={i}>{part.value}</span>;
+      })}
+    </>
+  );
+}
 
 interface MessageItemProps {
   message: Message;
@@ -131,7 +190,7 @@ export default function MessageItem({
             }`}
           >
             <p className={`text-base sm:text-sm whitespace-pre-wrap break-words ${isOwnMessage ? 'text-green-900' : 'text-gray-800'}`}>
-              {message.content}
+              <RichContent text={message.content} isOwn={isOwnMessage} />
             </p>
 
             {/* Attachments */}
@@ -210,7 +269,8 @@ export default function MessageItem({
             <div className="relative" ref={reactionPickerRef}>
               <button
                 onClick={() => setShowReactionPicker(!showReactionPicker)}
-                className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors opacity-0 group-hover:opacity-100"
+                className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 active:text-gray-600 transition-colors sm:opacity-0 sm:group-hover:opacity-100"
+                aria-label="Add reaction"
               >
                 <Smile className="w-3.5 h-3.5" />
               </button>

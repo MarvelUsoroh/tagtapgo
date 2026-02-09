@@ -10,7 +10,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { useToast } from '@/context/ToastContext';
-import { MessageCircle, Hash, Search, ArrowLeft } from 'lucide-react';
+import { MessageCircle, Hash, Search, ArrowLeft, ChevronDown } from 'lucide-react';
+import { format, isToday, isYesterday } from 'date-fns';
 import MessageItem from './MessageItem';
 import ChatInput from './ChatInput';
 
@@ -78,12 +79,34 @@ export default function CommunityChat({
   const [loadingMore, setLoadingMore] = useState(false);
   const PAGE_SIZE = 50;
   const [showSearch, setShowSearch] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [newMessageCount, setNewMessageCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
+  const threadInputRef = useRef<HTMLDivElement>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const isNearBottomRef = useRef(true);
   const supabase = createClient();
   const toast = useToast();
   const router = useRouter();
+
+  // Track scroll position to show/hide scroll-to-bottom button
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const nearBottom = scrollHeight - scrollTop - clientHeight < 100;
+      isNearBottomRef.current = nearBottom;
+      setShowScrollButton(!nearBottom);
+      if (nearBottom) setNewMessageCount(0);
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [loading]);
 
   // Keyboard detection for mobile
   useEffect(() => {
@@ -98,7 +121,12 @@ export default function CommunityChat({
       if (calculatedKeyboardHeight > 100) {
         setKeyboardHeight(calculatedKeyboardHeight);
         setTimeout(() => {
-          inputContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+          // Scroll the active input into view (thread input takes priority)
+          if (threadMessage && threadInputRef.current) {
+            threadInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+          } else {
+            inputContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+          }
         }, 100);
       } else {
         setKeyboardHeight(0);
@@ -112,7 +140,7 @@ export default function CommunityChat({
       window.visualViewport?.removeEventListener('resize', handleViewportResize);
       window.visualViewport?.removeEventListener('scroll', handleViewportResize);
     };
-  }, []);
+  }, [threadMessage]);
 
   // Fetch messages
   const fetchMessages = useCallback(async (beforeTimestamp?: string) => {
@@ -280,20 +308,34 @@ export default function CommunityChat({
               attachments: msg.attachments || [],
               createdAt: msg.created_at,
             }]);
-            scrollToBottom();
-          } else if (msg && threadMessage?.id === msg.parent_id) {
-            // Add to thread if viewing that thread
-            setThreadReplies(prev => [...prev, {
-              id: msg.id,
-              content: msg.content,
-              author: author || null,
-              course: course || null,
-              parentId: msg.parent_id,
-              replyCount: 0,
-              reactions: [],
-              attachments: msg.attachments || [],
-              createdAt: msg.created_at,
-            }]);
+            // Only auto-scroll if user is near the bottom
+            if (isNearBottomRef.current) {
+              scrollToBottom();
+            } else {
+              setNewMessageCount(prev => prev + 1);
+            }
+          } else if (msg && msg.parent_id) {
+            // Increment reply count on the parent message in real-time
+            setMessages(prev => prev.map(m =>
+              m.id === msg.parent_id
+                ? { ...m, replyCount: m.replyCount + 1 }
+                : m
+            ));
+
+            // Add to thread replies if viewing that thread
+            if (threadMessage?.id === msg.parent_id) {
+              setThreadReplies(prev => [...prev, {
+                id: msg.id,
+                content: msg.content,
+                author: author || null,
+                course: course || null,
+                parentId: msg.parent_id,
+                replyCount: 0,
+                reactions: [],
+                attachments: msg.attachments || [],
+                createdAt: msg.created_at,
+              }]);
+            }
           }
           /* eslint-enable @typescript-eslint/no-explicit-any */
         }
@@ -350,6 +392,22 @@ export default function CommunityChat({
     /* eslint-enable @typescript-eslint/no-explicit-any */
   };
 
+  // Format date divider label
+  const getDateLabel = (dateStr: string) => {
+    const date = new Date(dateStr);
+    if (isToday(date)) return 'Today';
+    if (isYesterday(date)) return 'Yesterday';
+    return format(date, 'EEEE, MMMM d, yyyy');
+  };
+
+  // Check if a date divider should be shown before a message
+  const shouldShowDateDivider = (index: number) => {
+    if (index === 0) return true;
+    const current = new Date(messages[index].createdAt).toDateString();
+    const previous = new Date(messages[index - 1].createdAt).toDateString();
+    return current !== previous;
+  };
+
   // Toggle reaction
   const toggleReaction = async (messageId: string, emoji: string) => {
     const message = messages.find(m => m.id === messageId);
@@ -374,11 +432,12 @@ export default function CommunityChat({
 
   return (
     <div 
-      className="fixed inset-0 flex flex-col bg-gray-50"
+      className="fixed inset-0 flex flex-col bg-gray-50 overscroll-contain touch-none"
       style={{
         height: keyboardHeight > 0 
-          ? `${window.innerHeight - keyboardHeight}px`
-          : '100dvh'
+          ? `${window.visualViewport?.height ?? (window.innerHeight - keyboardHeight)}px`
+          : '100dvh',
+        overscrollBehavior: 'contain',
       }}
     >
       {/* Header */}
@@ -409,14 +468,32 @@ export default function CommunityChat({
       {/* Search bar */}
       {showSearch && (
         <div className="bg-white border-b px-4 py-2">
-          <input
-            type="text"
-            placeholder="Search messages..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && fetchMessages()}
-            className="w-full px-3 py-2 bg-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search messages..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && fetchMessages()}
+              autoFocus
+              className="w-full pl-9 pr-8 py-2 bg-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  fetchMessages();
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-200 transition-colors"
+              >
+                <span className="sr-only">Clear search</span>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -451,7 +528,7 @@ export default function CommunityChat({
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-4 overscroll-contain touch-pan-y relative">
         <div className="max-w-2xl mx-auto space-y-4">
         {loading ? (
           <div className="flex justify-center py-8">
@@ -460,7 +537,8 @@ export default function CommunityChat({
         ) : messages.length === 0 ? (
           <div className="text-center py-12">
             <MessageCircle className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-            <p className="text-gray-500">No messages yet. Start the conversation!</p>
+            <p className="text-gray-500 font-medium">No messages yet</p>
+            <p className="text-gray-400 text-sm mt-1">Be the first to start the conversation!</p>
           </div>
         ) : (
           <>
@@ -475,19 +553,51 @@ export default function CommunityChat({
                 </button>
               </div>
             )}
-            {messages.map((message) => (
-              <MessageItem
-                key={message.id}
-                message={message}
-                currentUserId={currentUser.id}
-                onOpenThread={() => openThread(message)}
-                onToggleReaction={(emoji) => toggleReaction(message.id, emoji)}
-              />
+            {messages.map((message, index) => (
+              <div key={message.id}>
+                {/* Date divider */}
+                {shouldShowDateDivider(index) && (
+                  <div className="flex items-center gap-3 py-2 mb-2">
+                    <div className="flex-1 h-px bg-gray-200" />
+                    <span className="text-xs text-gray-400 font-medium px-2">
+                      {getDateLabel(message.createdAt)}
+                    </span>
+                    <div className="flex-1 h-px bg-gray-200" />
+                  </div>
+                )}
+                <MessageItem
+                  message={message}
+                  currentUserId={currentUser.id}
+                  onOpenThread={() => openThread(message)}
+                  onToggleReaction={(emoji) => toggleReaction(message.id, emoji)}
+                />
+              </div>
             ))}
           </>
         )}
         <div ref={messagesEndRef} />
         </div>
+
+        {/* Scroll to bottom FAB */}
+        {showScrollButton && (
+          <button
+            onClick={() => {
+              scrollToBottom();
+              setNewMessageCount(0);
+            }}
+            className="sticky bottom-4 left-1/2 -translate-x-1/2 bg-white shadow-lg border border-gray-200 rounded-full px-4 py-2 flex items-center gap-2 text-sm text-gray-600 hover:bg-gray-50 transition-all z-20 mx-auto w-fit"
+          >
+            <ChevronDown className="w-4 h-4" />
+            {newMessageCount > 0 ? (
+              <span className="flex items-center gap-1.5">
+                {newMessageCount} new {newMessageCount === 1 ? 'message' : 'messages'}
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              </span>
+            ) : (
+              'Scroll to bottom'
+            )}
+          </button>
+        )}
       </div>
 
       {/* Chat input */}
@@ -516,7 +626,12 @@ export default function CommunityChat({
           onClick={() => setThreadMessage(null)}
         >
           <div 
-            className="w-full max-w-md bg-white h-full flex flex-col animate-slide-in-right pb-safe"
+            className="w-full max-w-md bg-white flex flex-col animate-slide-in-right"
+            style={{
+              height: keyboardHeight > 0 
+                ? `${window.visualViewport?.height ?? (window.innerHeight - keyboardHeight)}px`
+                : '100dvh',
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <header className="bg-white border-b px-4 py-3 flex items-center gap-3">
@@ -532,7 +647,7 @@ export default function CommunityChat({
               </div>
             </header>
 
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 overscroll-contain touch-pan-y">
               {/* Original message */}
               <MessageItem
                 message={threadMessage}
@@ -554,18 +669,26 @@ export default function CommunityChat({
               ))}
             </div>
 
-            <ChatInput
-              currentUser={currentUser}
-              enrolledCourses={enrolledCourses}
-              selectedCourse={threadMessage.course ? {
-                id: threadMessage.course.id,
-                code: threadMessage.course.code,
-                shortName: threadMessage.course.short_name,
-                name: threadMessage.course.name,
-              } : null}
-              parentId={threadMessage.id}
-              onMessageSent={() => { /* Let realtime handle the new reply */ }}
-            />
+            <div 
+              ref={threadInputRef}
+              className="flex-none bg-white border-t border-gray-100"
+              style={{
+                paddingBottom: 'calc(max(env(safe-area-inset-bottom, 0px), 12px) + 8px)'
+              }}
+            >
+              <ChatInput
+                currentUser={currentUser}
+                enrolledCourses={enrolledCourses}
+                selectedCourse={threadMessage.course ? {
+                  id: threadMessage.course.id,
+                  code: threadMessage.course.code,
+                  shortName: threadMessage.course.short_name,
+                  name: threadMessage.course.name,
+                } : null}
+                parentId={threadMessage.id}
+                onMessageSent={() => { /* Let realtime handle the new reply */ }}
+              />
+            </div>
           </div>
         </div>
       )}
