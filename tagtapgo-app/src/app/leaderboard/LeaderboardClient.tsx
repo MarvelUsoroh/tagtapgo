@@ -5,22 +5,15 @@
 
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import Image from 'next/image';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crown, Medal, Award, TrendingUp, ChevronDown, Trophy, Flame } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { supabase } from '@/lib/supabase';
 import { colors } from '@/lib/theme';
 import { LEADERBOARD_CONFIG } from '@/lib/constants';
-import { cn, formatNumber, getInitials } from '@/lib/utils';
-import BottomNav from '@/components/BottomNav';
-
-// Extract first name from full name
-const getFirstName = (fullName: string | undefined | null): string => {
-  if (!fullName || !fullName.trim()) return 'Student';
-  return fullName.trim().split(' ')[0];
-};
-import PageHeader from '@/components/PageHeader';
+import { cn } from '@/lib/utils';
+import { Container } from '@/components/layout/Container';
+import { LeaderboardList } from '@/components/leaderboard/LeaderboardList';
 
 type LeaderboardType = 'class' | 'year' | 'school';
 type TimePeriod = 'weekly' | 'monthly' | 'all_time';
@@ -41,7 +34,7 @@ interface LeaderboardEntry {
   period_end?: string;
   updated_at: string;
   student_name: string;
-  student_avatar_url?: string | null;
+  students?: { avatar_url: string | null } | null;
 }
 
 interface Props {
@@ -64,6 +57,24 @@ export default function LeaderboardClient({
   const [userPrimaryClass, setUserPrimaryClass] = useState<string | null>(null);
   const [className, setClassName] = useState<string>('Class');
   const [classCode, setClassCode] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowPeriodDropdown(false);
+      }
+    };
+
+    if (showPeriodDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showPeriodDropdown]);
 
   // Get user's primary class for the current period
   const getUserPrimaryClass = useCallback(async (period: TimePeriod): Promise<string | null> => {
@@ -157,7 +168,7 @@ export default function LeaderboardClient({
       // Build query based on leaderboard type
       let query = supabase
         .from('leaderboards')
-        .select('id, student_id, leaderboard_type, period, course_id, primary_course_id, rank, points, current_streak, longest_streak, score, period_start, period_end, updated_at, student_name, student_avatar_url')
+        .select('id, student_id, leaderboard_type, period, course_id, primary_course_id, rank, points, current_streak, longest_streak, score, period_start, period_end, updated_at, student_name, students(avatar_url)')
         .eq('leaderboard_type', activeTab)
         .eq('period', timePeriod);
 
@@ -232,32 +243,6 @@ export default function LeaderboardClient({
     };
   }, [activeTab, fetchLeaderboard]);
 
-  const getRankIcon = (rank: number) => {
-    switch (rank) {
-      case 1:
-        return <Crown size={24} style={{ color: colors.rank.gold }} />;
-      case 2:
-        return <Medal size={24} style={{ color: colors.rank.silver }} />;
-      case 3:
-        return <Award size={24} style={{ color: colors.rank.bronze }} />;
-      default:
-        return null;
-    }
-  };
-
-  const getRankColor = (rank: number) => {
-    switch (rank) {
-      case 1:
-        return colors.rank.gold;
-      case 2:
-        return colors.rank.silver;
-      case 3:
-        return colors.rank.bronze;
-      default:
-        return colors.gray[600];
-    }
-  };
-
   const periodLabels: Record<TimePeriod, string> = {
     weekly: 'This Week',
     monthly: 'This Month',
@@ -265,90 +250,88 @@ export default function LeaderboardClient({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: 'var(--bottom-nav-height)' }}>
+    <div className="min-h-screen bg-white">
       {/* Header */}
-      <PageHeader
-        title="Leaderboard"
-        subtitle="Compete with your peers"
-        icon={Trophy}
-        variant="white"
-        actions={
-          <div className="relative">
-            <button
-              onClick={() => setShowPeriodDropdown(!showPeriodDropdown)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm"
-              style={{
-                backgroundColor: colors.gray[100],
-                color: colors.gray[700],
-                minHeight: '44px',
-              }}
-            >
-              <span>{periodLabels[timePeriod]}</span>
-              <ChevronDown size={16} />
-            </button>
-
-            <AnimatePresence>
-              {showPeriodDropdown && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-10"
-                  style={{ borderColor: colors.gray[200] }}
-                >
-                  {(Object.keys(periodLabels) as TimePeriod[]).map((period) => (
-                    <button
-                      key={period}
-                      onClick={() => {
-                        setTimePeriod(period);
-                        setShowPeriodDropdown(false);
-                      }}
-                      className="w-full text-left px-4 py-3 hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg"
-                      style={{
-                        backgroundColor: timePeriod === period ? colors.primary.DEFAULT + '10' : 'transparent',
-                        color: timePeriod === period ? colors.primary.DEFAULT : colors.gray[700],
-                        minHeight: '44px',
-                      }}
-                    >
-                      {periodLabels[period]}
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        }
-      >
-        {/* User's Rank Card */}
-        {userRank && (
-          <div
-            className="p-4 rounded-xl flex items-center justify-between"
-            style={{ backgroundColor: colors.primary.DEFAULT + '10' }}
-          >
-            <div className="flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white"
-                style={{ backgroundColor: colors.primary.DEFAULT }}
-              >
-                {userRank}
-              </div>
+      <div className="bg-white border-b border-gray-100">
+        <Container>
+          <div className="py-6">
+            {/* Title and Period Selector */}
+            <div className="flex items-center justify-between mb-6">
               <div>
-                <p className="font-medium" style={{ color: colors.gray[900] }}>
-                  Your Rank
-                </p>
-                <p className="text-sm" style={{ color: colors.gray[600] }}>
-                  Keep climbing!
-                </p>
+                <h1 className="text-2xl font-bold text-gray-900">Leaderboard</h1>
+                <p className="text-sm text-gray-600 mt-1">Compete with your peers</p>
+              </div>
+              
+              {/* Period Dropdown */}
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setShowPeriodDropdown(!showPeriodDropdown)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm bg-gray-100 text-gray-700"
+                  style={{ minHeight: '44px' }}
+                >
+                  <span>{periodLabels[timePeriod]}</span>
+                  <Icon name="arrowForward" size="sm" className="rotate-90" />
+                </button>
+
+                <AnimatePresence>
+                  {showPeriodDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10"
+                    >
+                      {(Object.keys(periodLabels) as TimePeriod[]).map((period) => (
+                        <button
+                          key={period}
+                          onClick={() => {
+                            setTimePeriod(period);
+                            setShowPeriodDropdown(false);
+                          }}
+                          className="w-full text-left px-4 py-3 hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg"
+                          style={{
+                            backgroundColor: timePeriod === period ? `${colors.primary.DEFAULT}10` : 'transparent',
+                            color: timePeriod === period ? colors.primary.DEFAULT : colors.gray[700],
+                            minHeight: '44px',
+                          }}
+                        >
+                          {periodLabels[period]}
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
-            <TrendingUp size={24} style={{ color: colors.success }} />
+
+            {/* User's Rank Card */}
+            {userRank && (
+              <div
+                className="p-4 rounded-xl flex items-center justify-between"
+                style={{ backgroundColor: `${colors.primary.DEFAULT}10` }}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white"
+                    style={{ backgroundColor: colors.primary.DEFAULT }}
+                  >
+                    {userRank}
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Your Rank</p>
+                    <p className="text-sm text-gray-600">Keep climbing!</p>
+                  </div>
+                </div>
+                <Icon name="trendingUp" size="lg" color={colors.success} />
+              </div>
+            )}
           </div>
-        )}
-      </PageHeader>
+        </Container>
+      </div>
 
       {/* Tabs */}
-      <div className="bg-white border-b" style={{ borderColor: colors.gray[200] }}>
-        <div className="max-w-5xl mx-auto px-4">
+      <div className="bg-white border-b border-gray-200">
+        <Container>
           <div className="flex gap-1">
             {(['school', 'year', 'class'] as LeaderboardType[]).map((tab) => (
               <button
@@ -374,119 +357,29 @@ export default function LeaderboardClient({
               </button>
             ))}
           </div>
-        </div>
+        </Container>
       </div>
 
       {/* Leaderboard List */}
-      <main className="max-w-5xl mx-auto px-4 py-6">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          </div>
-        ) : leaderboard.length === 0 ? (
-          <div className="text-center py-12">
-            <Trophy size={48} style={{ color: colors.gray[300] }} className="mx-auto mb-4" />
-            <p className="text-lg font-medium mb-2" style={{ color: colors.gray[600] }}>
-              {activeTab === 'class' && !userPrimaryClass 
+      <Container>
+        <div className="py-4">
+          <LeaderboardList
+            entries={leaderboard}
+            currentStudentId={currentStudentId}
+            loading={loading}
+            emptyTitle={
+              activeTab === 'class' && !userPrimaryClass 
                 ? 'No class data available'
                 : 'No leaderboard data yet'
-              }
-            </p>
-            <p className="text-sm" style={{ color: colors.gray[500] }}>
-              {activeTab === 'class' && !userPrimaryClass
+            }
+            emptyDescription={
+              activeTab === 'class' && !userPrimaryClass
                 ? 'Attend classes to join the class leaderboard'
                 : 'Start earning points to appear on the leaderboard'
-              }
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {leaderboard.map((entry, index) => (
-              <motion.div
-                key={entry.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
-                className={cn(
-                  'bg-white rounded-xl p-4 flex items-center gap-4',
-                  entry.student_id === currentStudentId && 'ring-2 ring-primary',
-                  entry.rank <= 3 && 'shadow-md'
-                )}
-              >
-                {/* Rank */}
-                <div className="flex-shrink-0 w-12 text-center">
-                  {getRankIcon(entry.rank) || (
-                    <span
-                      className="text-xl font-bold"
-                      style={{ color: getRankColor(entry.rank) }}
-                    >
-                      {entry.rank}
-                    </span>
-                  )}
-                </div>
-
-                {/* Avatar */}
-                <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-white flex-shrink-0"
-                  style={{ backgroundColor: colors.primary.DEFAULT }}
-                >
-                  {entry.student_avatar_url ? (
-                    <Image
-                      src={entry.student_avatar_url}
-                      alt={getFirstName(entry.student_name)}
-                      width={40}
-                      height={40}
-                      className="rounded-full object-cover"
-                    />
-                  ) : (
-                    getInitials(entry.student_name || 'Student')
-                  )}
-                </div>
-
-                {/* Name */}
-                <div className="flex-1 min-w-0">
-                  <p
-                    className="font-medium truncate"
-                    style={{ color: colors.gray[900] }}
-                  >
-                    {getFirstName(entry.student_name)}
-                    {entry.student_id === currentStudentId && (
-                      <span
-                        className="ml-2 text-xs font-normal"
-                        style={{ color: colors.primary.DEFAULT }}
-                      >
-                        (You)
-                      </span>
-                    )}
-                  </p>
-                </div>
-
-                {/* Score & Streak */}
-                <div className="text-right">
-                  <div className="flex flex-col items-end gap-1">
-                    <p
-                      className="text-lg font-bold"
-                      style={{ color: getRankColor(entry.rank) }}
-                    >
-                      {formatNumber(entry.score || ((entry.current_streak || 0) * 100 + entry.points))}
-                    </p>
-                    <p className="text-xs" style={{ color: colors.gray[500] }}>
-                      score
-                    </p>
-                    <div className="flex items-center gap-1 text-xs" style={{ color: colors.warning }}>
-                      <Flame size={12} />
-                      <span>{entry.current_streak || 0} day streak</span>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </main>
-
-      {/* Bottom Navigation */}
-      <BottomNav />
+            }
+          />
+        </div>
+      </Container>
     </div>
   );
 }

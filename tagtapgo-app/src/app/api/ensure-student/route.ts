@@ -19,6 +19,11 @@ export async function POST() {
       user_metadata: user.user_metadata ?? null,
     });
 
+    if (result.error) {
+      await supabase.auth.signOut();
+      return NextResponse.json({ ok: false, error: result.error.message }, { status: 403 });
+    }
+
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown_error';

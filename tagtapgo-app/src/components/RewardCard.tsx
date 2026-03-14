@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import { TrendingUp, Sparkles } from 'lucide-react';
+import { IoTrendingUp, IoSparkles } from 'react-icons/io5';
 import { colors } from '@/lib/theme';
 import { cn, formatNumber } from '@/lib/utils';
 import { cardHover, buttonPress } from '@/lib/animations';
@@ -74,12 +74,12 @@ export default function RewardCard({
         >
           {badge === 'popular' ? (
             <>
-              <TrendingUp size={12} />
+              <IoTrendingUp size={12} />
               <span>Popular</span>
             </>
           ) : (
             <>
-              <Sparkles size={12} />
+              <IoSparkles size={12} />
               <span>New</span>
             </>
           )}
@@ -87,7 +87,7 @@ export default function RewardCard({
       )}
 
       {/* Image/Icon */}
-      <div className="relative h-40 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+      <div className="relative h-40 bg-gray-100 flex items-center justify-center">
         {reward.image_url ? (
           <Image
             src={reward.image_url}

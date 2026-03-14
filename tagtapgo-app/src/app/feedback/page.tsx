@@ -1,9 +1,8 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase-server';
-import BottomNav from '@/components/BottomNav';
 import { colors } from '@/lib/theme';
+import { Icon } from '@/components/icons';
 
 export const dynamic = 'force-dynamic';
 
@@ -102,7 +101,7 @@ export default async function FeedbackListPage({
               className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors"
               aria-label="Back to dashboard"
             >
-              <ArrowLeft className="w-6 h-6" style={{ color: colors.gray[700] }} />
+              <Icon name="arrowBack" size="lg" color={colors.gray[700]} />
             </Link>
             <div>
               <h1 className="text-xl font-medium" style={{ color: colors.gray[900] }}>
@@ -228,9 +227,6 @@ export default async function FeedbackListPage({
           </ul>
         )}
       </main>
-
-      {/* Bottom Navigation */}
-      <BottomNav />
     </div>
   );
 }

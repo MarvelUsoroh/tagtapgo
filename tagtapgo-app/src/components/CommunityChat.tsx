@@ -6,12 +6,13 @@
  * Real-time chat with #course-tag targeting and threaded replies
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { useToast } from '@/context/ToastContext';
-import { MessageCircle, Hash, Search, ArrowLeft, ChevronDown } from 'lucide-react';
+import { IoChatbubble, IoSearch, IoArrowBack, IoChevronDown } from 'react-icons/io5';
 import { format, isToday, isYesterday } from 'date-fns';
+import { useStore } from '@/store/useStore';
 import MessageItem from './MessageItem';
 import ChatInput from './ChatInput';
 
@@ -55,6 +56,7 @@ export interface Message {
   reactions: Reaction[];
   attachments: { path: string; type: string; name: string; size: number }[];
   createdAt: string;
+  isOptimistic?: boolean;
 }
 
 interface CommunityChatProps {
@@ -85,6 +87,7 @@ export default function CommunityChat({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputContainerRef = useRef<HTMLDivElement>(null);
   const threadInputRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const isNearBottomRef = useRef(true);
   const supabase = createClient();
@@ -172,9 +175,7 @@ export default function CommunityChat({
         query = query.eq('course_id', selectedCourse.id);
       }
 
-      if (searchQuery.trim()) {
-        query = query.textSearch('search_vector', searchQuery.trim());
-      }
+      // Filtering is done client-side via filteredMessages
 
       const { data, error: fetchError } = await query;
 
@@ -252,7 +253,7 @@ export default function CommunityChat({
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [supabase, currentUser.universityId, currentUser.id, selectedCourse, searchQuery, toast]);
+  }, [supabase, currentUser.universityId, currentUser.id, selectedCourse, toast]);
 
   const loadMoreMessages = async () => {
     if (messages.length > 0 && !loadingMore) {
@@ -261,23 +262,65 @@ export default function CommunityChat({
     }
   };
 
-  // Initial fetch
+  // Focus search input when search opens
+  useEffect(() => {
+    if (showSearch && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [showSearch]);
+
+  // Client-side live filter — instant, no network call
+  const filteredMessages = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return messages;
+    return messages.filter(m =>
+      m.content.toLowerCase().includes(q) ||
+      (m.author?.full_name || '').toLowerCase().includes(q) ||
+      (m.course?.code || '').toLowerCase().includes(q)
+    );
+  }, [messages, searchQuery]);
+
+  const { setUnreadChatMentions } = useStore();
+
+  // Initial fetch and clear unread mentions & notifications
   useEffect(() => {
     fetchMessages();
-  }, [fetchMessages]);
+
+    const markMentionsAsRead = async () => {
+      try {
+        // Mark chat mentions as read
+        await supabase
+          .from('chat_mentions')
+          .update({ read: true })
+          .eq('mentioned_user_id', currentUser.id)
+          .eq('read', false);
+        
+        // Clear global store badge count
+        setUnreadChatMentions(0);
+
+        // Also mark any community-chat notifications as read so the badge clears
+        await supabase
+          .from('notifications')
+          .update({ read: true })
+          .eq('student_id', currentUser.id)
+          .eq('read', false)
+          .like('type', '%chat%');
+      } catch (err) {
+        console.error('Failed to mark mentions/notifications as read', err);
+      }
+    };
+    
+    markMentionsAsRead();
+  }, [fetchMessages, currentUser.id, supabase, setUnreadChatMentions]);
 
   // Real-time subscription
   useEffect(() => {
     const channel = supabase
       .channel('community-chat')
+      // 1. New Messages
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_messages',
-          filter: `university_id=eq.${currentUser.universityId}`,
-        },
+        { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `university_id=eq.${currentUser.universityId}` },
         async (payload) => {
           // Fetch the full message with author
           const { data: newMsg } = await supabase
@@ -292,29 +335,38 @@ export default function CommunityChat({
 
           /* eslint-disable @typescript-eslint/no-explicit-any */
           const msg = newMsg as any;
+          if (!msg) return;
+
           // Unwrap arrays if Supabase returns them
           const author = Array.isArray(msg?.author) ? msg.author[0] : msg?.author;
           const course = Array.isArray(msg?.course) ? msg.course[0] : msg?.course;
           
-          if (msg && !msg.parent_id) {
-            setMessages(prev => [...prev, {
-              id: msg.id,
-              content: msg.content,
-              author: author || null,
-              course: course || null,
-              parentId: msg.parent_id,
-              replyCount: 0,
-              reactions: [],
-              attachments: msg.attachments || [],
-              createdAt: msg.created_at,
-            }]);
-            // Only auto-scroll if user is near the bottom
-            if (isNearBottomRef.current) {
-              scrollToBottom();
-            } else {
-              setNewMessageCount(prev => prev + 1);
-            }
-          } else if (msg && msg.parent_id) {
+          const newMessageObj = {
+            id: msg.id,
+            content: msg.content,
+            author: author || null,
+            course: course || null,
+            parentId: msg.parent_id,
+            replyCount: 0,
+            reactions: [],
+            attachments: msg.attachments || [],
+            createdAt: msg.created_at,
+          };
+          
+          if (!msg.parent_id) {
+            setMessages(prev => {
+              const existingIdx = prev.findIndex(m => m.id === msg.id);
+              if (existingIdx >= 0) {
+                const newArr = [...prev];
+                newArr[existingIdx] = newMessageObj;
+                return newArr;
+              }
+              // Only auto-scroll if user is near the bottom and it's a new message
+              if (isNearBottomRef.current) setTimeout(scrollToBottom, 50);
+              else setNewMessageCount(n => n + 1);
+              return [...prev, newMessageObj];
+            });
+          } else {
             // Increment reply count on the parent message in real-time
             setMessages(prev => prev.map(m =>
               m.id === msg.parent_id
@@ -324,20 +376,87 @@ export default function CommunityChat({
 
             // Add to thread replies if viewing that thread
             if (threadMessage?.id === msg.parent_id) {
-              setThreadReplies(prev => [...prev, {
-                id: msg.id,
-                content: msg.content,
-                author: author || null,
-                course: course || null,
-                parentId: msg.parent_id,
-                replyCount: 0,
-                reactions: [],
-                attachments: msg.attachments || [],
-                createdAt: msg.created_at,
-              }]);
+              setThreadReplies(prev => {
+                const existingIdx = prev.findIndex(m => m.id === msg.id);
+                if (existingIdx >= 0) {
+                  const newArr = [...prev];
+                  newArr[existingIdx] = newMessageObj;
+                  return newArr;
+                }
+                return [...prev, newMessageObj];
+              });
             }
           }
           /* eslint-enable @typescript-eslint/no-explicit-any */
+        }
+      )
+      // 2. Message Updates / Soft Deletes
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'chat_messages', filter: `university_id=eq.${currentUser.universityId}` },
+        (payload) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const msg = payload.new as any;
+          if (msg.deleted_at) {
+            // Remove deleted messages
+            setMessages(prev => prev.filter(m => m.id !== msg.id));
+            setThreadReplies(prev => prev.filter(m => m.id !== msg.id));
+          } else {
+             // Handle edits if any
+             setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, content: msg.content } : m));
+             setThreadReplies(prev => prev.map(m => m.id === msg.id ? { ...m, content: msg.content } : m));
+          }
+        }
+      )
+      // 3. New Reactions
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_reactions' },
+        (payload) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const reaction = payload.new as any;
+          if (reaction.user_id === currentUser.id) return; // Handled optimistically
+          
+          const updateFn = (prev: Message[]) => prev.map(m => {
+            if (m.id !== reaction.message_id) return m;
+            const newReactions = [...m.reactions];
+            const existingIdx = newReactions.findIndex(r => r.emoji === reaction.emoji);
+            if (existingIdx >= 0) {
+              newReactions[existingIdx] = { ...newReactions[existingIdx], count: newReactions[existingIdx].count + 1 };
+            } else {
+              newReactions.push({ emoji: reaction.emoji, count: 1, reacted: false });
+            }
+            return { ...m, reactions: newReactions };
+          });
+
+          setMessages(updateFn);
+          setThreadReplies(updateFn);
+        }
+      )
+      // 4. Deleted Reactions
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'chat_reactions' },
+        (payload) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const reaction = payload.old as any;
+          if (!reaction.message_id || !reaction.emoji) return; // Depends on REPLICA IDENTITY FULL
+          
+          const updateFn = (prev: Message[]) => prev.map(m => {
+            if (m.id !== reaction.message_id) return m;
+            const newReactions = [...m.reactions];
+            const existingIdx = newReactions.findIndex(r => r.emoji === reaction.emoji);
+            if (existingIdx >= 0) {
+              const r = { ...newReactions[existingIdx] };
+              r.count = Math.max(0, r.count - 1);
+              if (r.count === 0 && !r.reacted) newReactions.splice(existingIdx, 1);
+              else newReactions[existingIdx] = r;
+            }
+            return { ...m, reactions: newReactions };
+          });
+
+          setMessages(updateFn);
+          setThreadReplies(updateFn);
         }
       )
       .subscribe();
@@ -345,7 +464,7 @@ export default function CommunityChat({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, currentUser.universityId, threadMessage?.id]);
+  }, [supabase, currentUser.universityId, currentUser.id, threadMessage?.id]);
 
   // Scroll to bottom
   const scrollToBottom = () => {
@@ -403,15 +522,79 @@ export default function CommunityChat({
   // Check if a date divider should be shown before a message
   const shouldShowDateDivider = (index: number) => {
     if (index === 0) return true;
-    const current = new Date(messages[index].createdAt).toDateString();
-    const previous = new Date(messages[index - 1].createdAt).toDateString();
+    const current = new Date(filteredMessages[index].createdAt).toDateString();
+    const previous = new Date(filteredMessages[index - 1].createdAt).toDateString();
     return current !== previous;
   };
 
   // Toggle reaction
   const toggleReaction = async (messageId: string, emoji: string) => {
-    const message = messages.find(m => m.id === messageId);
-    const existingReaction = message?.reactions.find(r => r.emoji === emoji && r.reacted);
+    // Optimistically update local state instantly to avoid scroll/refresh jank
+    setMessages(prev => prev.map(m => {
+      if (m.id !== messageId) return m;
+      
+      const newReactions = [...m.reactions];
+      const existingIdx = newReactions.findIndex(r => r.emoji === emoji);
+      
+      if (existingIdx >= 0) {
+        const r = { ...newReactions[existingIdx] }; // clone to avoid mutation
+        if (r.reacted) {
+          // Remove reaction
+          r.count -= 1;
+          r.reacted = false;
+        } else {
+          // Add reaction
+          r.count += 1;
+          r.reacted = true;
+        }
+        if (r.count <= 0) {
+           newReactions.splice(existingIdx, 1);
+        } else {
+           newReactions[existingIdx] = r;
+        }
+      } else {
+        // Add completely new reaction
+        newReactions.push({ emoji, count: 1, reacted: true });
+      }
+      
+      return { ...m, reactions: newReactions };
+    }));
+
+    // Also update thread replies if the message is in the thread
+    setThreadReplies(prev => prev.map(m => {
+      if (m.id !== messageId) return m;
+      
+      const newReactions = [...m.reactions];
+      const existingIdx = newReactions.findIndex(r => r.emoji === emoji);
+      
+      if (existingIdx >= 0) {
+        const r = { ...newReactions[existingIdx] }; // clone to avoid mutation
+        if (r.reacted) {
+          // Remove reaction
+          r.count -= 1;
+          r.reacted = false;
+        } else {
+          // Add reaction
+          r.count += 1;
+          r.reacted = true;
+        }
+        if (r.count <= 0) {
+           newReactions.splice(existingIdx, 1);
+        } else {
+           newReactions[existingIdx] = r;
+        }
+      } else {
+        // Add completely new reaction
+        newReactions.push({ emoji, count: 1, reacted: true });
+      }
+      
+      return { ...m, reactions: newReactions };
+    }));
+
+    // Perform DB update in background
+    // Check both messages and threadReplies for existing reaction
+    const allMessages = [...messages, ...threadReplies];
+    const existingReaction = allMessages.find(m => m.id === messageId)?.reactions.find(r => r.emoji === emoji && r.reacted);
 
     if (existingReaction) {
       await supabase
@@ -425,9 +608,9 @@ export default function CommunityChat({
         .from('chat_reactions')
         .insert({ message_id: messageId, user_id: currentUser.id, emoji });
     }
-
-    // Refetch to update counts
-    fetchMessages();
+    
+    // Note: No fetchMessages() here. Local state handles the immediate feedback,
+    // and the Realtime subscription (if hooked up to chat_reactions) handles syncing with other users.
   };
 
   return (
@@ -440,129 +623,144 @@ export default function CommunityChat({
         overscrollBehavior: 'contain',
       }}
     >
-      {/* Header */}
-      <header className="bg-white border-b px-4 py-3 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.back()}
-            className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors"
-          >
-            <ArrowLeft size={20} className="text-gray-600" />
-          </button>
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 flex items-center justify-center">
-            <span className="text-white font-bold text-sm">{universityAbbrev}</span>
-          </div>
-          <div>
-            <h1 className="font-semibold text-gray-900">{universityAbbrev}</h1>
-            <p className="text-xs text-gray-500">Community Feed</p>
-          </div>
-        </div>
-        <button
-          onClick={() => setShowSearch(!showSearch)}
-          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-        >
-          <Search className="w-5 h-5 text-gray-600" />
-        </button>
+      {/* Header — morphs into search bar when active */}
+      <header className="bg-white/90 backdrop-blur-sm border-b border-gray-100 px-4 py-2.5 flex items-center gap-3 sticky top-0 z-10 min-h-[52px]">
+        {showSearch ? (
+          /* Search mode: full-width input */
+          <>
+            <button
+              onClick={() => { setShowSearch(false); setSearchQuery(''); }}
+              className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
+            >
+              <IoArrowBack size={20} className="text-gray-900" />
+            </button>
+            <div className="flex-1 relative">
+              <IoSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search posts..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Escape' && (setShowSearch(false), setSearchQuery(''))}
+                className="w-full pl-9 pr-8 py-2 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:bg-white transition-colors"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+            {searchQuery && (
+              <span className="text-xs text-gray-500 flex-shrink-0 whitespace-nowrap">
+                {filteredMessages.length} result{filteredMessages.length !== 1 ? 's' : ''}
+              </span>
+            )}
+          </>
+        ) : (
+          /* Normal mode: title + search icon */
+          <>
+            <button
+              onClick={() => router.back()}
+              className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
+            >
+              <IoArrowBack size={20} className="text-gray-900" />
+            </button>
+            <div className="flex-1 min-w-0">
+              <h1 className="font-bold text-gray-900 text-base leading-tight">{universityAbbrev}</h1>
+              <p className="text-xs text-gray-500">Community</p>
+            </div>
+            <button
+              onClick={() => setShowSearch(true)}
+              className="p-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
+            >
+              <IoSearch className="w-5 h-5 text-gray-600" />
+            </button>
+          </>
+        )}
       </header>
 
-      {/* Search bar */}
-      {showSearch && (
-        <div className="bg-white border-b px-4 py-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search messages..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && fetchMessages()}
-              autoFocus
-              className="w-full pl-9 pr-8 py-2 bg-gray-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => {
-                  setSearchQuery('');
-                  fetchMessages();
-                }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-200 transition-colors"
-              >
-                <span className="sr-only">Clear search</span>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-          </div>
-        </div>
-      )}
 
-      {/* Course filter tabs */}
-      <div className="bg-white border-b px-2 py-2 overflow-x-auto scrollbar-hide">
-        <div className="flex gap-2">
+      {/* Course filter — X-style underline tabs */}
+      <div className="bg-white border-b border-gray-100 overflow-x-auto scrollbar-hide">
+        <div className="flex min-w-max">
           <button
             onClick={() => setSelectedCourse(null)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+            className={`px-5 py-3 text-sm font-medium whitespace-nowrap relative transition-colors ${
               !selectedCourse
-                ? 'bg-green-100 text-green-700'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                ? 'text-gray-900'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
           >
-            All
+            For You
+            {!selectedCourse && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-500 rounded-full" />
+            )}
           </button>
           {enrolledCourses.map((course) => (
             <button
               key={course.id}
               onClick={() => setSelectedCourse(course)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors flex items-center gap-1 ${
+              className={`px-5 py-3 text-sm font-medium whitespace-nowrap relative transition-colors ${
                 selectedCourse?.id === course.id
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'text-gray-900'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
               }`}
             >
-              <Hash className="w-3 h-3" />
-              {course.code || course.shortName || course.name}
+              #{course.code || course.shortName || course.name}
+              {selectedCourse?.id === course.id && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-500 rounded-full" />
+              )}
             </button>
           ))}
         </div>
       </div>
 
       {/* Messages */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-4 overscroll-contain touch-pan-y relative">
-        <div className="max-w-2xl mx-auto space-y-4">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto overscroll-contain touch-pan-y relative bg-white">
+        <div className="max-w-2xl mx-auto">
         {loading ? (
           <div className="flex justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600" />
           </div>
         ) : messages.length === 0 ? (
           <div className="text-center py-12">
-            <MessageCircle className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+            <IoChatbubble className="w-12 h-12 mx-auto text-gray-300 mb-3" />
             <p className="text-gray-500 font-medium">No messages yet</p>
             <p className="text-gray-400 text-sm mt-1">Be the first to start the conversation!</p>
           </div>
+        ) : filteredMessages.length === 0 && searchQuery ? (
+          <div className="text-center py-12 px-6">
+            <IoSearch className="w-10 h-10 mx-auto text-gray-300 mb-3" />
+            <p className="text-gray-500 font-medium">No results for &ldquo;{searchQuery}&rdquo;</p>
+            <p className="text-gray-400 text-sm mt-1">Try a different search term</p>
+          </div>
         ) : (
           <>
-            {hasMore && messages.length > 0 && (
-              <div className="flex justify-center pb-4">
+            {hasMore && !searchQuery && (
+              <div className="flex justify-center py-3 border-b border-gray-100">
                 <button
                   onClick={loadMoreMessages}
                   disabled={loadingMore}
-                  className="bg-white border text-gray-600 px-4 py-2 rounded-full text-sm hover:bg-gray-50 disabled:opacity-50 transition-colors shadow-sm"
+                  className="text-green-600 text-sm font-medium hover:text-green-700 disabled:opacity-50 transition-colors"
                 >
-                  {loadingMore ? 'Loading...' : 'Load Previous Messages'}
+                  {loadingMore ? 'Loading...' : 'Show earlier posts'}
                 </button>
               </div>
             )}
-            {messages.map((message, index) => (
+            {filteredMessages.map((message, index) => (
               <div key={message.id}>
-                {/* Date divider */}
+                {/* X-style date divider */}
                 {shouldShowDateDivider(index) && (
-                  <div className="flex items-center gap-3 py-2 mb-2">
-                    <div className="flex-1 h-px bg-gray-200" />
-                    <span className="text-xs text-gray-400 font-medium px-2">
+                  <div className="flex items-center justify-center py-3">
+                    <span className="text-xs text-gray-400 font-medium bg-white px-3">
                       {getDateLabel(message.createdAt)}
                     </span>
-                    <div className="flex-1 h-px bg-gray-200" />
                   </div>
                 )}
                 <MessageItem
@@ -570,6 +768,9 @@ export default function CommunityChat({
                   currentUserId={currentUser.id}
                   onOpenThread={() => openThread(message)}
                   onToggleReaction={(emoji) => toggleReaction(message.id, emoji)}
+                  onMessageEdited={(id, content) => setMessages(prev => prev.map(m => m.id === id ? { ...m, content } : m))}
+                  onMessageDeleted={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
+                  searchQuery={searchQuery}
                 />
               </div>
             ))}
@@ -585,16 +786,13 @@ export default function CommunityChat({
               scrollToBottom();
               setNewMessageCount(0);
             }}
-            className="sticky bottom-4 left-1/2 -translate-x-1/2 bg-white shadow-lg border border-gray-200 rounded-full px-4 py-2 flex items-center gap-2 text-sm text-gray-600 hover:bg-gray-50 transition-all z-20 mx-auto w-fit"
+            className="sticky bottom-4 left-1/2 -translate-x-1/2 bg-green-500 text-white shadow-lg rounded-full px-4 py-2 flex items-center gap-2 text-sm font-medium hover:bg-green-600 transition-all z-20 mx-auto w-fit"
           >
-            <ChevronDown className="w-4 h-4" />
+            <IoChevronDown className="w-4 h-4" />
             {newMessageCount > 0 ? (
-              <span className="flex items-center gap-1.5">
-                {newMessageCount} new {newMessageCount === 1 ? 'message' : 'messages'}
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              </span>
+              <span>{newMessageCount} new {newMessageCount === 1 ? 'post' : 'posts'}</span>
             ) : (
-              'Scroll to bottom'
+              <span>Jump to latest</span>
             )}
           </button>
         )}
@@ -614,7 +812,14 @@ export default function CommunityChat({
             enrolledCourses={enrolledCourses}
             selectedCourse={selectedCourse}
             parentId={null}
-            onMessageSent={fetchMessages}
+            onSend={(msg) => {
+              if (msg) {
+                setMessages(prev => [...prev, msg]);
+                setTimeout(scrollToBottom, 50);
+              } else {
+                fetchMessages();
+              }
+            }}
           />
         </div>
       </div>
@@ -639,7 +844,7 @@ export default function CommunityChat({
                 onClick={() => setThreadMessage(null)}
                 className="p-2 hover:bg-gray-100 rounded-full"
               >
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
+                <IoArrowBack className="w-5 h-5 text-gray-600" />
               </button>
               <div>
                 <h2 className="font-semibold text-gray-900">Thread</h2>
@@ -653,6 +858,14 @@ export default function CommunityChat({
                 message={threadMessage}
                 currentUserId={currentUser.id}
                 onToggleReaction={(emoji) => toggleReaction(threadMessage.id, emoji)}
+                onMessageEdited={(id, content) => {
+                  setMessages(prev => prev.map(m => m.id === id ? { ...m, content } : m));
+                  setThreadMessage(prev => prev?.id === id ? { ...prev, content } : prev);
+                }}
+                onMessageDeleted={(id) => {
+                  setMessages(prev => prev.filter(m => m.id !== id));
+                  setThreadMessage(null);
+                }}
                 isThreadParent
               />
               
@@ -665,6 +878,8 @@ export default function CommunityChat({
                   message={reply}
                   currentUserId={currentUser.id}
                   onToggleReaction={(emoji) => toggleReaction(reply.id, emoji)}
+                  onMessageEdited={(id, content) => setThreadReplies(prev => prev.map(m => m.id === id ? { ...m, content } : m))}
+                  onMessageDeleted={(id) => setThreadReplies(prev => prev.filter(m => m.id !== id))}
                 />
               ))}
             </div>
@@ -686,7 +901,14 @@ export default function CommunityChat({
                   name: threadMessage.course.name,
                 } : null}
                 parentId={threadMessage.id}
-                onMessageSent={() => { /* Let realtime handle the new reply */ }}
+                onSend={(msg) => {
+                  if (msg) {
+                    setThreadReplies(prev => [...prev, msg]);
+                  } else {
+                    // Fallback to fetch just the thread if msg is undefined
+                    fetchMessages();
+                  }
+                }}
               />
             </div>
           </div>

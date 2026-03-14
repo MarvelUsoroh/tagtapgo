@@ -91,7 +91,7 @@ VALUES (
   'ab191d6e-e016-418b-80a1-0b2b25e007c7', -- Demo user
   'feedback_prompt',
   'Share Your Feedback',
-  'How was MATH201? Earn 5-10 points for your feedback!',
+  'How was MATH201? Want to participate in a review?',
   jsonb_build_object(
     'type', 'feedback_prompt',
     'promptId', 'b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e',

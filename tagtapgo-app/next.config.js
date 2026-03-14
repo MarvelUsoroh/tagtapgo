@@ -27,7 +27,20 @@ const nextConfig = {
 
   // Image optimization
   images: {
-    domains: ['supabase.co', 'avatars.githubusercontent.com'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'jbjdprrgckghfequgigc.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'avatars.githubusercontent.com',
+        port: '',
+        pathname: '/**',
+      }
+    ],
     formats: ['image/avif', 'image/webp'],
   },
 

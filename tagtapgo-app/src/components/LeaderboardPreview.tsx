@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, memo } from 'react';
 import { motion } from 'framer-motion';
-import { Crown, Medal, Award, TrendingUp, Flame } from 'lucide-react';
+import { IoTrophy, IoMedal, IoRibbon, IoTrendingUp, IoFlame } from 'react-icons/io5';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 // import { colors } from '@/lib/theme';
@@ -33,9 +33,9 @@ interface LeaderboardPreviewProps {
 }
 
 const rankIcons = {
-  1: Crown,
-  2: Medal,
-  3: Award,
+  1: IoTrophy,
+  2: IoMedal,
+  3: IoRibbon,
 };
 
 const rankColors = {
@@ -44,7 +44,7 @@ const rankColors = {
   3: 'text-bronze',
 };
 
-export default function LeaderboardPreview({
+function LeaderboardPreview({
   studentId,
   type = 'school',
   period = 'all_time',
@@ -146,7 +146,7 @@ export default function LeaderboardPreview({
       >
         <h2 className="text-lg font-bold text-gray-900 mb-4">Leaderboard</h2>
         <div className="text-center py-8 text-gray-500">
-          <TrendingUp size={48} className="mx-auto mb-2 opacity-50" />
+          <IoTrendingUp size={48} className="mx-auto mb-2 opacity-50" />
           <p>No leaderboard data yet</p>
           <p className="text-sm">Keep attending classes to climb the ranks!</p>
         </div>
@@ -172,7 +172,7 @@ export default function LeaderboardPreview({
 
       <div className="space-y-3">
         {leaderboard.map((entry, index) => {
-          const Icon = rankIcons[entry.rank as keyof typeof rankIcons] || Award;
+          const Icon = rankIcons[entry.rank as keyof typeof rankIcons] || IoRibbon;
           const isCurrentUser = entry.student_id === studentId;
 
           return (
@@ -220,7 +220,7 @@ export default function LeaderboardPreview({
                   </p>
                   <p className="text-xs text-gray-500">score</p>
                   <div className="flex items-center gap-1 text-xs text-orange-600">
-                    <Flame size={10} />
+                    <IoFlame size={10} />
                     <span>{entry.current_streak || 0}</span>
                   </div>
                 </div>
@@ -251,3 +251,5 @@ export default function LeaderboardPreview({
     </motion.div>
   );
 }
+
+export default memo(LeaderboardPreview);

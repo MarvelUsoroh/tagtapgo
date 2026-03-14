@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, X } from 'lucide-react';
+import { IoNotifications, IoClose } from 'react-icons/io5';
 import { cn } from '@/lib/utils';
 import { colors } from '@/lib/theme';
 import {
@@ -125,20 +125,19 @@ export default function NotificationPermissionPrompt({
             onClick={handleDismiss}
             className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
           >
-            <X className="w-5 h-5" />
+            <IoClose className="w-5 h-5" />
           </button>
 
           <div className="flex items-start gap-4">
             <div
               className={cn(
-                'flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center',
-                'bg-gradient-to-br from-primary to-primary-dark'
+                'flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center'
               )}
               style={{
-                background: `linear-gradient(135deg, ${colors.primary.DEFAULT} 0%, ${colors.primary.dark} 100%)`,
+                backgroundColor: colors.primary.DEFAULT
               }}
             >
-              <Bell className="w-6 h-6 text-white" />
+              <IoNotifications className="w-6 h-6 text-white" />
             </div>
 
             <div className="flex-1">

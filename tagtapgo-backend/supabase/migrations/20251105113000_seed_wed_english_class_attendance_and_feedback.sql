@@ -102,7 +102,7 @@ BEGIN
     ) VALUES (
       v_notification_id, v_demo_student_id, 'feedback_prompt',
       'Share Your Feedback',
-      'How was English Composition? Earn points for your feedback!',
+      'How was English Composition? Want to participate in a review?',
       jsonb_build_object(
         'type','feedback_prompt',
         'promptId', v_feedback_prompt_id,

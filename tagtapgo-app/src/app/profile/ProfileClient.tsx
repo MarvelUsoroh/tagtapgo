@@ -8,28 +8,23 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { 
-  Coins, 
-  Flame, 
-  Trophy, 
-  Gift, 
-  Calendar,
-  Settings,
-  Bell,
-  Lock,
-  LogOut,
-  TrendingUp,
-  ChevronRight
-} from 'lucide-react';
+  IoTrophyOutline,
+  IoGiftOutline,
+  IoCalendarOutline,
+  IoSettingsOutline,
+  IoLogOutOutline,
+  IoChevronForwardOutline
+} from 'react-icons/io5';
 import { supabase } from '@/lib/supabase';
 import type { Student, Streak } from '@/lib/supabase';
 import { useStore } from '@/store/useStore';
-import BottomNav from '@/components/BottomNav';
-import ProgressBar from '@/components/ProgressBar';
+import { Container } from '@/components/layout/Container';
+import { ProfileHeader } from '@/components/profile/ProfileHeader';
+import { ProfileStats } from '@/components/profile/ProfileStats';
 import { colors } from '@/lib/theme';
-import { formatDate, getInitials } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import { useCountUp } from '@/hooks/useCountUp';
 
 interface ProfileStats {
@@ -59,12 +54,8 @@ export default function ProfileClient({
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   // Count-up animations for statistics
-  const attendanceRateAnimated = useCountUp(stats.attendanceRate, { duration: 0.8 });
   const achievementsAnimated = useCountUp(stats.achievementsUnlocked, { duration: 0.8 });
   const rewardsAnimated = useCountUp(stats.rewardsRedeemed, { duration: 0.8 });
-  const totalPointsEarnedAnimated = useCountUp(stats.totalPointsEarned, { duration: 0.8 });
-  const pointsAnimated = useCountUp(totalPoints, { duration: 0.8 });
-  const streakAnimated = useCountUp(currentStreak?.current_streak || 0, { duration: 0.8 });
 
   // Determine if profile is incomplete (minimal gating fields)
   const incompleteProfile = !student?.university_id || !student?.full_name || student.full_name.trim().length < 2;
@@ -80,34 +71,39 @@ export default function ProfileClient({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: 'var(--bottom-nav-height)' }}>
-      {/* Custom Profile Header with extended gradient for overlapping card */}
-      <div className="text-white px-6 pb-20 safe-area-top" style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top))', backgroundColor: colors.primary.dark }}>
+    <div className="min-h-screen" style={{ backgroundColor: '#FFFFFF', paddingBottom: 'var(--bottom-nav-height)' }}>
+      {/* Header */}
+      <div className="bg-white border-b px-6 pb-4" style={{ 
+        paddingTop: 'calc(24px + env(safe-area-inset-top))',
+        borderColor: colors.gray[200]
+      }}>
         <div className="max-w-5xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold">Profile</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold" style={{ color: colors.gray[900] }}>
+              Profile
+            </h1>
             <button
               onClick={() => router.push('/settings')}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               style={{ minHeight: '44px', minWidth: '44px' }}
             >
-              <Settings size={24} />
+              <IoSettingsOutline size={24} style={{ color: colors.gray[600] }} />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Profile Card - Overlapping Header */}
-      <div className="max-w-5xl mx-auto px-4 -mt-16">
+      {/* Main Content */}
+      <Container className="pt-4 pb-8">
         {incompleteProfile && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-4 bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-sm"
+            className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4"
           >
             <div className="flex items-start gap-3">
               <div className="p-2 rounded-lg bg-amber-100">
-                <Gift size={18} className="text-amber-600" />
+                <IoGiftOutline size={18} className="text-amber-600" />
               </div>
               <div className="flex-1">
                 <p className="font-semibold text-amber-800">Complete your profile to redeem rewards</p>
@@ -124,68 +120,23 @@ export default function ProfileClient({
           </motion.div>
         )}
 
+        {/* Profile Header Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl shadow-lg p-6"
+          className="mb-4"
         >
-          {/* Avatar and Basic Info */}
-          <div className="flex items-center space-x-4 mb-6">
-            {/* Avatar with Fallback */}
-            <div 
-              className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold text-white"
-              style={{ backgroundColor: colors.primary.DEFAULT }}
-            >
-              {student.avatar_url ? (
-                <Image 
-                  src={student.avatar_url} 
-                  alt={student.full_name || 'Student'}
-                  width={80}
-                  height={80}
-                  className="rounded-full object-cover"
-                  priority
-                />
-              ) : (
-                getInitials(student.full_name || 'Student')
-              )}
-            </div>
+          <ProfileHeader
+            avatarUrl={student.avatar_url || undefined}
+            name={student.full_name || 'Student'}
+            level={Math.floor((stats.totalPointsEarned || 0) / 100) + 1}
+            points={totalPoints}
+            studentId={student.external_id}
+          />
 
-            {/* Name and ID */}
-            <div className="flex-1">
-              <h2 className="text-xl font-bold text-gray-900">{student.full_name || 'Student'}</h2>
-              <p className="text-sm text-gray-500">{student.external_id}</p>
-              {student.major && (
-                <p className="text-sm text-gray-600 mt-1">{student.major}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Points and Streak Display */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl p-4">
-              <div className="flex items-center space-x-2 mb-2">
-                <Coins size={20} style={{ color: colors.rank.gold }} />
-                <span className="text-xs text-gray-600 uppercase font-medium">Points</span>
-              </div>
-              <div className="text-2xl font-bold" style={{ color: colors.rank.gold }}>
-                <motion.span>{pointsAnimated}</motion.span>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4">
-              <div className="flex items-center space-x-2 mb-2">
-                <Flame size={20} style={{ color: colors.warning }} />
-                <span className="text-xs text-gray-600 uppercase font-medium">Streak</span>
-              </div>
-              <div className="text-2xl font-bold text-orange-600">
-                <motion.span>{streakAnimated}</motion.span> 🔥
-              </div>
-            </div>
-          </div>
-
-          {/* Member Since */}
-          <div className="flex items-center space-x-2 text-sm text-gray-500">
-            <Calendar size={16} />
+          {/* Member Since - Below Card */}
+          <div className="flex items-center gap-2 text-sm text-gray-500 mt-3 px-2">
+            <IoCalendarOutline size={16} />
             <span>Member since {formatDate(stats.memberSince)}</span>
           </div>
         </motion.div>
@@ -195,63 +146,43 @@ export default function ProfileClient({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="mt-6 bg-white rounded-2xl shadow-lg p-6"
+          className="bg-white rounded-xl p-6 mb-4"
+          style={{ boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)' }}
         >
           <h3 className="text-lg font-bold text-gray-900 mb-4">Statistics</h3>
           
-          <div className="space-y-4">
-            {/* Attendance Rate */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center space-x-2">
-                  <TrendingUp size={20} style={{ color: colors.success }} />
-                  <span className="text-sm font-medium text-gray-700">Attendance Rate</span>
-                </div>
-                <span className="text-lg font-bold" style={{ color: colors.success }}>
-                  <motion.span>{attendanceRateAnimated}</motion.span>%
-                </span>
-              </div>
-              <ProgressBar
-                value={stats.attendanceRate}
-                color="success"
-                height="md"
-                animate={true}
-                duration={0.8}
-              />
-            </div>
+          <ProfileStats
+            stats={{
+              attendance: stats.attendanceRate,
+              achievements: stats.achievementsUnlocked,
+              streak: currentStreak?.current_streak || 0,
+              totalPoints: stats.totalPointsEarned,
+            }}
+          />
 
+          {/* Additional Stats */}
+          <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
             {/* Achievements Unlocked */}
             <Link 
               href="/achievements"
-              className="flex items-center justify-between py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors -mx-4 px-4"
+              className="flex items-center justify-between py-2 hover:bg-gray-50 transition-colors -mx-2 px-2 rounded-lg"
             >
-              <div className="flex items-center space-x-2">
-                <Trophy size={20} style={{ color: colors.rank.gold }} />
+              <div className="flex items-center gap-2">
+                <IoTrophyOutline size={20} style={{ color: colors.rank.gold }} />
                 <span className="text-sm font-medium text-gray-700">Achievements Unlocked</span>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2">
                 <span className="text-lg font-bold text-gray-900">
                   <motion.span>{achievementsAnimated}</motion.span>/{stats.totalAchievements}
                 </span>
-                <ChevronRight size={16} className="text-gray-400" />
+                <IoChevronForwardOutline size={16} className="text-gray-400" />
               </div>
             </Link>
 
-            {/* Total Points Earned */}
-            <div className="flex items-center justify-between py-3 border-b border-gray-100">
-              <div className="flex items-center space-x-2">
-                <Coins size={20} style={{ color: colors.rank.gold }} />
-                <span className="text-sm font-medium text-gray-700">Total Points Earned</span>
-              </div>
-              <span className="text-lg font-bold text-gray-900">
-                <motion.span>{totalPointsEarnedAnimated}</motion.span>
-              </span>
-            </div>
-
             {/* Rewards Redeemed */}
-            <div className="flex items-center justify-between py-3">
-              <div className="flex items-center space-x-2">
-                <Gift size={20} style={{ color: colors.primary.DEFAULT }} />
+            <div className="flex items-center justify-between py-2">
+              <div className="flex items-center gap-2">
+                <IoGiftOutline size={20} style={{ color: colors.primary.DEFAULT }} />
                 <span className="text-sm font-medium text-gray-700">Rewards Redeemed</span>
               </div>
               <span className="text-lg font-bold text-gray-900">
@@ -266,7 +197,8 @@ export default function ProfileClient({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="mt-6 bg-white rounded-2xl shadow-lg overflow-hidden"
+          className="bg-white rounded-xl overflow-hidden"
+          style={{ boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)' }}
         >
           <h3 className="text-lg font-bold text-gray-900 p-6 pb-4">Settings</h3>
           
@@ -277,43 +209,13 @@ export default function ProfileClient({
               className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
               style={{ minHeight: '44px' }}
             >
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center gap-3">
                 <div className="p-2 bg-gray-100 rounded-lg">
-                  <Settings size={20} className="text-gray-600" />
+                  <IoSettingsOutline size={20} className="text-gray-600" />
                 </div>
                 <span className="font-medium text-gray-700">Account Settings</span>
               </div>
-              <ChevronRight size={20} className="text-gray-400" />
-            </button>
-
-            {/* Notifications Button */}
-            <button
-              onClick={() => router.push('/settings/notifications')}
-              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
-              style={{ minHeight: '44px' }}
-            >
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Bell size={20} className="text-blue-600" />
-                </div>
-                <span className="font-medium text-gray-700">Notifications</span>
-              </div>
-              <ChevronRight size={20} className="text-gray-400" />
-            </button>
-
-            {/* Privacy Button */}
-            <button
-              onClick={() => router.push('/settings/privacy')}
-              className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
-              style={{ minHeight: '44px' }}
-            >
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Lock size={20} className="text-purple-600" />
-                </div>
-                <span className="font-medium text-gray-700">Privacy</span>
-              </div>
-              <ChevronRight size={20} className="text-gray-400" />
+              <IoChevronForwardOutline size={20} className="text-gray-400" />
             </button>
 
             {/* Logout Button */}
@@ -322,17 +224,17 @@ export default function ProfileClient({
               className="w-full flex items-center justify-between p-4 hover:bg-red-50 transition-colors"
               style={{ minHeight: '44px' }}
             >
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center gap-3">
                 <div className="p-2 bg-red-100 rounded-lg">
-                  <LogOut size={20} className="text-red-600" />
+                  <IoLogOutOutline size={20} className="text-red-600" />
                 </div>
                 <span className="font-medium text-red-600">Logout</span>
               </div>
-              <ChevronRight size={20} className="text-red-400" />
+              <IoChevronForwardOutline size={20} className="text-red-400" />
             </button>
           </div>
         </motion.div>
-  </div>
+      </Container>
 
       {/* Logout Confirmation Dialog */}
       {showLogoutDialog && (
@@ -369,9 +271,6 @@ export default function ProfileClient({
           </motion.div>
         </div>
       )}
-
-      {/* Bottom Navigation */}
-      <BottomNav />
     </div>
   );
 }

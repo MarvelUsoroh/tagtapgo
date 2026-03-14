@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, XCircle, AlertCircle, Clock, X } from 'lucide-react';
+import { IoCheckmarkCircle, IoCloseCircle, IoAlertCircle, IoTime, IoClose } from 'react-icons/io5';
 import { colors } from '@/lib/theme';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
@@ -16,22 +16,22 @@ interface ToastProps {
 
 const toastConfig = {
   success: {
-    icon: CheckCircle,
+    icon: IoCheckmarkCircle,
     bgColor: colors.success,
     textColor: 'white',
   },
   error: {
-    icon: XCircle,
+    icon: IoCloseCircle,
     bgColor: colors.danger,
     textColor: 'white',
   },
   warning: {
-    icon: AlertCircle,
+    icon: IoAlertCircle,
     bgColor: colors.warning,
     textColor: 'white',
   },
   info: {
-    icon: Clock,
+    icon: IoTime,
     bgColor: colors.primary.DEFAULT,
     textColor: 'white',
   },
@@ -73,7 +73,7 @@ export default function Toast({ message, type, duration = 4000, onClose }: Toast
             className="p-1 hover:bg-white/20 rounded-full transition-colors flex-shrink-0"
             aria-label="Close notification"
           >
-            <X size={20} style={{ color: config.textColor }} />
+            <IoClose size={20} style={{ color: config.textColor }} />
           </button>
         </div>
       </motion.div>

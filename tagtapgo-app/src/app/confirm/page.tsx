@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { IoCheckmarkCircle, IoAlertCircle, IoHourglass } from 'react-icons/io5';
 import { supabase } from '@/lib/supabase';
 import { colors } from '@/lib/theme';
 
@@ -85,14 +85,14 @@ function ConfirmContent() {
   }, [searchParams, router]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        <div className="bg-white rounded-2xl shadow-sm p-8">
           <div className="text-center">
             {status === 'loading' && (
               <>
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-4">
-                  <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                  <IoHourglass className="w-8 h-8 text-blue-600 animate-spin" />
                 </div>
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">
                   Confirming Your Email
@@ -106,7 +106,7 @@ function ConfirmContent() {
             {status === 'success' && (
               <>
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">
-                  <CheckCircle className="w-8 h-8 text-green-600" />
+                  <IoCheckmarkCircle className="w-8 h-8 text-green-600" />
                 </div>
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">
                   Email Confirmed!
@@ -121,7 +121,7 @@ function ConfirmContent() {
             {status === 'error' && (
               <>
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mb-4">
-                  <AlertCircle className="w-8 h-8 text-red-600" />
+                  <IoAlertCircle className="w-8 h-8 text-red-600" />
                 </div>
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">
                   Confirmation Failed
@@ -134,13 +134,6 @@ function ConfirmContent() {
                     style={{ backgroundColor: colors.primary.DEFAULT }}
                   >
                     Go to Login
-                  </Link>
-                  <Link
-                    href="/signup"
-                    className="block text-sm font-medium hover:underline"
-                    style={{ color: colors.primary.DEFAULT }}
-                  >
-                    Create a new account
                   </Link>
                 </div>
               </>
@@ -159,12 +152,12 @@ function ConfirmContent() {
 export default function ConfirmPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="w-full max-w-md">
-          <div className="bg-white rounded-2xl shadow-xl p-8">
+          <div className="bg-white rounded-2xl shadow-sm p-8">
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-4">
-                <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                <IoHourglass className="w-8 h-8 text-blue-600 animate-spin" />
               </div>
               <p className="text-gray-600">Loading...</p>
             </div>

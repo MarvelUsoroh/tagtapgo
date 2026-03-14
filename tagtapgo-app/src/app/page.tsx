@@ -23,7 +23,12 @@ export default async function DashboardPage() {
   }
   const userId = user.id;
   // Ensure the student profile exists for this authenticated user (SSO/email agnostic)
-  await ensureStudentProfile(supabase, { id: userId, email: user.email, user_metadata: user.user_metadata });
+  const ensureResult = await ensureStudentProfile(supabase, { id: userId, email: user.email, user_metadata: user.user_metadata });
+  
+  if (ensureResult.error) {
+    await supabase.auth.signOut();
+    redirect('/login?error=not_invited');
+  }
 
   // Resolve the correct Student ID. 
   // It might be the Auth User ID (if they signed up first) 

@@ -2,22 +2,39 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Home, MessageSquare, Users, Gift, User } from 'lucide-react';
+import { IoHome, IoChatbubble, IoPeople, IoGift, IoPerson } from 'react-icons/io5';
 import { motion } from 'framer-motion';
 import { colors } from '@/lib/theme';
 import { UI_CONFIG } from '@/lib/constants';
 import { buttonPress } from '@/lib/animations';
 
 const navItems = [
-  { href: '/', icon: Home, label: 'Home' },
-  { href: '/community', icon: MessageSquare, label: 'Community' },
-  { href: '/leaderboard', icon: Users, label: 'Ranks' },
-  { href: '/rewards', icon: Gift, label: 'Rewards' },
-  { href: '/profile', icon: User, label: 'Profile' },
+  { href: '/', icon: IoHome, label: 'Home' },
+  { href: '/community', icon: IoChatbubble, label: 'Community' },
+  { href: '/leaderboard', icon: IoPeople, label: 'Ranks' },
+  { href: '/rewards', icon: IoGift, label: 'Rewards' },
+  { href: '/profile', icon: IoPerson, label: 'Profile' },
+];
+
+// Pages where bottom nav should be hidden
+const HIDDEN_PATHS = [
+  '/login',
+  '/signup',
+  '/reset-password',
+  '/update-password',
+  '/confirm',
+  '/validate-code',
+  '/coming-soon',
+  '/brand-dashboard',
 ];
 
 export default function BottomNav() {
   const pathname = usePathname();
+
+  // Hide bottom nav on auth/onboarding pages
+  if (HIDDEN_PATHS.includes(pathname)) {
+    return null;
+  }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t z-50" style={{ borderColor: colors.gray[200], paddingBottom: 'env(safe-area-inset-bottom)' }}>

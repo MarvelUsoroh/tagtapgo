@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Bell } from 'lucide-react';
+import { IoNotifications } from 'react-icons/io5';
 import { supabase } from '@/lib/supabase';
 import { colors } from '@/lib/theme';
 import { motion } from 'framer-motion';
@@ -60,7 +60,7 @@ export default function NotificationBell({ studentId, onClick, variant = 'white'
         backgroundColor: isGradient ? 'rgba(255, 255, 255, 0.1)' : colors.gray[100],
       }}
     >
-      <Bell
+      <IoNotifications
         size={24}
         style={{
           color: isGradient ? 'white' : colors.gray[700],

@@ -7,6 +7,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from 'react';
+import { colors } from '@/lib/theme';
 
 
 interface SplashScreenProps {
@@ -55,7 +56,8 @@ export default function SplashScreen({
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.5 }}
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-primary via-primary-dark to-success"
+                    className="fixed inset-0 z-50 flex items-center justify-center"
+                    style={{ backgroundColor: colors.primary.DEFAULT }}
                 >
                     {/* Animated Background Circles */}
                     <div className="absolute inset-0 overflow-hidden">

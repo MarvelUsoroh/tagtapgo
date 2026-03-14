@@ -31,8 +31,8 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
       <div
         className={cn(
           "max-w-[80%] p-4 rounded-2xl text-base shadow-sm",
-            isUser
-            ? "bg-green-100 text-green-900 rounded-br-none"
+          isUser
+            ? "bg-brand/10 text-gray-900 rounded-br-none border border-brand/20"
             : "bg-gray-100 text-gray-800 rounded-bl-none"
         )}
       >
@@ -70,7 +70,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
         {message.timestamp && (
           <div className={cn(
             "text-xs mt-1 opacity-70",
-            isUser ? "text-green-800" : "text-gray-500"
+            isUser ? "text-gray-600" : "text-gray-500"
           )}>
             {message.timestamp.toLocaleTimeString([], { 
               hour: '2-digit', 

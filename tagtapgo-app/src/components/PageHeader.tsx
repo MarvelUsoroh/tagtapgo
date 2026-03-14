@@ -1,14 +1,15 @@
 'use client';
 
-import { ReactNode } from 'react';
-import { LucideIcon, ArrowLeft } from 'lucide-react';
+import { IoArrowBack } from 'react-icons/io5';
+import type { ReactNode } from 'react';
+import type { IconType } from 'react-icons';
 import { colors } from '@/lib/theme';
 import { cn } from '@/lib/utils';
 
 interface PageHeaderProps {
   title: string;
   subtitle?: string;
-  icon?: LucideIcon;
+  icon?: IconType;
   variant?: 'white' | 'gradient';
   children?: ReactNode;
   actions?: ReactNode;
@@ -51,7 +52,7 @@ export default function PageHeader({
                   backgroundColor: isGradient ? 'rgba(255, 255, 255, 0.1)' : undefined,
                 }}
               >
-                <ArrowLeft
+                <IoArrowBack
                   size={20}
                   style={{ color: isGradient ? 'white' : colors.gray[600] }}
                 />

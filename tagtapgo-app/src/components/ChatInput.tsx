@@ -7,9 +7,10 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Hash, Paperclip, X, Loader2 } from 'lucide-react';
+import { IoSend, IoPricetag, IoAttach, IoClose, IoHourglass } from 'react-icons/io5';
 import { createClient } from '@/lib/supabase';
 import { useToast } from '@/context/ToastContext';
+import type { Message } from './CommunityChat';
 
 interface Course {
   id: string;
@@ -32,7 +33,7 @@ interface ChatInputProps {
   enrolledCourses: Course[];
   selectedCourse: Course | null;
   parentId: string | null;
-  onMessageSent: () => void;
+  onSend?: (msg?: Message) => void;
 }
 
 interface PendingAttachment {
@@ -45,7 +46,7 @@ export default function ChatInput({
   enrolledCourses,
   selectedCourse,
   parentId,
-  onMessageSent,
+  onSend,
 }: ChatInputProps) {
   const [content, setContent] = useState('');
   const [courseTag, setCourseTag] = useState<Course | null>(selectedCourse);
@@ -74,20 +75,48 @@ export default function ChatInput({
     }
 
     const timer = setTimeout(async () => {
-      const { data } = await supabase
-        .from('students')
-        .select('*')
-        .eq('university_id', currentUser.universityId)
+      // Ensure we have an active session for RLS to evaluate correctly
+      await supabase.auth.getSession();
+      let query;
+      if (courseTag) {
+        query = supabase
+          .from('students')
+          .select('*, enrollments!inner(course_id, status)')
+          .eq('university_id', currentUser.universityId)
+          .eq('enrollments.course_id', courseTag.id)
+          .eq('enrollments.status', 'active');
+      } else {
+        query = supabase
+          .from('students')
+          .select('*')
+          .eq('university_id', currentUser.universityId);
+      }
+
+      const { data, error } = await query
         .ilike('full_name', `%${mentionQuery}%`)
         .neq('id', currentUser.id)
         .limit(5);
+
+      if (error) {
+        console.error('[Mentions] Query Error:', error);
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const formattedData: User[] = (data || []).map((u: any) => ({
+        id: u.id,
+        universityId: u.university_id,
+        firstName: u.first_name,
+        lastName: u.last_name,
+        fullName: u.full_name,
+        avatarUrl: u.avatar_url
+      }));
       
-      setMentionResults(data || []);
+      setMentionResults(formattedData);
       setMentionIndex(0);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [mentionQuery, currentUser.universityId, currentUser.id, supabase]);
+  }, [mentionQuery, currentUser.universityId, currentUser.id, supabase, courseTag]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newVal = e.target.value;
@@ -112,7 +141,7 @@ export default function ChatInput({
     const textAfterCursor = content.slice(cursorPos);
     
     const popLength = mentionQuery ? mentionQuery.length + 1 : 1; // +1 for @
-    const newTextBefore = textBeforeCursor.slice(0, -popLength) + `@${user.fullName} `;
+    const newTextBefore = textBeforeCursor.slice(0, -popLength) + `@"${user.fullName}" `;
     
     setContent(newTextBefore + textAfterCursor);
     setMentionQuery(null);
@@ -204,54 +233,92 @@ export default function ChatInput({
     });
   };
 
-  // Upload files to storage
-  const uploadAttachments = async (): Promise<{ path: string; type: string; name: string; size: number }[]> => {
-    if (attachments.length === 0) return [];
-
-    setUploading(true);
-    const uploaded: { path: string; type: string; name: string; size: number }[] = [];
-
-    try {
-      for (const att of attachments) {
-        const fileName = `${currentUser.id}/${Date.now()}-${att.file.name}`;
-        const { data, error } = await supabase.storage
-          .from('chat-attachments')
-          .upload(fileName, att.file);
-
-        if (error) {
-          console.error('Upload error:', error);
-          continue;
-        }
-
-        // Store path instead of public URL for signed URL generation later
-        uploaded.push({
-          path: data.path,
-          type: att.file.type,
-          name: att.file.name,
-          size: att.file.size,
-        });
-      }
-    } finally {
-      setUploading(false);
-    }
-
-    return uploaded;
-  };
-
   // Send message
   const handleSend = async () => {
     if (!content.trim() && attachments.length === 0) return;
     if (sending) return;
 
+    // Store message content and attachments before clearing
+    const messageContent = content.trim();
+    const messageAttachments = [...attachments];
+    const messageId = crypto.randomUUID(); // Client-generated UUID for deduplication
+    
+    // Create optimistic message object for the UI
+    const optimisticMessage: Message = {
+      id: messageId,
+      content: messageContent,
+      author: {
+        id: currentUser.id,
+        first_name: currentUser.firstName,
+        last_name: currentUser.lastName,
+        full_name: currentUser.fullName,
+        avatar_url: currentUser.avatarUrl,
+      },
+      course: courseTag ? {
+        id: courseTag.id,
+        code: courseTag.code,
+        short_name: courseTag.shortName,
+        name: courseTag.name,
+      } : null,
+      parentId: parentId || null,
+      replyCount: 0,
+      reactions: [],
+      attachments: messageAttachments.map(a => ({ 
+        path: a.preview || '', // Use preview URL temporarily for rendering
+        type: a.file.type, 
+        name: a.file.name,
+        size: a.file.size
+      })),
+      createdAt: new Date().toISOString(),
+    };
+
+    // Propagate optimistic message to UI immediately
+    if (onSend) onSend(optimisticMessage);
+
+    // Clear input immediately for better UX
+    setContent('');
+    setAttachments([]);
+    if (!parentId) setCourseTag(null);
+
     setSending(true);
     try {
       // Upload attachments first
-      const uploadedFiles = await uploadAttachments();
+      const uploadedFiles: { path: string; type: string; name: string; size: number }[] = [];
+      if (messageAttachments.length > 0) {
+        setUploading(true);
+        try {
+          for (const att of messageAttachments) {
+            const fileName = `${currentUser.id}/${Date.now()}-${att.file.name}`;
+            const { data, error } = await supabase.storage
+              .from('chat-attachments')
+              .upload(fileName, att.file);
+
+            if (error) {
+              console.error('Upload error:', error);
+              continue;
+            }
+
+            uploadedFiles.push({
+              path: data.path,
+              type: att.file.type,
+              name: att.file.name,
+              size: att.file.size,
+            });
+          }
+        } finally {
+          setUploading(false);
+        }
+      }
 
       // Get auth token
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         console.error('No session');
+        // Restore content on error
+        setContent(messageContent);
+        setAttachments(messageAttachments);
+        toast.error('Session expired. Please refresh.');
+        setSending(false);
         return;
       }
 
@@ -265,7 +332,8 @@ export default function ChatInput({
             'Authorization': `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({
-            content: content.trim(),
+            id: messageId, // Send generated UUID
+            content: messageContent,
             courseId: courseTag?.id || null,
             parentId: parentId,
             attachments: uploadedFiles,
@@ -276,17 +344,21 @@ export default function ChatInput({
       if (!response.ok) {
         const errorData = await response.json();
         console.error('Send error:', errorData);
+        // Restore content on error
+        setContent(messageContent);
+        setAttachments(messageAttachments);
         toast.error('Failed to send message');
+        setSending(false);
         return;
       }
 
-      // Clear input
-      setContent('');
-      setAttachments([]);
-      if (!parentId) setCourseTag(null);
-      onMessageSent();
+      // Success - input already cleared, let realtime handle the message display
+      // onMessageSent(); // Removed as onSend handles optimistic update
     } catch (err) {
       console.error('Error sending message:', err);
+      // Restore content on error
+      setContent(messageContent);
+      setAttachments(messageAttachments);
       toast.error('Failed to send message');
     } finally {
       setSending(false);
@@ -328,7 +400,7 @@ export default function ChatInput({
     course.code || course.shortName || course.name;
 
   return (
-    <div className="bg-white border-t px-4 py-3">
+    <div className="bg-white border-t border-gray-100 px-4 py-3">
       {/* Attachments preview */}
       {attachments.length > 0 && (
         <div className="flex gap-2 mb-2 overflow-x-auto pb-2">
@@ -349,7 +421,7 @@ export default function ChatInput({
                 onClick={() => removeAttachment(i)}
                 className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5"
               >
-                <X className="w-3 h-3" />
+                <IoClose className="w-3 h-3" />
               </button>
             </div>
           ))}
@@ -360,27 +432,27 @@ export default function ChatInput({
       {courseTag && (
         <div className="flex items-center gap-2 mb-2">
           <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">
-            <Hash className="w-3 h-3" />
+            <IoPricetag className="w-3 h-3" />
             {getCourseLabel(courseTag)}
             <button
               onClick={() => setCourseTag(null)}
               className="ml-1 hover:bg-green-200 rounded-full p-0.5"
             >
-              <X className="w-3 h-3" />
+              <IoClose className="w-3 h-3" />
             </button>
           </span>
           <span className="text-xs text-gray-500">Only {getCourseLabel(courseTag)} students will see this</span>
         </div>
       )}
 
-      <div className="flex items-end gap-2">
+      <div className="flex items-end gap-2 relative">
         {/* File upload */}
         <button
           onClick={() => fileInputRef.current?.click()}
           className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
           disabled={uploading}
         >
-          <Paperclip className="w-5 h-5" />
+          <IoAttach className="w-5 h-5" />
         </button>
         <input
           ref={fileInputRef}
@@ -429,7 +501,7 @@ export default function ChatInput({
               courseTag ? 'text-green-600 bg-green-50' : 'text-gray-400 hover:text-gray-600'
             }`}
           >
-            <Hash className="w-5 h-5" />
+            <IoPricetag className="w-5 h-5" />
           </button>
 
           {showCourseDropdown && (
@@ -456,7 +528,7 @@ export default function ChatInput({
                     courseTag?.id === course.id ? 'text-green-600 font-medium' : 'text-gray-700'
                   }`}
                 >
-                  <Hash className="w-3 h-3" />
+                  <IoPricetag className="w-3 h-3" />
                   {getCourseLabel(course)}
                 </button>
               ))}
@@ -472,9 +544,9 @@ export default function ChatInput({
           onKeyDown={handleKeyDown}
           onClick={(e) => setCursorPos(e.currentTarget.selectionStart)}
           onBlur={() => setTimeout(() => setMentionQuery(null), 200)}
-          placeholder={parentId ? 'Reply to thread...' : 'Message Community...'}
+          placeholder={parentId ? 'Post your reply...' : 'Share something with your university...'}
           rows={1}
-          className="flex-1 resize-none border rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50"
+          className="flex-1 resize-none px-2 py-2 text-sm focus:outline-none bg-transparent placeholder-gray-400"
         />
 
         {/* Send button */}
@@ -484,9 +556,9 @@ export default function ChatInput({
           className="p-2.5 bg-green-600 text-white rounded-full hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {sending || uploading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
+            <IoHourglass className="w-5 h-5 animate-spin" />
           ) : (
-            <Send className="w-5 h-5" />
+            <IoSend className="w-5 h-5" />
           )}
         </button>
       </div>

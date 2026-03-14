@@ -3,13 +3,13 @@
 import { motion } from 'framer-motion';
 import { ReactNode, isValidElement } from 'react';
 import type { ComponentType, CSSProperties } from 'react';
-import { LucideIcon } from 'lucide-react';
+import type { IconType } from 'react-icons';
 import { cn, formatNumber } from '@/lib/utils';
 import { colors, animations } from '@/lib/theme';
 import { useCountUp } from '@/hooks/useCountUp';
 
 interface StatCardProps {
-  icon: ReactNode | LucideIcon;
+  icon: ReactNode | IconType;
   value: string | number;
   label: string;
   color?: 'primary' | 'success' | 'gold' | 'danger';
@@ -49,7 +49,7 @@ export default function StatCard({
   const iconColor = colorMap[color];
   const iconElement = (() => {
     if (typeof icon === 'function') {
-      const IconComponent = icon as LucideIcon;
+      const IconComponent = icon as IconType;
       return <IconComponent size={24} style={{ color: iconColor }} />;
     }
 

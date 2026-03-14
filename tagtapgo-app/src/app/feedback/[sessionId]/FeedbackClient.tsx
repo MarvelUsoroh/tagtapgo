@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Star, MessageSquare, Send, X } from 'lucide-react';
+import { IoStar, IoChatbubble, IoSend, IoClose } from 'react-icons/io5';
 import { cn, formatTime } from '@/lib/utils';
 import { colors } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
+import { Icon } from '@/components/icons';
 
 interface ClassSchedule {
   id: string;
@@ -132,7 +133,7 @@ export default function FeedbackClient({
               className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               aria-label="Close"
             >
-              <X size={24} className="text-gray-600" />
+              <IoClose size={24} className="text-gray-600" />
             </button>
           </div>
         </div>
@@ -164,7 +165,7 @@ export default function FeedbackClient({
             {/* Content Quality */}
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-2xl">📚</span>
+                <Icon name="school" size="lg" color={colors.primary.DEFAULT} />
                 <h3 className="text-lg font-semibold text-gray-900">
                   Content Quality
                 </h3>
@@ -178,7 +179,7 @@ export default function FeedbackClient({
             {/* Clarity */}
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-2xl">🎯</span>
+                <Icon name="target" size="lg" color={colors.primary.DEFAULT} />
                 <h3 className="text-lg font-semibold text-gray-900">
                   Clarity
                 </h3>
@@ -192,7 +193,7 @@ export default function FeedbackClient({
             {/* Pace */}
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-2xl">⚡</span>
+                <Icon name="flash" size="lg" color={colors.primary.DEFAULT} />
                 <h3 className="text-lg font-semibold text-gray-900">Pace</h3>
               </div>
               <StarRating
@@ -205,7 +206,7 @@ export default function FeedbackClient({
           {/* Comment */}
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-3">
-              <MessageSquare size={20} className="text-gray-600" />
+              <IoChatbubble size={20} className="text-gray-600" />
               <h3 className="text-lg font-semibold text-gray-900">
                 What did you learn today?
               </h3>
@@ -225,8 +226,9 @@ export default function FeedbackClient({
                 '--tw-ring-color': colors.primary.DEFAULT,
               } as React.CSSProperties}
             />
-            <p className="text-sm text-gray-500 mt-2">
-              💎 Earn +5 bonus points for adding a comment
+            <p className="text-sm text-gray-500 mt-2 flex items-center gap-1">
+              <Icon name="cash" size="sm" color={colors.primary.DEFAULT} />
+              Earn +5 bonus points for adding a comment
             </p>
           </div>
 
@@ -264,7 +266,7 @@ export default function FeedbackClient({
                     : '5 pts for ratings only'}
                 </p>
               </div>
-              <div className="text-3xl">💎</div>
+              <Icon name="cash" size="xl" color={colors.primary.DEFAULT} />
             </div>
           </div>
 
@@ -302,7 +304,7 @@ export default function FeedbackClient({
                 </>
               ) : (
                 <>
-                  <Send size={20} />
+                  <IoSend size={20} />
                   Submit Feedback
                 </>
               )}
@@ -331,7 +333,7 @@ function StarRating({
           className="focus:outline-none focus:ring-2 focus:ring-primary rounded-full p-1 transition-transform hover:scale-110"
           aria-label={`Rate ${star} stars`}
         >
-          <Star
+          <IoStar
             size={40}
             className={cn(
               'transition-all',

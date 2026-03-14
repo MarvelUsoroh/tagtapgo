@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Wrench } from 'lucide-react';
+import { IoConstruct } from 'react-icons/io5';
 import { colors } from '@/lib/theme';
 import PageHeader from '@/components/PageHeader';
 
@@ -32,7 +32,7 @@ export default function ComingSoonPage() {
             className="inline-flex items-center justify-center w-24 h-24 rounded-full mb-6"
             style={{ backgroundColor: `${colors.primary.DEFAULT}20` }}
           >
-            <Wrench size={48} style={{ color: colors.primary.DEFAULT }} />
+            <IoConstruct size={48} style={{ color: colors.primary.DEFAULT }} />
           </motion.div>
 
           {/* Title */}

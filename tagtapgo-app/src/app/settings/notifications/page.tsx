@@ -3,12 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Bell, BellOff, Check } from 'lucide-react';
+import { IoNotifications, IoNotificationsOff, IoCheckmark } from 'react-icons/io5';
 import { cn } from '@/lib/utils';
 import { colors } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
 import { useNotifications } from '@/hooks/useNotifications';
 import PageHeader from '@/components/PageHeader';
+import { Icon } from '@/components/icons';
 import type { NotificationPreferences } from '@/lib/notifications';
 
 export default function NotificationSettingsPage() {
@@ -61,50 +62,50 @@ export default function NotificationSettingsPage() {
   const notificationTypes = [
     {
       key: 'achievement' as keyof NotificationPreferences,
-      icon: '🏆',
+      icon: 'trophy' as const,
       title: 'Achievement Unlocked',
       description: 'Celebrate when you earn new badges and achievements',
     },
     {
       key: 'streak' as keyof NotificationPreferences,
-      icon: '🔥',
+      icon: 'flame' as const,
       title: 'Streak Reminders',
       description: 'Get notified 2 hours before class to maintain your streak',
     },
     {
       key: 'rank' as keyof NotificationPreferences,
-      icon: '📈',
+      icon: 'trendingUp' as const,
       title: 'Rank Changes',
       description: 'Know when your leaderboard position changes significantly',
     },
     {
       key: 'points_milestone' as keyof NotificationPreferences,
-      icon: '🎉',
+      icon: 'star' as const,
       title: 'Points Milestones',
       description: 'Celebrate when you reach 100, 500, 1000+ points',
     },
     {
       key: 'perfect_week' as keyof NotificationPreferences,
-      icon: '🌟',
+      icon: 'starFilled' as const,
       title: 'Perfect Week Bonus',
       description: 'Get notified when you attend all 5 days in a week',
     },
     {
       key: 'perfect_month' as keyof NotificationPreferences,
-      icon: '🏅',
+      icon: 'ribbon' as const,
       title: 'Perfect Month Bonus',
       description: 'Get notified when you attend 20+ days in a month',
     },
 
     {
       key: 'reward' as keyof NotificationPreferences,
-      icon: '🎁',
+      icon: 'gift' as const,
       title: 'Reward Updates',
       description: 'Receive confirmation when you redeem rewards',
     },
     {
       key: 'challenge' as keyof NotificationPreferences,
-      icon: '⚡',
+      icon: 'flash' as const,
       title: 'Challenge Invitations',
       description: 'Get notified when friends challenge you',
     },
@@ -134,21 +135,19 @@ export default function NotificationSettingsPage() {
                 className={cn(
                   'w-12 h-12 rounded-full flex items-center justify-center',
                   isGranted
-                    ? 'bg-gradient-to-br from-primary to-primary-dark'
+                    ? 'bg-primary'
                     : 'bg-gray-200'
                 )}
                 style={
                   isGranted
-                    ? {
-                        background: `linear-gradient(135deg, ${colors.primary.DEFAULT} 0%, ${colors.primary.dark} 100%)`,
-                      }
+                    ? { backgroundColor: colors.primary.DEFAULT }
                     : undefined
                 }
               >
                 {isGranted ? (
-                  <Bell className="w-6 h-6 text-white" />
+                  <IoNotifications className="w-6 h-6 text-white" />
                 ) : (
-                  <BellOff className="w-6 h-6 text-gray-500" />
+                  <IoNotificationsOff className="w-6 h-6 text-gray-500" />
                 )}
               </div>
               <div>
@@ -220,7 +219,9 @@ export default function NotificationSettingsPage() {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-start gap-3 flex-1">
-                      <span className="text-2xl">{type.icon}</span>
+                      <div className="w-8 h-8 flex items-center justify-center">
+                        <Icon name={type.icon} size="lg" color={colors.primary.DEFAULT} />
+                      </div>
                       <div className="flex-1">
                         <h4 className="font-medium text-gray-900">
                           {type.title}
@@ -276,7 +277,7 @@ export default function NotificationSettingsPage() {
               className="flex items-center gap-2 px-4 py-3 rounded-full shadow-lg"
               style={{ backgroundColor: colors.success }}
             >
-              <Check className="w-5 h-5 text-white" />
+              <IoCheckmark className="w-5 h-5 text-white" />
               <span className="text-white font-medium">Saved</span>
             </div>
           </motion.div>

@@ -29,122 +29,17 @@ export async function ensureStudentProfile(supabase: SupabaseClient, user: AuthU
 
   const { data: existing, error: selectError } = await query;
 
-  // If profile exists, check if we need to trigger enrollment (missing moodle_user_id)
+  // If profile exists, we no longer trigger enrollment manually. Moodle sync handles it.
   if (!selectError && Array.isArray(existing) && existing.length > 0) {
-    const student = existing[0];
-
-    const moodleId = student.metadata?.moodle_user_id;
-    
-    if (moodleId) {
-      return { created: false } as const;
-    }
-    // If no moodle_user_id, fall through to trigger enrollment (but skip upsert if we want to be safe, or just let upsert handle it)
-    // Actually, let's just trigger enrollment directly here to avoid re-running the full upsert logic which might overwrite things
-    try {
-      const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const functionUrl = baseUrl
-        ? `${baseUrl}/functions/v1/enrol-student-in-demo-course`
-        : undefined;
-
-      if (functionUrl) {
-        fetch(functionUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ student_id: student.id }),
-        }).catch(() => {});
-      }
-    } catch {
-      // ignore
-    }
+    // Return early, the profile exists.
     return { created: false, enrolled: true } as const;
   }
 
-  const emailLocal = user.email ? user.email.split('@')[0] : undefined;
-  const fullNameFromMeta = (user.user_metadata?.name as string | undefined) || emailLocal || 'Student';
-  let universityId = user.user_metadata?.university_id as string | undefined;
-  const externalId = (user.user_metadata?.external_id as string | undefined) || emailLocal || user.id;
+  // If we get here, it means no profile exists (length == 0).
+  // In the pre-populated Moodle sync model, we DO NOT allow open registrations.
+  // The user MUST exist in the 'students' table first.
 
-  // Extract name parts from metadata if available (from new signup flow)
-  const firstNameMeta = user.user_metadata?.first_name as string | undefined;
-  const lastNameMeta = user.user_metadata?.last_name as string | undefined;
-
-  let firstName: string | undefined;
-  let lastName: string | undefined;
-
-  if (firstNameMeta && lastNameMeta) {
-    firstName = firstNameMeta;
-    lastName = lastNameMeta;
-  } else {
-    // Fallback: Split full name into first and last name (simple split on first space)
-    const nameParts = fullNameFromMeta.split(' ');
-    firstName = nameParts[0];
-    lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : undefined;
-  }
-
-  // Helper: basic UUID v4 format check
-  const isUuid = (v?: string) => !!v && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(v);
-
-  // If university_id is missing or not a UUID (e.g., dev placeholder like "uni-001"), try to infer from email domain
-  if (!isUuid(universityId) && user.email && user.email.includes('@')) {
-    const domain = user.email.split('@')[1].toLowerCase();
-    const { data: uniByDomain } = await supabase
-      .from('universities')
-      .select('id, domain')
-      .eq('domain', domain)
-      .maybeSingle();
-    if (uniByDomain?.id) {
-      universityId = uniByDomain.id as string;
-    }
-  }
-
-  // If we don't have a university_id, skip creating the profile to avoid FK constraint failures.
-  if (!universityId) {
-    return { created: false, reason: 'missing_university_id' } as const;
-  }
-
-  const { error: upsertError } = await supabase
-    .from('students')
-    .upsert(
-      {
-        id: user.id,
-        university_id: universityId,
-        external_id: externalId,
-        email: user.email,
-        first_name: firstName,
-        last_name: lastName,
-        // Note: full_name is a GENERATED ALWAYS column, don't insert it
-        settings: {},
-      },
-      { onConflict: 'id' }
-    );
-
-  if (upsertError) {
-    // Swallow insert errors to avoid hard-failing dashboard; caller may handle gracefully
-    return { created: false, error: upsertError } as const;
-  }
-
-  try {
-    // Fire-and-forget call to backend edge function to enrol the
-    // student into the demo Moodle course for the MVP.
-    const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const functionUrl = baseUrl
-      ? `${baseUrl}/functions/v1/enrol-student-in-demo-course`
-      : undefined;
-
-    if (functionUrl) {
-      fetch(functionUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ student_id: user.id }),
-      }).catch(() => {
-        // Ignore enrolment failures in ensure path; dashboard should still load.
-      });
-    }
-  } catch {
-    // Ignore errors – enrolment is best-effort.
-  }
-
-  return { created: true } as const;
+  return { created: false, error: new Error('Your email is not registered for the TagTapGo Pilot. Please use your official university email or contact support.') } as const;
 }
 
 export default ensureStudentProfile;

@@ -3,7 +3,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Lock, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { IoLockClosed, IoAlertCircle, IoCheckmarkCircle, IoEye, IoEyeOff } from 'react-icons/io5';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { colors } from '@/lib/theme';
@@ -20,6 +20,7 @@ export default function UpdatePasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [validSession, setValidSession] = useState(false);
+  const [isFromSettings, setIsFromSettings] = useState(false);
 
   useEffect(() => {
     const verifyToken = async () => {
@@ -61,6 +62,7 @@ export default function UpdatePasswordPage() {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           setValidSession(true);
+          setIsFromSettings(true); // Flag that user is already logged in
         } else {
           setError('Invalid or expired reset link. Please request a new one.');
         }
@@ -110,9 +112,13 @@ export default function UpdatePasswordPage() {
 
       setSuccess(true);
 
-      // Redirect to login after a short delay
+      // Redirect appropriately after a short delay
       setTimeout(() => {
-        router.push('/login?message=Password updated successfully');
+        if (isFromSettings) {
+          router.push('/settings?message=Password updated successfully');
+        } else {
+          router.push('/login?message=Password updated successfully');
+        }
       }, 2000);
     } catch (err) {
       console.error('Password update error:', err);
@@ -127,48 +133,52 @@ export default function UpdatePasswordPage() {
 
   if (!validSession && !error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
             style={{ borderColor: colors.primary.DEFAULT }} />
-          <p className="text-gray-600">Verifying reset link...</p>
+          <p className="text-gray-600">Verifying session...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo and Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
             style={{ backgroundColor: colors.primary.DEFAULT }}>
-            <Lock className="w-8 h-8 text-white" />
+            <IoLockClosed className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Update Password</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            {isFromSettings ? 'Change Password' : 'Update Password'}
+          </h1>
           <p className="text-gray-600">
             {success ? 'Password updated successfully!' : 'Enter your new password'}
           </p>
         </div>
 
         {/* Update Form */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        <div className="bg-white rounded-2xl shadow-sm p-8">
           {success ? (
             <div className="text-center py-4">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">
-                <CheckCircle className="w-8 h-8 text-green-600" />
+                <IoCheckmarkCircle className="w-8 h-8 text-green-600" />
               </div>
               <h2 className="text-xl font-bold text-gray-900 mb-2">Success!</h2>
               <p className="text-gray-600 mb-4">
                 Your password has been updated successfully.
               </p>
-              <p className="text-sm text-gray-500">Redirecting to login...</p>
+              <p className="text-sm text-gray-500">
+                Redirecting to {isFromSettings ? 'settings' : 'login'}...
+              </p>
             </div>
           ) : !validSession ? (
             <div className="text-center py-4">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 mb-4">
-                <AlertCircle className="w-8 h-8 text-red-600" />
+                <IoAlertCircle className="w-8 h-8 text-red-600" />
               </div>
               <h2 className="text-xl font-bold text-gray-900 mb-2">Invalid Link</h2>
               <p className="text-gray-600 mb-6">
@@ -187,7 +197,7 @@ export default function UpdatePasswordPage() {
               {/* Error Message */}
               {error && (
                 <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <IoAlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-red-800">{error}</p>
                 </div>
               )}
@@ -198,7 +208,7 @@ export default function UpdatePasswordPage() {
                   New Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <IoLockClosed className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
@@ -222,7 +232,7 @@ export default function UpdatePasswordPage() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                     tabIndex={-1}
                   >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showPassword ? <IoEyeOff className="w-5 h-5" /> : <IoEye className="w-5 h-5" />}
                   </button>
                 </div>
                 {/* Password Strength Indicator */}
@@ -255,7 +265,7 @@ export default function UpdatePasswordPage() {
                   Confirm Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <IoLockClosed className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     id="confirmPassword"
                     type={showConfirmPassword ? 'text' : 'password'}
@@ -279,7 +289,7 @@ export default function UpdatePasswordPage() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                     tabIndex={-1}
                   >
-                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showConfirmPassword ? <IoEyeOff className="w-5 h-5" /> : <IoEye className="w-5 h-5" />}
                   </button>
                 </div>
                 {confirmPassword && password !== confirmPassword && (
@@ -317,15 +327,15 @@ export default function UpdatePasswordPage() {
             </form>
           )}
 
-          {/* Back to Login Link */}
+          {/* Back to Login/Settings Link */}
           {!success && (
             <div className="mt-6 text-center">
               <Link
-                href="/login"
+                href={isFromSettings ? "/settings" : "/login"}
                 className="text-sm font-medium hover:underline"
                 style={{ color: colors.primary.DEFAULT }}
               >
-                Back to Login
+                {isFromSettings ? "Back to Settings" : "Back to Login"}
               </Link>
             </div>
           )}

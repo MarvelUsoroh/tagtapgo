@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { motion } from 'framer-motion';
-import { Coins, Check } from 'lucide-react';
+import { Icon } from '@/components/icons';
+import { Card } from '@/components/ui/Card';
 import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { cn, formatTime } from '@/lib/utils';
@@ -23,7 +24,7 @@ interface ClassItem {
   potential_points?: number;
 }
 
-export default function TodayClasses({ studentId }: { studentId: string }) {
+function TodayClasses({ studentId }: { studentId: string }) {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeProgress, setTimeProgress] = useState(0);
@@ -234,13 +235,13 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-md p-6">
+      <Card elevation="sm" padding="md">
         <div className="animate-pulse space-y-3">
           <div className="h-4 bg-gray-200 rounded w-1/3"></div>
           <div className="h-12 bg-gray-200 rounded"></div>
           <div className="h-12 bg-gray-200 rounded"></div>
         </div>
-      </div>
+      </Card>
     );
   }
 
@@ -248,104 +249,118 @@ export default function TodayClasses({ studentId }: { studentId: string }) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-xl shadow-md p-6"
     >
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-gray-900">Today&apos;s Classes</h2>
-        {classes.length > 0 && (
-          <span className="text-sm font-medium" style={{ color: colors.gray[600] }}>
-            {completedCount}/{totalCount}
-          </span>
-        )}
-      </div>
+      <Card elevation="sm" padding="md">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-gray-900">Today&apos;s Classes</h2>
+          {classes.length > 0 && (
+            <span className="text-sm font-medium" style={{ color: colors.gray[600] }}>
+              {completedCount}/{totalCount}
+            </span>
+          )}
+        </div>
 
-      {/* Progress Bar */}
-      {classes.length > 0 && (
-        <div className="mb-4">
-          <ProgressBar
-            value={timeProgress}
-            color="primary"
-            height="md"
-            animate={true}
-            duration={0.8}
-          />
-        </div>
-      )}
-      
-      {classes.length === 0 ? (
-        <NoClassesToday />
-      ) : (
-        <div className="space-y-2">
-          {classes.map((classItem, index) => (
-            <motion.div
-              key={classItem.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className={cn(
-                'flex items-center justify-between p-3 rounded-lg transition-colors',
-                classItem.status === 'completed' ? 'bg-green-50' :
-                classItem.status === 'in_session' ? 'bg-green-50 border border-green-200' :
-                classItem.status === 'ended' ? 'bg-gray-100' :
-                'bg-white border border-gray-100' // upcoming
-              )}
-            >
-              <div className="flex items-center space-x-3">
-                <div
-                  className={cn(
-                    'w-3 h-3 rounded-full',
-                    classItem.status === 'completed' && 'bg-green-500',
-                    classItem.status === 'in_session' && 'bg-green-500 animate-pulse',
-                    classItem.status === 'upcoming' && 'bg-amber-500',
-                    classItem.status === 'ended' && 'bg-gray-400',
-                    classItem.status === 'missed' && 'bg-red-400'
-                  )}
-                  style={
-                    classItem.status === 'completed' ? { backgroundColor: colors.success } :
-                    classItem.status === 'in_session' ? { backgroundColor: colors.success } :
-                    classItem.status === 'upcoming' ? { backgroundColor: colors.warning } :
-                    undefined
-                  }
-                />
-                <div>
-                  <p className={cn(
-                    "font-medium",
-                    classItem.status === 'ended' ? "text-gray-500" : "text-gray-900"
-                  )}>{classItem.course_name}</p>
-                  <p className="text-sm" style={{ color: colors.gray[500] }}>
-                    {classItem.time ? formatTime(new Date(`2024-01-01T${classItem.time}`)) : 'Time TBA'}
-                    {classItem.status === 'in_session' && <span className="ml-2 text-green-600 font-medium text-xs">● Live</span>}
-                    {classItem.status === 'ended' && <span className="ml-2 text-gray-400 text-xs">(Ended)</span>}
-                  </p>
-                </div>
-              </div>
-              {classItem.status === 'completed' && (
-                <div className="flex items-center space-x-2">
+        {/* Progress Bar */}
+        {classes.length > 0 && (
+          <div className="mb-4">
+            <ProgressBar
+              value={timeProgress}
+              color="primary"
+              height="md"
+              animate={true}
+              duration={0.8}
+            />
+          </div>
+        )}
+        
+        {classes.length === 0 ? (
+          <NoClassesToday />
+        ) : (
+          <div className="space-y-2">
+            {classes.map((classItem, index) => (
+              <motion.div
+                key={classItem.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className={cn(
+                  'flex items-center justify-between p-3 rounded-lg transition-colors',
+                  classItem.status === 'completed' && 'bg-green-50',
+                  classItem.status === 'in_session' && 'bg-green-50 border-2 border-brand',
+                  classItem.status === 'ended' && 'bg-gray-50',
+                  classItem.status === 'upcoming' && 'bg-white border border-gray-200',
+                  classItem.status === 'missed' && 'bg-red-50'
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  {/* Status Indicator */}
                   <div
-                    className="flex items-center justify-center w-6 h-6 rounded-full"
-                    style={{ backgroundColor: colors.success }}
-                  >
-                    <Check size={16} className="text-white" />
-                  </div>
-                  <div className="flex items-center space-x-1 font-semibold" style={{ color: colors.success }}>
-                    <Coins size={14} />
-                    <span>{classItem.points_earned}</span>
+                    className={cn(
+                      'w-2 h-2 rounded-full flex-shrink-0',
+                      classItem.status === 'completed' && 'bg-brand',
+                      classItem.status === 'in_session' && 'bg-brand animate-pulse',
+                      classItem.status === 'upcoming' && 'bg-amber-500',
+                      classItem.status === 'ended' && 'bg-gray-400',
+                      classItem.status === 'missed' && 'bg-red-500'
+                    )}
+                  />
+                  
+                  <div className="min-w-0">
+                    <p className={cn(
+                      "font-medium truncate",
+                      classItem.status === 'ended' ? "text-gray-500" : "text-gray-900"
+                    )}>
+                      {classItem.course_name}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm" style={{ color: colors.gray[500] }}>
+                        {classItem.time ? formatTime(new Date(`2024-01-01T${classItem.time}`)) : 'Time TBA'}
+                      </p>
+                      {classItem.status === 'in_session' && (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-brand">
+                          <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
+                          Live
+                        </span>
+                      )}
+                      {classItem.status === 'ended' && (
+                        <span className="text-xs text-gray-400">(Ended)</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              )}
-              {(classItem.status === 'upcoming' || classItem.status === 'in_session') && classItem.potential_points && classItem.potential_points > 0 && (
-                <div className={cn(
-                  "flex items-center space-x-1 text-xs font-medium px-2 py-1 rounded-full",
-                  classItem.status === 'in_session' ? "text-green-700 bg-green-100" : "text-gray-400 bg-gray-100"
-                )}>
-                  <Coins size={12} />
-                  <span>{classItem.potential_points} pts</span>
+
+                {/* Right Side - Points/Status */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {classItem.status === 'completed' && (
+                    <>
+                      <div
+                        className="flex items-center justify-center w-6 h-6 rounded-full bg-brand"
+                      >
+                        <Icon name="checkmark" size="sm" color="#FFFFFF" />
+                      </div>
+                      <div className="flex items-center gap-1 font-semibold text-brand">
+                        <Icon name="cash" size="sm" color="#4ADE80" />
+                        <span className="text-sm">{classItem.points_earned}</span>
+                      </div>
+                    </>
+                  )}
+                  {(classItem.status === 'upcoming' || classItem.status === 'in_session') && classItem.potential_points && classItem.potential_points > 0 && (
+                    <div className={cn(
+                      "flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full",
+                      classItem.status === 'in_session' ? "text-brand bg-brand/10" : "text-gray-500 bg-gray-100"
+                    )}>
+                      <Icon name="cash" size="sm" />
+                      <span>{classItem.potential_points} pts</span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </motion.div>
-          ))}
-        </div>
-      )}
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </Card>
     </motion.div>
   );
 }
+
+export default memo(TodayClasses);

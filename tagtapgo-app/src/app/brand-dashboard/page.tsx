@@ -12,7 +12,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { TrendingUp, Users, ShoppingCart, Repeat } from 'lucide-react';
+import { IoTrendingUp, IoPeople, IoCart, IoRepeat } from 'react-icons/io5';
 import { colors } from '@/lib/theme';
 
 interface BrandMetrics {
@@ -165,7 +165,7 @@ export default function BrandDashboard() {
                   {/* Unique Redeemers */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Users size={20} style={{ color: colors.primary.DEFAULT }} />
+                      <IoPeople size={20} style={{ color: colors.primary.DEFAULT }} />
                       <span className="text-sm text-gray-600">Unique Students</span>
                     </div>
                     <span className="text-lg font-bold text-gray-900">
@@ -176,7 +176,7 @@ export default function BrandDashboard() {
                   {/* Total Redemptions */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <ShoppingCart size={20} style={{ color: colors.success }} />
+                      <IoCart size={20} style={{ color: colors.success }} />
                       <span className="text-sm text-gray-600">Total Redemptions</span>
                     </div>
                     <span className="text-lg font-bold text-gray-900">
@@ -187,7 +187,7 @@ export default function BrandDashboard() {
                   {/* Repeat Rate */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Repeat size={20} style={{ color: colors.warning }} />
+                      <IoRepeat size={20} style={{ color: colors.warning }} />
                       <span className="text-sm text-gray-600">Repeat Rate</span>
                     </div>
                     <span className="text-lg font-bold text-gray-900">
@@ -198,7 +198,7 @@ export default function BrandDashboard() {
                   {/* Student Quality */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <TrendingUp size={20} style={{ color: colors.rank.gold }} />
+                      <IoTrendingUp size={20} style={{ color: colors.rank.gold }} />
                       <span className="text-sm text-gray-600">Avg Attendance</span>
                     </div>
                     <span className="text-lg font-bold text-gray-900">
@@ -222,7 +222,7 @@ export default function BrandDashboard() {
 
           {brandMetrics.length === 0 && (
             <div className="bg-white rounded-xl shadow-md p-12 text-center">
-              <ShoppingCart size={48} className="mx-auto mb-4 text-gray-300" />
+              <IoCart size={48} className="mx-auto mb-4 text-gray-300" />
               <p className="text-lg font-medium text-gray-600 mb-2">No redemptions yet</p>
               <p className="text-sm text-gray-500">Analytics will appear here once students start redeeming rewards</p>
             </div>

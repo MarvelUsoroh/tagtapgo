@@ -14,6 +14,8 @@ interface AppState {
   // Notifications
   unreadCount: number;
   setUnreadCount: (count: number) => void;
+  unreadChatMentions: number;
+  setUnreadChatMentions: (count: number) => void;
 
   // Gamification State (synced across components)
   totalPoints: number;
@@ -42,6 +44,8 @@ export const useStore = create<AppState>()(
       // Notifications
       unreadCount: 0,
       setUnreadCount: (count) => set({ unreadCount: count }),
+      unreadChatMentions: 0,
+      setUnreadChatMentions: (count) => set({ unreadChatMentions: count }),
 
       // Gamification State
       totalPoints: 0,
@@ -61,6 +65,7 @@ export const useStore = create<AppState>()(
         set({
           isLoading: false,
           unreadCount: 0,
+          unreadChatMentions: 0,
           totalPoints: 0,
           currentStreak: 0,
           badgesCount: 0,

@@ -7,10 +7,14 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Gift, Sparkles, X, Check, AlertCircle } from 'lucide-react';
-import BottomNav from '@/components/BottomNav';
-import PageHeader from '@/components/PageHeader';
-import RewardCard from '@/components/RewardCard';
+import { 
+  IoGiftOutline, 
+  IoSparklesOutline, 
+  IoClose, 
+  IoCheckmark, 
+  IoAlertCircleOutline
+} from 'react-icons/io5';
+import RewardGrid from '@/components/rewards/RewardGrid';
 import { colors, rewardCategories } from '@/lib/theme';
 import { cn, formatNumber, formatDate } from '@/lib/utils';
 import { ERROR_MESSAGES } from '@/lib/constants';
@@ -122,30 +126,67 @@ export default function RewardsClient({
   };
 
   return (
-    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: 'var(--bottom-nav-height)' }}>
+    <div className="min-h-screen" style={{ backgroundColor: '#FFFFFF', paddingBottom: 'var(--bottom-nav-height)' }}>
       {/* Header */}
-      <PageHeader
-        title="Rewards"
-        subtitle="Redeem your points for rewards"
-        icon={Gift}
-        variant="white"
-        actions={
-          <div
-            className="px-4 py-2 rounded-xl"
-            style={{ backgroundColor: colors.primary.DEFAULT + '10' }}
-          >
-            <div className="flex items-center gap-2">
-              <Sparkles size={16} style={{ color: colors.primary.DEFAULT }} />
-              <span className="font-bold" style={{ color: colors.primary.DEFAULT }}>
-                {formatNumber(totalPoints)}
-              </span>
+      <div className="bg-white border-b px-6 pb-6" style={{ 
+        paddingTop: 'calc(24px + env(safe-area-inset-top))',
+        borderColor: colors.gray[200]
+      }}>
+        <div className="max-w-5xl mx-auto">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div
+                className="p-3 rounded-xl"
+                style={{
+                  backgroundColor: colors.primary.DEFAULT + '20',
+                }}
+              >
+                <IoGiftOutline
+                  size={28}
+                  style={{
+                    color: colors.primary.DEFAULT,
+                  }}
+                />
+              </div>
+              <div>
+                <h1
+                  className="text-2xl font-bold"
+                  style={{
+                    color: colors.gray[900],
+                  }}
+                >
+                  Rewards
+                </h1>
+                <p
+                  className="text-sm"
+                  style={{
+                    color: colors.gray[600],
+                  }}
+                >
+                  Redeem your points for rewards
+                </p>
+              </div>
             </div>
-            <p className="text-xs" style={{ color: colors.gray[600] }}>
-              Available Points
-            </p>
+            <div
+              className="rounded-xl"
+              style={{ 
+                backgroundColor: colors.gray[50],
+                padding: '16px'
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <IoSparklesOutline size={16} style={{ color: colors.primary.DEFAULT }} />
+                <span className="font-bold" style={{ color: colors.primary.DEFAULT }}>
+                  {formatNumber(totalPoints)}
+                </span>
+              </div>
+              <p className="text-xs" style={{ color: colors.gray[600] }}>
+                Available Points
+              </p>
+            </div>
           </div>
-        }
-      />
+        </div>
+      </div>
 
       {/* Tabs */}
       <div className="bg-white border-b" style={{ borderColor: colors.gray[200] }}>
@@ -213,45 +254,24 @@ export default function RewardsClient({
             </div>
 
             {/* Rewards Grid */}
-            {filteredRewards.length === 0 ? (
-              <div className="text-center py-12">
-                <Gift size={48} style={{ color: colors.gray[300] }} className="mx-auto mb-4" />
-                <p className="text-lg font-medium mb-2" style={{ color: colors.gray[600] }}>
-                  No rewards available
-                </p>
-                <p className="text-sm" style={{ color: colors.gray[500] }}>
-                  Check back later for new rewards
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredRewards.map((reward, index) => (
-                  <motion.div
-                    key={reward.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.05 }}
-                  >
-                    <RewardCard
-                      reward={reward}
-                      studentId={studentId}
-                      referralSource="browse"
-                      onRedeem={() => {
-                        setSelectedReward(reward);
-                        setShowRedemptionModal(true);
-                      }}
-                    />
-                  </motion.div>
-                ))}
-              </div>
-            )}
+            <RewardGrid
+              rewards={filteredRewards}
+              isLoading={false}
+              view="grid"
+              onRewardSelect={(reward) => {
+                setSelectedReward(reward);
+                setShowRedemptionModal(true);
+              }}
+              studentId={studentId}
+              referralSource="browse"
+            />
           </>
         ) : (
           /* Redemption History */
           <div className="space-y-4">
             {redemptions.length === 0 ? (
               <div className="text-center py-12">
-                <Gift size={48} style={{ color: colors.gray[300] }} className="mx-auto mb-4" />
+                <IoGiftOutline size={48} style={{ color: colors.gray[300] }} className="mx-auto mb-4" />
                 <p className="text-lg font-medium mb-2" style={{ color: colors.gray[600] }}>
                   No redemptions yet
                 </p>
@@ -270,9 +290,9 @@ export default function RewardsClient({
                 >
                   <div
                     className="w-16 h-16 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: colors.gray[100] }}
+                    style={{ backgroundColor: colors.gray[50] }}
                   >
-                    <Gift size={32} style={{ color: colors.primary.DEFAULT }} />
+                    <IoGiftOutline size={32} style={{ color: colors.primary.DEFAULT }} />
                   </div>
 
                   <div className="flex-1 min-w-0">
@@ -350,13 +370,12 @@ export default function RewardsClient({
               exit={{ opacity: 0, scale: 0.9 }}
               className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl max-h-[calc(100vh-4rem)] overflow-y-auto"
             >
-              {/* Success Icon */}
               <div className="flex justify-center mb-4">
                 <div
                   className="w-16 h-16 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: colors.success + '20' }}
+                  style={{ backgroundColor: colors.gray[50] }}
                 >
-                  <Check size={32} style={{ color: colors.success }} />
+                  <IoCheckmark size={32} style={{ color: colors.success }} />
                 </div>
               </div>
 
@@ -419,7 +438,7 @@ export default function RewardsClient({
 
               {/* Info Message */}
               <div className="flex gap-2 p-3 rounded-lg mb-4" style={{ backgroundColor: colors.warning + '10' }}>
-                <AlertCircle size={20} style={{ color: colors.warning, flexShrink: 0 }} />
+                <IoAlertCircleOutline size={20} style={{ color: colors.warning, flexShrink: 0 }} />
                 <p className="text-xs" style={{ color: colors.gray[700] }}>
                   Save this code! You can also find it in your redemption history.
                 </p>
@@ -462,7 +481,7 @@ export default function RewardsClient({
                   className="p-2 hover:bg-gray-100 rounded-lg"
                   disabled={isRedeeming}
                 >
-                  <X size={20} />
+                  <IoClose size={20} />
                 </button>
               </div>
 
@@ -535,18 +554,15 @@ export default function RewardsClient({
               }}
             >
               {toast.type === 'success' ? (
-                <Check size={20} className="text-white" />
+                <IoCheckmark size={20} className="text-white" />
               ) : (
-                <AlertCircle size={20} className="text-white" />
+                <IoAlertCircleOutline size={20} className="text-white" />
               )}
               <p className="text-white font-medium">{toast.message}</p>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Bottom Navigation */}
-      <BottomNav />
     </div>
   );
 }

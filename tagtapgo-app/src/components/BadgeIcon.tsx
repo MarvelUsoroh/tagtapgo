@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Lock, Trophy, Flame, Clock, Users, Gift, Star } from 'lucide-react';
+import { IoLockClosed, IoTrophy, IoFlame, IoTime, IoPeople, IoGift, IoStar } from 'react-icons/io5';
 import { colors, rarityPalette, categoryAccents, categoryPalette } from '@/lib/theme';
 import { cn, formatDate, calculatePercentage, triggerConfetti } from '@/lib/utils';
 import type { Achievement, StudentAchievement } from '@/lib/supabase';
@@ -18,12 +18,12 @@ interface BadgeIconProps {
 }
 
 const categoryIcons = {
-  attendance: Trophy,
-  streak: Flame,
-  time: Clock,
-  social: Users,
-  reward: Gift,
-  special: Star,
+  attendance: IoTrophy,
+  streak: IoFlame,
+  time: IoTime,
+  social: IoPeople,
+  reward: IoGift,
+  special: IoStar,
 };
 
 export default function BadgeIcon({
@@ -64,7 +64,7 @@ export default function BadgeIcon({
   };
 
   const config = sizeConfig[size];
-  const Icon = categoryIcons[achievement.category] || Trophy;
+  const Icon = categoryIcons[achievement.category] || IoTrophy;
 
   const rarityKey = achievement.rarity as keyof typeof rarityPalette;
   const rarityColors = rarityPalette[rarityKey] ?? rarityPalette.common;
@@ -149,7 +149,7 @@ export default function BadgeIcon({
 
           {state === 'locked' && (
             <div className="absolute inset-0 z-20 flex items-center justify-center bg-black bg-opacity-20">
-              <Lock size={config.icon * 0.5} color="white" />
+              <IoLockClosed size={config.icon * 0.5} color="white" />
             </div>
           )}
         </div>

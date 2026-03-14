@@ -7,21 +7,20 @@
 
 import { motion } from 'framer-motion';
 import { 
-  Trophy, 
-  Gift, 
-  Users, 
-  Calendar, 
-  Sparkles,
-  Target,
-  Award,
-  BookOpen,
-  LucideIcon
-} from 'lucide-react';
+  IoRibbon,
+  IoTrophy,
+  IoGift,
+  IoSparkles,
+  IoPeople,
+  IoCalendar,
+  IoSearch
+} from 'react-icons/io5';
+import type { IconType } from 'react-icons';
 import { colors } from '@/lib/theme';
 import { buttonPress, fadeInUp } from '@/lib/animations';
 
 interface EmptyStateProps {
-  icon?: LucideIcon;
+  icon?: IconType;
   title: string;
   message: string;
   actionLabel?: string;
@@ -33,7 +32,7 @@ interface EmptyStateProps {
  * Generic Empty State Component
  */
 export default function EmptyState({
-  icon: Icon = Sparkles,
+  icon: Icon = IoRibbon,
   title,
   message,
   actionLabel,
@@ -85,7 +84,7 @@ export default function EmptyState({
 export function NoAchievements({ onAction }: { onAction?: () => void }) {
   return (
     <EmptyState
-      icon={Trophy}
+      icon={IoTrophy}
       title="No Achievements Yet"
       message="Start attending classes to unlock your first achievement! Every class you attend brings you closer to earning badges."
       actionLabel="View Dashboard"
@@ -100,7 +99,7 @@ export function NoAchievements({ onAction }: { onAction?: () => void }) {
 export function NoRewards({ onAction }: { onAction?: () => void }) {
   return (
     <EmptyState
-      icon={Gift}
+      icon={IoGift}
       title="No Rewards Available"
       message="Check back soon! We're working on bringing you exciting rewards from our brand partners."
       actionLabel="Earn More Points"
@@ -115,7 +114,7 @@ export function NoRewards({ onAction }: { onAction?: () => void }) {
 export function NoRedemptions({ onAction }: { onAction?: () => void }) {
   return (
     <EmptyState
-      icon={Sparkles}
+      icon={IoSparkles}
       title="No Redemptions Yet"
       message="You haven't redeemed any rewards yet. Browse the catalog and treat yourself with your hard-earned points!"
       actionLabel="Browse Rewards"
@@ -130,7 +129,7 @@ export function NoRedemptions({ onAction }: { onAction?: () => void }) {
 export function NoLeaderboardData() {
   return (
     <EmptyState
-      icon={Users}
+      icon={IoPeople}
       title="No Rankings Yet"
       message="Be the first to appear on the leaderboard! Attend classes and earn points to climb the ranks."
     />
@@ -143,7 +142,7 @@ export function NoLeaderboardData() {
 export function NoClassesToday() {
   return (
     <EmptyState
-      icon={Calendar}
+      icon={IoCalendar}
       title="No Classes Today"
       message="Enjoy your day off! Check back tomorrow for your class schedule."
     />
@@ -162,7 +161,7 @@ export function NoRecentAchievements({ onAction }: { onAction?: () => void }) {
         transition={{ type: 'spring', stiffness: 200 }}
         className="mb-3"
       >
-        <Award size={40} style={{ color: colors.gray[300] }} className="mx-auto" />
+        <IoRibbon size={40} style={{ color: colors.gray[300] }} className="mx-auto" />
       </motion.div>
       <p className="text-sm font-medium mb-2" style={{ color: colors.gray[600] }}>
         No achievements yet
@@ -193,7 +192,7 @@ export function NoRecentAchievements({ onAction }: { onAction?: () => void }) {
 export function NoSearchResults({ query }: { query: string }) {
   return (
     <EmptyState
-      icon={Target}
+      icon={IoSearch}
       title="No Results Found"
       message={`We couldn't find anything matching "${query}". Try adjusting your search or filters.`}
     />
@@ -206,7 +205,7 @@ export function NoSearchResults({ query }: { query: string }) {
 export function ComingSoon({ feature }: { feature: string }) {
   return (
     <EmptyState
-      icon={Sparkles}
+      icon={IoSparkles}
       title="Coming Soon"
       message={`${feature} is on the way! We're working hard to bring you this feature. Stay tuned!`}
     />
@@ -217,10 +216,10 @@ export function ComingSoon({ feature }: { feature: string }) {
  * Inline Empty State (smaller, for cards/sections)
  */
 export function InlineEmpty({
-  icon: Icon = BookOpen,
+  icon: Icon = IoRibbon,
   message,
 }: {
-  icon?: LucideIcon;
+  icon?: IconType;
   message: string;
 }) {
   return (

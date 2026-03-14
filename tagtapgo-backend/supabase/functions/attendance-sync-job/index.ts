@@ -66,6 +66,7 @@ interface MoodleEnrolledUser {
   id: number;
   firstname: string;
   lastname: string;
+  email?: string;
   roles: Array<{ shortname: string }>;
 }
 
@@ -308,7 +309,7 @@ serve(async (_req: Request) => {
           // Step 4: Get enrolled users with roles to filter students only
           // This is the ONE additional API call for proper role filtering
           let studentIds = new Set<number>();
-          const moodleUserData = new Map<number, { firstname: string; lastname: string }>();
+          const moodleUserData = new Map<number, { firstname: string; lastname: string; email?: string }>();
           
           if (functions.has('core_enrol_get_enrolled_users')) {
             try {
@@ -320,7 +321,7 @@ serve(async (_req: Request) => {
                 const isStudent = user.roles?.some(r => r.shortname === 'student');
                 if (isStudent) {
                   studentIds.add(user.id);
-                  moodleUserData.set(user.id, { firstname: user.firstname, lastname: user.lastname });
+                  moodleUserData.set(user.id, { firstname: user.firstname, lastname: user.lastname, email: user.email });
                 }
               }
               console.log(`[SYNC] Filtered to ${studentIds.size} students from ${enrolledUsers.length} enrolled users`);
@@ -389,6 +390,10 @@ serve(async (_req: Request) => {
                 updated_at: new Date().toISOString(),
               };
               
+              if (userData.email) {
+                updateData.email = userData.email;
+              }
+              
               // If external_id is not set, set it now to prevent future duplicates
               if (!existingStudent.external_id) {
                 updateData.external_id = String(moodleId);
@@ -400,7 +405,7 @@ serve(async (_req: Request) => {
                 console.error(`[SYNC] Student update error for ${moodleId}:`, studentError.message);
               }
             } else {
-              const { error: studentError } = await supabase.from('students').insert({
+              const insertData: Record<string, unknown> = {
                 id: studentUuid,
                 university_id: uni.id,
                 external_id: String(moodleId),
@@ -408,7 +413,13 @@ serve(async (_req: Request) => {
                 last_name: userData.lastname,
                 status: 'active',
                 updated_at: new Date().toISOString(),
-              });
+              };
+
+              if (userData.email) {
+                insertData.email = userData.email;
+              }
+
+              const { error: studentError } = await supabase.from('students').insert(insertData);
               
               if (studentError) {
                 console.error(`[SYNC] Student insert error for ${moodleId}:`, studentError.message);

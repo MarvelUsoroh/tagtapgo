@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { IoArrowBack } from 'react-icons/io5';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import ChatLayout from './ChatLayout';
@@ -66,7 +66,7 @@ export default function VenusChatContainer({ sessionId, courseName, topic }: Ven
   const Header = (
     <div className="flex items-center gap-3 p-4">
       <button onClick={handleBack} className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors">
-        <ArrowLeft size={20} className="text-gray-600" />
+        <IoArrowBack size={20} className="text-gray-600" />
       </button>
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-xl">

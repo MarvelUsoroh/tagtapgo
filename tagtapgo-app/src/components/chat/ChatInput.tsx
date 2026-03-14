@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send } from 'lucide-react';
+import { IoSend } from 'react-icons/io5';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -46,7 +46,7 @@ export default function ChatInput({ onSend, disabled, placeholder = "Type your t
 
   return (
     <div className="px-4 py-2">
-      <div className="relative flex items-end gap-2 p-2 bg-gray-50 rounded-xl border border-gray-200 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+      <div className="relative flex items-end gap-2 p-2 bg-gray-50 rounded-xl border border-gray-200 focus-within:border-brand focus-within:ring-1 focus-within:ring-brand transition-all">
         <textarea
           ref={textareaRef}
           value={value}
@@ -64,11 +64,11 @@ export default function ChatInput({ onSend, disabled, placeholder = "Type your t
           className={cn(
             "p-3 rounded-lg mb-1 transition-colors flex-shrink-0",
             value.trim() && !disabled
-              ? "bg-primary text-white shadow-sm"
+              ? "bg-brand text-white shadow-sm"
               : "bg-gray-200 text-gray-400 cursor-not-allowed"
           )}
         >
-          <Send size={20} />
+          <IoSend size={20} />
         </motion.button>
       </div>
     </div>

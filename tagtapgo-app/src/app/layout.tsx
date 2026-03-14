@@ -4,6 +4,7 @@ import './globals.css';
 import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
 import { Analytics } from '@vercel/analytics/react';
 import { ToastProvider } from '@/context/ToastContext';
+import { BottomNav } from '@/components/layout';
 
 const roboto = Roboto({ 
   subsets: ['latin'],
@@ -51,7 +52,12 @@ export default function RootLayout({
       <body className={roboto.className} suppressHydrationWarning>
         <ToastProvider>
           <ServiceWorkerRegistration />
-          {children}
+          {/* Main content - padding handled by individual pages */}
+          <main>
+            {children}
+          </main>
+          {/* Bottom Navigation - conditionally rendered based on route */}
+          <BottomNav />
           <Analytics />
         </ToastProvider>
       </body>

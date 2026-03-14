@@ -8,16 +8,16 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, useMotionValue, animate } from 'framer-motion';
-import { Flame, Coins, Trophy, TrendingUp, Calendar, Zap, Clock, AlertCircle, Snowflake } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { supabase } from '@/lib/supabase';
 import type { Student, Streak } from '@/lib/supabase';
 import { useStore } from '@/store/useStore';
 import { useDataRefresh } from '@/hooks/useDataRefresh';
 import { useScrollAware } from '@/hooks/useScrollAware';
 import { useTickLoop } from '@/hooks/useTickLoop';
-import BottomNav from '@/components/BottomNav';
-import PageHeader from '@/components/PageHeader';
-import StatCard from '@/components/StatCard';
+import { Container } from '@/components/layout/Container';
+import { StatCard } from '@/components/dashboard/StatCard';
+import { FloatingActionButton } from '@/components/ui/FloatingActionButton';
 import TodayClasses from '@/components/TodayClasses';
 import RecentAchievements from '@/components/RecentAchievements';
 import LeaderboardPreview from '@/components/LeaderboardPreview';
@@ -63,7 +63,7 @@ export default function DashboardClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const store = useStore();
-  const { refreshGamification } = useDataRefresh(student?.id);
+  const { refreshGamification } = useDataRefresh();
   
   // Scroll-aware optimization: pause expensive timers during scroll
   const isScrolling = useScrollAware();
@@ -80,6 +80,36 @@ export default function DashboardClient({
   // Use store values (synced across app)
   const totalPoints = store.totalPoints;
   const badgesCount = store.badgesCount;
+  
+  // Memoize sorted classes to avoid recalculation
+  const sortedClasses = useMemo(() => 
+    [...todayClasses].sort((a, b) => 
+      new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+    ), 
+    [todayClasses]
+  );
+
+  // Memoize active and next class calculations
+  const { activeClass: memoizedActiveClass, nextClass: memoizedNextClass } = useMemo(() => {
+    const now = new Date();
+    
+    const active = sortedClasses.find((c) => {
+      const start = new Date(c.start_time);
+      const end = new Date(c.end_time);
+      return now >= start && now <= end;
+    });
+
+    const next = sortedClasses.find((c) => {
+      const start = new Date(c.start_time);
+      return now < start;
+    });
+
+    return { activeClass: active, nextClass: next };
+  }, [sortedClasses]);
+
+  // Use memoized values or props (props take precedence for SSR data)
+  const displayActiveClass = activeClass || memoizedActiveClass || null;
+  const displayNextClass = nextClass || memoizedNextClass || null;
   
   // Local UI state
   const [countdown, setCountdown] = useState<string>('');
@@ -101,7 +131,6 @@ export default function DashboardClient({
   // Handle URL query parameters and show toast notifications
   useEffect(() => {
     const feedback = searchParams.get('feedback');
-    const points = searchParams.get('points');
     
     if (feedback) {
       let message = '';
@@ -109,7 +138,7 @@ export default function DashboardClient({
       
       switch (feedback) {
         case 'success':
-          message = `Feedback submitted! You earned ${points || '5-10'} points 💎`;
+          message = 'Feedback submitted! Thank you for sharing your thoughts';
           type = 'success';
           break;
         case 'already-submitted':
@@ -143,12 +172,34 @@ export default function DashboardClient({
     return controls.stop;
   }, [totalPoints, pointsMotion]);
 
-  // Real-time updates for points
+  // Real-time updates - consolidated into single channel
   useEffect(() => {
     if (!student?.id) return;
 
-    const pointsChannel = supabase
-      .channel('points-updates')
+    const fetchUnreadMentions = async () => {
+      // Force fresh fetch bypassing any Next.js caching that might cause stale results
+      const { count } = await supabase
+        .from('chat_mentions')
+        .select('*', { count: 'exact', head: true })
+        .eq('mentioned_user_id', student.id)
+        .eq('read', false);
+      
+      store.setUnreadChatMentions(typeof count === 'number' ? count : 0);
+    };
+
+    // Fetch initial chat mentions count
+    fetchUnreadMentions();
+
+    // Refresh count when tab becomes visible again to catch missed realtime events
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchUnreadMentions();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    const channel = supabase
+      .channel('dashboard-updates')
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
@@ -166,22 +217,9 @@ export default function DashboardClient({
         
         setToast({ message, type: 'success' });
         
-        // Trigger comprehensive refresh
+        // Trigger debounced refresh
         refreshGamification();
       })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(pointsChannel);
-    };
-  }, [student?.id, store, refreshGamification, router]);
-
-  // Real-time updates for streaks
-  useEffect(() => {
-    if (!student?.id) return;
-
-    const streaksChannel = supabase
-      .channel('streaks-updates')
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
@@ -194,27 +232,14 @@ export default function DashboardClient({
         // Show toast if streak increased
         if (payload.new.current_streak > (currentStreak?.current_streak || 0)) {
           setToast({ 
-            message: `🔥 Streak updated to ${payload.new.current_streak} days!`, 
+            message: `Streak updated to ${payload.new.current_streak} days!`, 
             type: 'success' 
           });
         }
         
-        // Trigger comprehensive refresh
+        // Trigger debounced refresh
         refreshGamification();
       })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(streaksChannel);
-    };
-  }, [student?.id, currentStreak, store, refreshGamification]);
-
-  // Real-time updates for achievements
-  useEffect(() => {
-    if (!student?.id) return;
-
-    const achievementsChannel = supabase
-      .channel('achievements-updates')
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
@@ -230,14 +255,14 @@ export default function DashboardClient({
         
         if (achievement) {
           setToast({ 
-            message: `🏆 Achievement unlocked: ${achievement.name}!`, 
+            message: `Achievement unlocked: ${achievement.name}!`, 
             type: 'success' 
           });
         }
         // Increment badge count in store
         store.setBadgesCount(store.badgesCount + 1);
         
-        // Trigger comprehensive refresh
+        // Trigger debounced refresh
         refreshGamification();
       })
       .on('postgres_changes', {
@@ -249,15 +274,59 @@ export default function DashboardClient({
         // Decrement badge count when achievement is removed (cleanup/correction)
         store.setBadgesCount(Math.max(0, store.badgesCount - 1));
         
-        // Trigger comprehensive refresh to sync SSR and client state
+        // Trigger debounced refresh
         refreshGamification();
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'attendance',
+        filter: `student_id=eq.${student.id}`,
+      }, async () => {
+        // Recalculate attendance rate
+        const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        const { data } = await supabase
+          .from('attendance')
+          .select('status')
+          .eq('student_id', student.id)
+          .gte('date', since);
+        if (data && data.length > 0) {
+          const present = data.filter(a => a.status === 'present').length;
+          const newRate = Math.round((present / data.length) * 100);
+          store.setAttendanceRate(newRate);
+        }
+        
+        // Trigger debounced refresh
+        refreshGamification();
+      })
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chat_mentions',
+        filter: `mentioned_user_id=eq.${student.id}`,
+      }, (payload) => {
+        console.log('[REALTIME] chat_mentions INSERT payload:', payload);
+        if (payload.new && payload.new.read === false) {
+          store.setUnreadChatMentions(store.unreadChatMentions + 1);
+        }
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'chat_mentions',
+        filter: `mentioned_user_id=eq.${student.id}`,
+      }, (payload) => {
+        console.log('[REALTIME] chat_mentions UPDATE payload:', payload);
+        // Fallback: just refetch since replica identity might not give us payload.old
+        fetchUnreadMentions();
       })
       .subscribe();
 
     return () => {
-      supabase.removeChannel(achievementsChannel);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      supabase.removeChannel(channel);
     };
-  }, [student?.id, store, refreshGamification]);
+  }, [student?.id, currentStreak, store, refreshGamification]);
 
   // Memoized timer callbacks to avoid recreation on each render
   const computeCompleted = useCallback(() => {
@@ -267,13 +336,13 @@ export default function DashboardClient({
   }, [todayClasses]);
 
   const updateCountdown = useCallback(() => {
-    if (!nextClass) {
+    if (!displayNextClass) {
       setCountdown('');
       return;
     }
 
     const now = new Date();
-    const classTime = new Date(nextClass.start_time);
+    const classTime = new Date(displayNextClass.start_time);
     const diff = classTime.getTime() - now.getTime();
 
     if (diff <= 0) {
@@ -285,14 +354,15 @@ export default function DashboardClient({
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-    if (hours > 0) {
-      setCountdown(`${hours}h ${minutes}m`);
-    } else if (minutes > 0) {
-      setCountdown(`${minutes}m ${seconds}s`);
-    } else {
-      setCountdown(`${seconds}s`);
-    }
-  }, [nextClass]);
+    const newCountdown = hours > 0 
+      ? `${hours}h ${minutes}m`
+      : minutes > 0 
+        ? `${minutes}m ${seconds}s`
+        : `${seconds}s`;
+
+    // Only update state if countdown actually changed
+    setCountdown(prev => prev !== newCountdown ? newCountdown : prev);
+  }, [displayNextClass]);
 
   // Consolidated tick loop - pauses during scroll for smooth UX
   const tickCallbacks = useMemo(() => ({
@@ -318,38 +388,6 @@ export default function DashboardClient({
     updateCountdown();
   }, [computeCompleted, updateCountdown]);
 
-  // Realtime attendance changes -> recompute 30-day attendance rate and goal progress
-  useEffect(() => {
-    if (!student?.id) return;
-
-    const recalc = async () => {
-      const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-      const { data } = await supabase
-        .from('attendance')
-        .select('status')
-        .eq('student_id', student.id)
-        .gte('date', since);
-      if (data && data.length > 0) {
-        const present = data.filter(a => a.status === 'present').length;
-        const newRate = Math.round((present / data.length) * 100);
-        store.setAttendanceRate(newRate);
-      }
-    };
-
-    const attendanceChannel = supabase
-      .channel('attendance-updates')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance', filter: `student_id=eq.${student.id}` }, () => {
-        recalc();
-        // Trigger comprehensive refresh
-        refreshGamification();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(attendanceChannel);
-    };
-  }, [student?.id, store, refreshGamification]);
-
   // Check if streak is at risk
   useEffect(() => {
     if (currentStreak?.last_attendance_date) {
@@ -361,7 +399,7 @@ export default function DashboardClient({
   }, [currentStreak]);
 
   return (
-    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: 'var(--bottom-nav-height)' }}>
+    <div className="min-h-screen bg-white">
       {/* Toast Notification */}
       {toast && (
         <Toast
@@ -371,170 +409,176 @@ export default function DashboardClient({
         />
       )}
       
-      {/* Header */}
-      <PageHeader
-        title={`Hi, ${student?.first_name || student?.full_name?.split(' ')[0] || 'Student'}! 👋`}
-        subtitle="Keep up the great work!"
-        variant="gradient"
-        actions={
-          student && (
-            <NotificationBell
-              studentId={student.id}
-              onClick={() => setNotificationsPanelOpen(true)}
-              variant="gradient"
-            />
-          )
-        }
-      >
-        {/* Points & Streak */}
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          {/* Points Display */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white/10 backdrop-blur-sm rounded-xl p-4"
-          >
-            <div className="flex items-center space-x-2 mb-2">
-              <Coins size={20} style={{ color: colors.rank.gold }} />
-              <span className="text-xs text-white/80 uppercase">Points</span>
-            </div>
-            <motion.div className="text-3xl font-bold text-white">
-              {displayPoints}
-            </motion.div>
-            {totalPoints > 0 && (
-              <div className="flex items-center space-x-1 mt-1">
-                <TrendingUp size={14} style={{ color: colors.success }} />
-                <span className="text-xs text-white/80">Growing!</span>
+      {/* Header Section with Points & Streak */}
+      <div className="bg-white border-b border-gray-100">
+        <Container>
+          <div className="py-6">
+            {/* Greeting */}
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Hi, {student?.first_name || student?.full_name?.split(' ')[0] || 'Student'}!
+                </h1>
+                <p className="text-sm text-gray-600 mt-1">Keep up the great work!</p>
               </div>
+              {student && (
+                <NotificationBell
+                  studentId={student.id}
+                  onClick={() => setNotificationsPanelOpen(true)}
+                />
+              )}
+            </div>
+
+            {/* Points & Streak Cards */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              {/* Points Display */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 }}
+                className="bg-white border border-gray-200 rounded-xl p-4"
+              >
+                <div className="flex items-center space-x-2 mb-2">
+                  <Icon name="cash" size="md" color={colors.rank.gold} />
+                  <span className="text-xs text-gray-600 uppercase font-medium">Points</span>
+                </div>
+                <motion.div className="text-3xl font-bold text-gray-900">
+                  {displayPoints}
+                </motion.div>
+                {totalPoints > 0 && (
+                  <div className="flex items-center space-x-1 mt-1">
+                    <Icon name="trendingUp" size="sm" color={colors.success} />
+                    <span className="text-xs text-gray-600">Growing!</span>
+                  </div>
+                )}
+              </motion.div>
+
+              {/* Streak Display */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 }}
+                className="bg-white border border-gray-200 rounded-xl p-4"
+              >
+                <div className="flex items-center space-x-2 mb-2">
+                  <Icon name="flame" size="md" color={colors.rank.gold} />
+                  <span className="text-xs text-gray-600 uppercase font-medium">Streak</span>
+                </div>
+                <div className="text-3xl font-bold text-gray-900">
+                  {currentStreak?.current_streak || 0}
+                </div>
+                
+                {streakAtRisk ? (
+                  <div className="flex items-center space-x-1 mt-1">
+                    <Icon name="alertCircle" size="sm" color={colors.warning} />
+                    <span className="text-xs text-gray-600">At risk!</span>
+                  </div>
+                ) : freezeCount > 0 ? (
+                  <div className="flex items-center space-x-1 mt-1">
+                    <Icon name="snow" size="sm" color={colors.info} />
+                    <span className="text-xs text-gray-600">{freezeCount} freeze{freezeCount !== 1 ? 's' : ''}</span>
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-600 mt-1">Keep it up!</div>
+                )}
+              </motion.div>
+            </div>
+
+            {/* Next Class Countdown */}
+            {displayNextClass && countdown && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 }}
+                className="bg-white border border-gray-200 rounded-xl p-4"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-gray-100 p-2 rounded-lg">
+                      <Icon name="time" size="lg" color={colors.primary.DEFAULT} />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">{displayNextClass.name}</p>
+                      <p className="text-xs text-gray-600">{displayNextClass.location}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-gray-900">{countdown}</div>
+                    <div className="text-xs text-gray-600">until class</div>
+                  </div>
+                </div>
+              </motion.div>
             )}
-          </motion.div>
-
-          {/* Streak Display */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white/10 backdrop-blur-sm rounded-xl p-4"
-          >
-            <div className="flex items-center space-x-2 mb-2">
-              <Flame size={20} style={{ color: colors.rank.gold }} />
-              <span className="text-xs text-white/80 uppercase">Streak</span>
-            </div>
-            <div className="text-3xl font-bold">{currentStreak?.current_streak || 0} 🔥</div>
-            
-            {streakAtRisk ? (
-              <div className="flex items-center space-x-1 mt-1">
-                <AlertCircle size={14} style={{ color: colors.warning }} />
-                <span className="text-xs text-white/80">At risk!</span>
-              </div>
-            ) : freezeCount > 0 ? (
-              <div className="flex items-center space-x-1 mt-1">
-                <Snowflake size={14} className="text-blue-300" />
-                <span className="text-xs text-white/80">{freezeCount} freeze{freezeCount !== 1 ? 's' : ''}</span>
-              </div>
-            ) : (
-              <div className="text-xs text-white/80 mt-1">Keep it up!</div>
-            )}
-          </motion.div>
-        </div>
-
-        {/* Next Class Countdown */}
-        {nextClass && countdown && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
-            className="bg-white/10 backdrop-blur-sm rounded-xl p-4"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="bg-white/20 p-2 rounded-lg">
-                  <Clock size={20} />
-                </div>
-                <div>
-                  <p className="font-semibold">{nextClass.name}</p>
-                  <p className="text-xs text-white/80">{nextClass.location}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold">{countdown}</div>
-                <div className="text-xs text-white/80">until class</div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </PageHeader>
-
-      {/* Content */}
-      <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-        {/* Active Class Status */}
-        {activeClass && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl p-6 shadow-lg border-2"
-            style={{ borderColor: colors.primary.DEFAULT }}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="bg-primary/10 p-3 rounded-lg">
-                  <Zap size={24} style={{ color: colors.primary.DEFAULT }} />
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900">{activeClass.name}</p>
-                  <p className="text-sm text-gray-600">{activeClass.location}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-xs text-gray-500 uppercase">Class Active</div>
-                <div className="text-sm font-semibold" style={{ color: colors.primary.DEFAULT }}>
-                  In Progress
-                </div>
-              </div>
-            </div>
-            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <Clock size={16} className="text-blue-600" />
-                <p className="text-sm text-blue-800">
-                  Attendance will be recorded automatically when synced from your university system
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 gap-3">
-          <StatCard
-            icon={Calendar}
-            value={`${todayCompleted}/${todayClasses.length}`}
-            label="Today"
-            color="primary"
-          />
-          <StatCard
-            icon={Trophy}
-            value={badgesCount}
-            label="Badges"
-            color="gold"
-          />
-        </div>
-
-        {/* Today's Classes */}
-        <TodayClasses studentId={student?.id || ''} />
-
-        {/* Feedback Prompts */}
-        <FeedbackPromptCard studentId={student?.id || ''} maxPrompts={3} />
-
-        {/* Recent Achievements */}
-        <RecentAchievements studentId={student?.id || ''} />
-
-        {/* Leaderboard Preview */}
-        <LeaderboardPreview studentId={student?.id || ''} />
+          </div>
+        </Container>
       </div>
 
-      {/* Bottom Navigation */}
-      <BottomNav />
+      {/* Content */}
+      <Container>
+        <div className="py-4 space-y-4">
+          {/* Active Class Status */}
+          {displayActiveClass && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white rounded-xl p-6 border-2"
+              style={{ borderColor: colors.primary.DEFAULT }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-3 rounded-lg" style={{ backgroundColor: `${colors.primary.DEFAULT}15` }}>
+                    <Icon name="flash" size="lg" color={colors.primary.DEFAULT} />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900">{displayActiveClass.name}</p>
+                    <p className="text-sm text-gray-600">{displayActiveClass.location}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-gray-500 uppercase">Class Active</div>
+                  <div className="text-sm font-semibold" style={{ color: colors.primary.DEFAULT }}>
+                    In Progress
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <Icon name="time" size="sm" color={colors.info} />
+                  <p className="text-sm text-blue-800">
+                    Attendance will be recorded automatically when synced from your university system
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard
+              icon="calendar"
+              value={`${todayCompleted}/${todayClasses.length}`}
+              label="Today"
+            />
+            <StatCard
+              icon="trophy"
+              value={badgesCount}
+              label="Badges"
+            />
+          </div>
+
+          {/* Today's Classes */}
+          <TodayClasses studentId={student?.id || ''} />
+
+          {/* Feedback Prompts */}
+          <FeedbackPromptCard studentId={student?.id || ''} maxPrompts={3} />
+
+          {/* Recent Achievements */}
+          <RecentAchievements studentId={student?.id || ''} />
+
+          {/* Leaderboard Preview */}
+          <LeaderboardPreview studentId={student?.id || ''} />
+        </div>
+      </Container>
 
       {/* Notification Permission Prompt */}
       {student && <NotificationPermissionPrompt studentId={student.id} />}
@@ -547,6 +591,15 @@ export default function DashboardClient({
           onClose={() => setNotificationsPanelOpen(false)}
         />
       )}
+
+      {/* Floating Action Button for Community Chat */}
+      <FloatingActionButton
+        icon="chatFilled"
+        onClick={() => router.push('/community')}
+        label="Open Community Chat"
+        position="bottom-right"
+        badgeCount={store.unreadChatMentions}
+      />
     </div>
   );
 }

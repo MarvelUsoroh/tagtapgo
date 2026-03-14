@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { Trophy, Flame, Clock, Users, Gift, Star } from 'lucide-react';
+import { Icon } from '@/components/icons';
 import { supabase } from '@/lib/supabase';
 import type { Achievement, StudentAchievement } from '@/lib/supabase';
 import { NoRecentAchievements } from './EmptyState';
@@ -20,15 +20,15 @@ interface RecentAchievementsProps {
 }
 
 const categoryIcons = {
-  attendance: Trophy,
-  streak: Flame,
-  time: Clock,
-  social: Users,
-  reward: Gift,
-  special: Star,
+  attendance: 'trophy' as const,
+  streak: 'flame' as const,
+  time: 'time' as const,
+  social: 'people' as const,
+  reward: 'gift' as const,
+  special: 'star' as const,
 };
 
-export default function RecentAchievements({ studentId }: RecentAchievementsProps) {
+function RecentAchievements({ studentId }: RecentAchievementsProps) {
   const router = useRouter();
   const [achievements, setAchievements] = useState<StudentAchievementWithAchievement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,7 +134,7 @@ export default function RecentAchievements({ studentId }: RecentAchievementsProp
       {/* Mobile: Compact circle badges - hidden on sm and up */}
       <div className="flex justify-center gap-4 sm:hidden">
         {achievements.filter(item => item.achievement).map((item, index) => {
-          const Icon = categoryIcons[item.achievement.category] || Trophy;
+          const iconName = categoryIcons[item.achievement.category] || 'trophy';
           const catColors = categoryPalette[item.achievement.category] ?? { gradFrom: colors.primary.light, gradTo: colors.primary.dark };
           
           return (
@@ -158,7 +158,7 @@ export default function RecentAchievements({ studentId }: RecentAchievementsProp
                 background: `linear-gradient(135deg, ${catColors.gradFrom}, ${catColors.gradTo})`,
               }}
             >
-              <Icon size={24} className="text-white" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }} />
+              <Icon name={iconName} size="lg" color="#FFFFFF" />
               {/* Glow effect */}
               <motion.div
                 className="absolute inset-0 rounded-full -z-10"
@@ -205,3 +205,5 @@ export default function RecentAchievements({ studentId }: RecentAchievementsProp
     </motion.div>
   );
 }
+
+export default memo(RecentAchievements);

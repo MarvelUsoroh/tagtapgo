@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Bell, Trophy, TrendingUp, Flame, MessageCircle, Calendar } from 'lucide-react';
+import { IoClose, IoNotifications, IoTrophy, IoTrendingUp, IoFlame, IoChatbubble, IoCalendar } from 'react-icons/io5';
 import { supabase } from '@/lib/supabase';
 import { colors } from '@/lib/theme';
 import { formatDistanceToNow } from 'date-fns';
@@ -27,14 +27,26 @@ interface NotificationsPanelProps {
 
 export default function NotificationsPanel({ studentId, isOpen, onClose }: NotificationsPanelProps) {
   const { setUnreadCount } = useStore();
-  const { refreshAll } = useDataRefresh(studentId);
+  const { refreshGamification } = useDataRefresh();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (isOpen && studentId) {
-      fetchNotifications();
+      fetchNotifications().then(() => {
+        // Auto-mark all as read when the panel is opened
+        supabase
+          .from('notifications')
+          .update({ read: true })
+          .eq('student_id', studentId)
+          .eq('read', false)
+          .then(() => {
+            setUnreadCount(0);
+            setTotalUnreadCount(0);
+            setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+          });
+      });
       
       // Subscribe to real-time updates
       const channel = supabase
@@ -101,7 +113,7 @@ export default function NotificationsPanel({ studentId, isOpen, onClose }: Notif
       .eq('id', notificationId);
     
     // Trigger server-side refresh
-    await refreshAll();
+    refreshGamification();
   };
 
   const markAllAsRead = async () => {
@@ -118,25 +130,25 @@ export default function NotificationsPanel({ studentId, isOpen, onClose }: Notif
       .eq('read', false);
     
     // Trigger server-side refresh
-    await refreshAll();
+    refreshGamification();
   };
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'achievement':
       case 'achievement_unlocked':
-        return <Trophy size={20} style={{ color: colors.rank.gold }} />;
+        return <IoTrophy size={20} style={{ color: colors.rank.gold }} />;
       case 'rank':
-        return <TrendingUp size={20} style={{ color: colors.primary.DEFAULT }} />;
+        return <IoTrendingUp size={20} style={{ color: colors.primary.DEFAULT }} />;
       case 'streak':
-        return <Flame size={20} style={{ color: colors.warning }} />;
+        return <IoFlame size={20} style={{ color: colors.warning }} />;
       case 'feedback_prompt':
-        return <MessageCircle size={20} style={{ color: colors.info }} />;
+        return <IoChatbubble size={20} style={{ color: colors.info }} />;
       case 'perfect_week':
       case 'perfect_month':
-        return <Calendar size={20} style={{ color: colors.success }} />;
+        return <IoCalendar size={20} style={{ color: colors.success }} />;
       default:
-        return <Bell size={20} style={{ color: colors.gray[600]} } />;
+        return <IoNotifications size={20} style={{ color: colors.gray[600] }} />;
     }
   };
 
@@ -234,7 +246,7 @@ export default function NotificationsPanel({ studentId, isOpen, onClose }: Notif
                   onClick={onClose}
                   className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  <X size={24} style={{ color: colors.gray[600] }} />
+                  <IoClose size={24} style={{ color: colors.gray[600] }} />
                 </button>
               </div>
             </div>
@@ -247,7 +259,7 @@ export default function NotificationsPanel({ studentId, isOpen, onClose }: Notif
                 </div>
               ) : notifications.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-                  <Bell size={48} style={{ color: colors.gray[300] }} className="mb-4" />
+                  <IoNotifications size={48} style={{ color: colors.gray[300] }} className="mb-4" />
                   <p className="text-lg font-semibold" style={{ color: colors.gray[900] }}>
                     No notifications yet
                   </p>

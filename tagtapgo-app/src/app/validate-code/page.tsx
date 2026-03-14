@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, XCircle, AlertCircle, Scan } from 'lucide-react';
+import { IoCheckmarkCircle, IoCloseCircle, IoAlertCircle, IoScan } from 'react-icons/io5';
 import { colors } from '@/lib/theme';
 
 interface ValidationResult {
@@ -132,7 +132,7 @@ export default function ValidateCodePage() {
         {/* Header */}
         <div className="mb-8 text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
-            <Scan size={32} style={{ color: colors.primary.DEFAULT }} />
+            <IoScan size={32} style={{ color: colors.primary.DEFAULT }} />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Validate Redemption Code</h1>
           <p className="text-gray-600">Enter the student&apos;s redemption code to validate</p>
@@ -184,11 +184,11 @@ export default function ValidateCodePage() {
               {/* Status Icon */}
               <div className="flex items-start gap-4 mb-4">
                 {result.valid ? (
-                  <CheckCircle size={48} className="text-green-600 flex-shrink-0" />
+                  <IoCheckmarkCircle size={48} className="text-green-600 flex-shrink-0" />
                 ) : result.error?.includes('used') ? (
-                  <AlertCircle size={48} className="text-orange-600 flex-shrink-0" />
+                  <IoAlertCircle size={48} className="text-orange-600 flex-shrink-0" />
                 ) : (
-                  <XCircle size={48} className="text-red-600 flex-shrink-0" />
+                  <IoCloseCircle size={48} className="text-red-600 flex-shrink-0" />
                 )}
                 
                 <div className="flex-1">

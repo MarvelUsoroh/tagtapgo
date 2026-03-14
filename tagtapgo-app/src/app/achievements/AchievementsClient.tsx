@@ -7,11 +7,14 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { Trophy, Sparkles } from 'lucide-react';
-import BottomNav from '@/components/BottomNav';
-import PageHeader from '@/components/PageHeader';
-import BadgeIcon from '@/components/BadgeIcon';
+import { 
+  IoTrophyOutline,
+  IoSparklesOutline,
+  IoArrowBackOutline
+} from 'react-icons/io5';
+import { Container } from '@/components/layout/Container';
+import AchievementGrid from '@/components/achievements/AchievementGrid';
+import { Icon } from '@/components/icons';
 import { colors, achievementCategories, categoryPalette, categoryAccents } from '@/lib/theme';
 import { cn, formatNumber, triggerConfetti } from '@/lib/utils';
 import type { Achievement, StudentAchievement } from '@/lib/supabase';
@@ -80,23 +83,38 @@ export default function AchievementsClient({
     : initialAchievements.filter(a => a.category === selectedCategory);
 
   return (
-    <div className="min-h-screen bg-gray-50" style={{ paddingBottom: 'var(--bottom-nav-height)' }}>
-      {/* Header */}
-      <PageHeader
-        title="Achievements"
-        subtitle="Unlock badges and earn bonus points"
-        icon={Trophy}
-        variant="white"
-        onBack={() => router.back()}
-      >
-        {/* Stats */}
-        <div className="flex gap-4">
+    <div className="min-h-screen" style={{ backgroundColor: '#FFFFFF', paddingBottom: 'var(--bottom-nav-height)' }}>
+      {/* Header with Back Button */}
+      <div className="bg-white border-b px-6 pb-4" style={{ 
+        paddingTop: 'calc(24px + env(safe-area-inset-top))',
+        borderColor: colors.gray[200]
+      }}>
+        <div className="max-w-5xl mx-auto">
+          {/* Back Button and Title */}
+          <div className="flex items-center gap-3 mb-1">
+            <button
+              onClick={() => router.back()}
+              className="p-2 -ml-2 hover:bg-gray-100 rounded-lg transition-colors"
+              style={{ minHeight: '44px', minWidth: '44px' }}
+            >
+              <IoArrowBackOutline size={24} style={{ color: colors.gray[700] }} />
+            </button>
+            <h1 className="text-2xl font-bold" style={{ color: colors.gray[900] }}>
+              Achievements
+            </h1>
+          </div>
+          <p className="text-sm mb-4 ml-12" style={{ color: colors.gray[600] }}>
+            Unlock badges and earn bonus points
+          </p>
+
+          {/* Stats */}
+          <div className="flex gap-4">
             <div 
               className="flex-1 p-4 rounded-xl"
               style={{ backgroundColor: colors.gray[50] }}
             >
               <div className="flex items-center gap-2 mb-1">
-                <Trophy size={16} style={{ color: colors.primary.DEFAULT }} />
+                <IoTrophyOutline size={16} style={{ color: colors.primary.DEFAULT }} />
                 <span className="text-xs font-medium" style={{ color: colors.gray[600] }}>
                   Unlocked
                 </span>
@@ -111,7 +129,7 @@ export default function AchievementsClient({
               style={{ backgroundColor: colors.gray[50] }}
             >
               <div className="flex items-center gap-2 mb-1">
-                <Sparkles size={16} style={{ color: colors.warning }} />
+                <IoSparklesOutline size={16} style={{ color: colors.warning }} />
                 <span className="text-xs font-medium" style={{ color: colors.gray[600] }}>
                   Bonus Points
                 </span>
@@ -121,10 +139,11 @@ export default function AchievementsClient({
               </p>
             </div>
           </div>
-      </PageHeader>
+        </div>
+      </div>
 
       {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-4 pt-6 pb-8">
+      <Container className="pt-4 pb-8">
         {/* Category Filters */}
         <div className="mb-6 overflow-x-auto">
           <div className="flex gap-2 pb-2">
@@ -132,7 +151,7 @@ export default function AchievementsClient({
             <button
               onClick={() => setSelectedCategory('all')}
               className={cn(
-                'px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all duration-300',
+                'px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all',
                 'min-h-[44px] flex items-center gap-2'
               )}
               style={{
@@ -140,7 +159,7 @@ export default function AchievementsClient({
                 color: selectedCategory === 'all' ? 'white' : colors.gray[700],
               }}
             >
-              <span>🎯</span>
+              <Icon name="target" size="sm" />
               <span>All</span>
             </button>
 
@@ -150,7 +169,7 @@ export default function AchievementsClient({
                 key={key}
                 onClick={() => setSelectedCategory(key as CategoryKey)}
                 className={cn(
-                  'px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all duration-300',
+                  'px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-all',
                   'min-h-[44px] flex items-center gap-2'
                 )}
                 style={{
@@ -165,44 +184,15 @@ export default function AchievementsClient({
           </div>
         </div>
         
-        {/* Achievement Badges Grid */}
-        {filteredAchievements.length === 0 ? (
-          <div className="text-center py-12">
-            <Trophy size={48} style={{ color: colors.gray[300] }} className="mx-auto mb-4" />
-            <p className="text-lg font-medium mb-2" style={{ color: colors.gray[600] }}>
-              No achievements found
-            </p>
-            <p className="text-sm" style={{ color: colors.gray[500] }}>
-              Try selecting a different category
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {filteredAchievements.map((achievement, index) => (
-              <motion.div
-                key={achievement.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ 
-                  duration: 0.4, 
-                  delay: index * 0.05,
-                  ease: 'easeOut'
-                }}
-              >
-                <BadgeIcon
-                  achievement={achievement}
-                  studentAchievement={achievement.studentAchievement}
-                  size="md"
-                  showProgress={true}
-                />
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </main>
-
-      {/* Bottom Navigation */}
-      <BottomNav />
+        {/* Achievement Grid */}
+        <AchievementGrid
+          achievements={filteredAchievements.map(a => ({
+            ...a,
+            student_achievement: a.studentAchievement
+          }))}
+          isLoading={false}
+        />
+      </Container>
     </div>
   );
 }

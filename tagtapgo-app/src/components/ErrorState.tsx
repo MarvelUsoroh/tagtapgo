@@ -6,7 +6,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { AlertCircle, RefreshCw, WifiOff, ServerCrash, XCircle } from 'lucide-react';
+import { IoAlertCircle, IoRefresh, IoWifi, IoServerOutline, IoCloseCircle } from 'react-icons/io5';
 import { colors } from '@/lib/theme';
 import { buttonPress } from '@/lib/animations';
 
@@ -20,25 +20,25 @@ interface ErrorStateProps {
 
 const errorConfig = {
   network: {
-    icon: WifiOff,
+    icon: IoWifi,
     title: 'Connection Error',
     message: 'Please check your internet connection and try again.',
     color: colors.warning,
   },
   server: {
-    icon: ServerCrash,
+    icon: IoServerOutline,
     title: 'Server Error',
     message: 'Something went wrong on our end. Please try again later.',
     color: colors.danger,
   },
   notFound: {
-    icon: XCircle,
+    icon: IoCloseCircle,
     title: 'Not Found',
     message: 'The content you\'re looking for doesn\'t exist.',
     color: colors.gray[400],
   },
   generic: {
-    icon: AlertCircle,
+    icon: IoAlertCircle,
     title: 'Something Went Wrong',
     message: 'An unexpected error occurred. Please try again.',
     color: colors.danger,
@@ -90,7 +90,7 @@ export default function ErrorState({
           className="flex items-center gap-2 px-6 py-3 rounded-lg font-medium text-white transition-colors"
           style={{ backgroundColor: colors.primary.DEFAULT }}
         >
-          <RefreshCw size={20} />
+          <IoRefresh size={20} />
           <span>Try Again</span>
         </motion.button>
       )}
@@ -115,7 +115,7 @@ export function InlineError({
       style={{ backgroundColor: colors.danger + '10', borderColor: colors.danger, borderWidth: 1 }}
     >
       <div className="flex items-center gap-3">
-        <AlertCircle size={20} style={{ color: colors.danger }} />
+        <IoAlertCircle size={20} style={{ color: colors.danger }} />
         <p className="text-sm font-medium" style={{ color: colors.danger }}>
           {message}
         </p>
@@ -154,12 +154,12 @@ export function ErrorToast({
       style={{ backgroundColor: colors.danger, color: 'white' }}
     >
       <div className="flex items-center gap-3">
-        <AlertCircle size={20} />
+        <IoAlertCircle size={20} />
         <p className="text-sm font-medium">{message}</p>
       </div>
       {onClose && (
         <button onClick={onClose} className="ml-4">
-          <XCircle size={20} />
+          <IoCloseCircle size={20} />
         </button>
       )}
     </motion.div>

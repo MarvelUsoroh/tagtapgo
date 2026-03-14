@@ -2,7 +2,7 @@
 
 import { useState, FormEvent } from 'react';
 import Link from 'next/link';
-import { KeyRound, Mail, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
+import { IoKey, IoMail, IoAlertCircle, IoCheckmarkCircle, IoArrowBack } from 'react-icons/io5';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { colors } from '@/lib/theme';
@@ -57,13 +57,13 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo and Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
                style={{ backgroundColor: colors.primary.DEFAULT }}>
-            <KeyRound className="w-8 h-8 text-white" />
+            <IoKey className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Reset Password</h1>
           <p className="text-gray-600">
@@ -75,11 +75,11 @@ export default function ResetPasswordPage() {
         </div>
 
         {/* Reset Form */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        <div className="bg-white rounded-2xl shadow-sm p-8">
           {success ? (
             <div className="text-center py-4">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">
-                <CheckCircle className="w-8 h-8 text-green-600" />
+                <IoCheckmarkCircle className="w-8 h-8 text-green-600" />
               </div>
               <h2 className="text-xl font-bold text-gray-900 mb-2">Email Sent!</h2>
               <p className="text-gray-600 mb-6">
@@ -107,14 +107,14 @@ export default function ResetPasswordPage() {
               {/* Error Message */}
               {error && (
                 <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <IoAlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-red-800">{error}</p>
                 </div>
               )}
 
               {/* Info Message */}
               <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <Mail className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <IoMail className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-blue-800">
                   Enter the email address associated with your account and we&apos;ll send you a link to reset your password.
                 </p>
@@ -126,7 +126,7 @@ export default function ResetPasswordPage() {
                   Email Address
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <IoMail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     id="email"
                     type="email"
@@ -185,7 +185,7 @@ export default function ResetPasswordPage() {
               className="inline-flex items-center gap-2 text-sm font-medium hover:underline"
               style={{ color: colors.primary.DEFAULT }}
             >
-              <ArrowLeft className="w-4 h-4" />
+              <IoArrowBack className="w-4 h-4" />
               Back to Login
             </Link>
           </div>

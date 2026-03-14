@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Clock, ChevronRight } from 'lucide-react';
+import { IoChatbubble, IoTime, IoChevronForward } from 'react-icons/io5';
 import { cn } from '@/lib/utils';
 import { colors } from '@/lib/theme';
 import { supabase } from '@/lib/supabase';
@@ -260,7 +260,7 @@ export default function FeedbackPromptCard({
       className="bg-white rounded-xl shadow-md p-4"
     >
       <div className="flex items-center gap-2 mb-3">
-        <MessageSquare size={20} style={{ color: colors.primary.DEFAULT }} />
+        <IoChatbubble size={20} style={{ color: colors.primary.DEFAULT }} />
         <h3 className="font-semibold text-gray-900">Class Review</h3>
         <span
           className="ml-auto text-xs font-semibold px-3 py-2 rounded-full"
@@ -318,12 +318,12 @@ export default function FeedbackPromptCard({
                   </p>
                   <div className="flex items-center gap-2 mt-2">
                     <div className="flex items-center gap-1 text-xs text-gray-500">
-                      <Clock size={14} />
+                      <IoTime size={14} />
                       <span>{timeRemaining[prompt.id] || 'Loading...'}</span>
                     </div>
                   </div>
                 </div>
-                <ChevronRight
+                <IoChevronForward
                   size={20}
                   className="flex-shrink-0 text-gray-400"
                 />
@@ -339,7 +339,7 @@ export default function FeedbackPromptCard({
                 aria-label={`View all ${totalPrompts} pending feedback items`}
               >
                 View all pending reviews
-                <ChevronRight size={16} />
+                <IoChevronForward size={16} />
               </Link>
             </div>
           )}

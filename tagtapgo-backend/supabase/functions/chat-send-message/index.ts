@@ -17,6 +17,7 @@ const CORS_HEADERS = {
 };
 
 interface SendMessageRequest {
+  id?: string; // Client-provided UUID for optimistic UI deduplication
   content: string;
   courseId?: string | null;  // Optional: target specific course
   parentId?: string | null;  // Optional: reply to thread
@@ -152,6 +153,7 @@ Deno.serve(async (req) => {
     const { data: message, error: insertError } = await serviceClient
       .from("chat_messages")
       .insert({
+        id: body.id || undefined, // Use client-provided UUID if present
         university_id: student.university_id,
         author_id: userId,
         content: body.content.trim(),
@@ -182,16 +184,32 @@ Deno.serve(async (req) => {
     // Extract @mentions and create mention records
     const mentionNames = extractMentions(body.content);
     if (mentionNames.length > 0) {
+      let query;
+      if (body.courseId) {
+        query = serviceClient
+          .from("students")
+          .select("id, username, first_name, full_name, enrollments!inner(course_id, status)")
+          .eq("university_id", student.university_id)
+          .eq("enrollments.course_id", body.courseId)
+          .eq("enrollments.status", "active");
+      } else {
+        query = serviceClient
+          .from("students")
+          .select("id, username, first_name, full_name")
+          .eq("university_id", student.university_id);
+      }
+
       // Look up mentioned users by username, first_name, or full_name
-      const { data: mentionedUsers } = await serviceClient
-        .from("students")
-        .select("id, username, first_name, full_name")
-        .eq("university_id", student.university_id)
+      const { data: mentionedUsers, error: mentionsError } = await query
         .or(
           mentionNames.map(name => 
             `username.ilike.${name},first_name.ilike.${name},full_name.ilike.%${name}%`
           ).join(",")
         );
+
+      if (mentionsError) {
+        console.error("Failed to fetch mentioned users:", mentionsError);
+      }
 
       if (mentionedUsers && mentionedUsers.length > 0) {
         // Filter to only users that actually match

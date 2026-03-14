@@ -2,8 +2,8 @@
 
 import { useState, FormEvent, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { IoMail, IoLockClosed, IoAlertCircle, IoEye, IoEyeOff } from 'react-icons/io5';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { colors } from '@/lib/theme';
@@ -14,6 +14,7 @@ import useQueryCleanup from '@/hooks/useQueryCleanup';
 
 function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -35,7 +36,17 @@ function LoginContent() {
     } catch {
       // ignore
     }
-  }, []);
+    
+    // Capture URL errors before they are cleaned up
+    const errParam = searchParams.get('error');
+    if (errParam) {
+      if (errParam === 'not_invited') {
+        setError('Your email is not registered for the TagTapGo Pilot. Please use your official university email or contact support.');
+      } else {
+        setError(errParam);
+      }
+    }
+  }, [searchParams]);
   
   // Clean up transient auth query params but preserve returnUrl for login redirect
   useQueryCleanup(['message', 'error', 'code', 'token_hash', 'token', 'type']);
@@ -139,7 +150,7 @@ function LoginContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         
         {/* Logo and Header */}
@@ -149,12 +160,12 @@ function LoginContent() {
         </div>
 
         {/* Login Form */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        <div className="bg-white rounded-2xl shadow-sm p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Error Message */}
             {error && (
               <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <IoAlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-red-800">{error}</p>
               </div>
             )}
@@ -165,7 +176,7 @@ function LoginContent() {
                 Email
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <IoMail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   id="email"
                   type="email"
@@ -192,7 +203,7 @@ function LoginContent() {
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <IoLockClosed className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
@@ -217,7 +228,7 @@ function LoginContent() {
                   tabIndex={-1}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? <IoEyeOff className="w-5 h-5" /> : <IoEye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
@@ -262,17 +273,11 @@ function LoginContent() {
             </button>
           </form>
 
-          {/* Sign Up Link */}
+          {/* Pilot Notice */}
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
-              Don&apos;t have an account?{' '}
-              <Link 
-                href="/signup"
-                className="font-medium hover:underline"
-                style={{ color: colors.primary.DEFAULT }}
-              >
-                Sign Up
-              </Link>
+              Welcome to the TagTapGo Pilot.<br />
+              Please sign in with your official university email.
             </p>
           </div>
         </div>
@@ -288,11 +293,11 @@ function LoginContent() {
 
 function LoginFallback() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        <div className="bg-white rounded-2xl shadow-sm p-8">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4" style={{ borderColor: colors.primary.DEFAULT }}></div>
             <p className="text-gray-600">Loading...</p>
           </div>
         </div>
