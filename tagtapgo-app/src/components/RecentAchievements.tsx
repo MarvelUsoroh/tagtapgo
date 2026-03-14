@@ -3,13 +3,10 @@
 import { useEffect, useState, memo } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { Icon } from '@/components/icons';
 import { supabase } from '@/lib/supabase';
 import type { Achievement, StudentAchievement } from '@/lib/supabase';
 import { NoRecentAchievements } from './EmptyState';
-import BadgeIcon from './BadgeIcon';
-import { categoryPalette, colors } from '@/lib/theme';
-import { triggerConfetti } from '@/lib/utils';
+import AchievementCard from '@/components/achievements/AchievementCard';
 
 interface StudentAchievementWithAchievement extends StudentAchievement {
   achievement: Achievement;
@@ -18,15 +15,6 @@ interface StudentAchievementWithAchievement extends StudentAchievement {
 interface RecentAchievementsProps {
   studentId: string;
 }
-
-const categoryIcons = {
-  attendance: 'trophy' as const,
-  streak: 'flame' as const,
-  time: 'time' as const,
-  social: 'people' as const,
-  reward: 'gift' as const,
-  special: 'star' as const,
-};
 
 function RecentAchievements({ studentId }: RecentAchievementsProps) {
   const router = useRouter();
@@ -131,76 +119,32 @@ function RecentAchievements({ studentId }: RecentAchievementsProps) {
         </button>
       </div>
 
-      {/* Mobile: Compact circle badges - hidden on sm and up */}
-      <div className="flex justify-center gap-4 sm:hidden">
+      <div className="grid grid-cols-3 gap-3">
         {achievements.filter(item => item.achievement).map((item, index) => {
-          const iconName = categoryIcons[item.achievement.category] || 'trophy';
-          const catColors = categoryPalette[item.achievement.category] ?? { gradFrom: colors.primary.light, gradTo: colors.primary.dark };
-          
+          // Extract progress
+          const progressData = item.progress;
+          const progressValue = typeof progressData === 'number' 
+            ? progressData 
+            : (progressData && typeof progressData === 'object' && 'current' in progressData && 'target' in progressData)
+              ? ((progressData.current as number) / (progressData.target as number)) * 100
+              : 0;
+
           return (
-            <motion.button
-              key={`mobile-${item.id}`}
+            <motion.div
+              key={item.id}
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: index * 0.1 }}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                triggerConfetti({
-                  particleCount: 50,
-                  spread: 70,
-                  colors: [catColors.gradFrom, catColors.gradTo],
-                });
-                router.push('/achievements');
-              }}
-              className="relative w-16 h-16 rounded-full flex items-center justify-center shadow-lg cursor-pointer"
-              style={{
-                background: `linear-gradient(135deg, ${catColors.gradFrom}, ${catColors.gradTo})`,
-              }}
             >
-              <Icon name={iconName} size="lg" color="#FFFFFF" />
-              {/* Glow effect */}
-              <motion.div
-                className="absolute inset-0 rounded-full -z-10"
-                style={{
-                  background: `linear-gradient(135deg, ${catColors.gradFrom}, ${catColors.gradTo})`,
-                  filter: 'blur(8px)',
-                  opacity: 0.4,
-                }}
-                animate={{
-                  scale: [1, 1.15, 1],
-                  opacity: [0.4, 0.6, 0.4],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: 'easeInOut',
-                  delay: index * 0.3,
-                }}
+              <AchievementCard
+                achievement={item.achievement}
+                isUnlocked={!!item.unlocked_at}
+                progress={progressValue}
+                onClick={() => router.push('/achievements')}
               />
-            </motion.button>
+            </motion.div>
           );
         })}
-      </div>
-
-      {/* Desktop: Full badge cards - hidden below sm */}
-      <div className="hidden sm:grid sm:grid-cols-3 gap-3">
-        {achievements.filter(item => item.achievement).map((item, index) => (
-          <motion.div
-            key={`desktop-${item.id}`}
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <BadgeIcon
-              achievement={item.achievement}
-              studentAchievement={item}
-              size="sm"
-              showProgress={false}
-              onClick={() => router.push('/achievements')}
-            />
-          </motion.div>
-        ))}
       </div>
     </motion.div>
   );

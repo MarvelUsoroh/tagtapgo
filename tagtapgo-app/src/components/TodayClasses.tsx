@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { motion } from 'framer-motion';
 import { Icon } from '@/components/icons';
-import { Card } from '@/components/ui/Card';
 import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { cn, formatTime } from '@/lib/utils';
@@ -235,13 +234,17 @@ function TodayClasses({ studentId }: { studentId: string }) {
 
   if (loading) {
     return (
-      <Card elevation="sm" padding="md">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-xl shadow-md p-6"
+      >
         <div className="animate-pulse space-y-3">
           <div className="h-4 bg-gray-200 rounded w-1/3"></div>
           <div className="h-12 bg-gray-200 rounded"></div>
           <div className="h-12 bg-gray-200 rounded"></div>
         </div>
-      </Card>
+      </motion.div>
     );
   }
 
@@ -249,9 +252,9 @@ function TodayClasses({ studentId }: { studentId: string }) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-xl shadow-md p-6"
     >
-      <Card elevation="sm" padding="md">
-        <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-gray-900">Today&apos;s Classes</h2>
           {classes.length > 0 && (
             <span className="text-sm font-medium" style={{ color: colors.gray[600] }}>
@@ -284,7 +287,7 @@ function TodayClasses({ studentId }: { studentId: string }) {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
                 className={cn(
-                  'flex items-center justify-between p-3 rounded-lg transition-colors',
+                  'flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg transition-colors gap-3',
                   classItem.status === 'completed' && 'bg-green-50',
                   classItem.status === 'in_session' && 'bg-green-50 border-2 border-brand',
                   classItem.status === 'ended' && 'bg-gray-50',
@@ -292,7 +295,7 @@ function TodayClasses({ studentId }: { studentId: string }) {
                   classItem.status === 'missed' && 'bg-red-50'
                 )}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
                   {/* Status Indicator */}
                   <div
                     className={cn(
@@ -330,7 +333,7 @@ function TodayClasses({ studentId }: { studentId: string }) {
                 </div>
 
                 {/* Right Side - Points/Status */}
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 flex-shrink-0 self-start sm:self-auto ml-5 sm:ml-0">
                   {classItem.status === 'completed' && (
                     <>
                       <div
@@ -358,7 +361,6 @@ function TodayClasses({ studentId }: { studentId: string }) {
             ))}
           </div>
         )}
-      </Card>
     </motion.div>
   );
 }

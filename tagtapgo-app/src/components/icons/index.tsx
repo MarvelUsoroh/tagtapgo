@@ -72,6 +72,8 @@ import {
   IoSnowOutline,
   IoFlashOutline,
   IoEllipseOutline,
+  IoRocketOutline,
+  IoRocket,
 } from 'react-icons/io5';
 
 // Export individual icons with semantic names
@@ -136,6 +138,8 @@ export {
   IoInformationCircleOutline as InfoIcon,
   IoCheckmarkCircleOutline as SuccessIcon,
   IoWarningOutline as WarningIcon,
+  IoRocketOutline as RocketIcon,
+  IoRocket as RocketIconFilled,
 };
 
 // Icon name mapping
@@ -206,6 +210,8 @@ const iconMap = {
   trendingDown: IoTrendingDownOutline,
   snow: IoSnowOutline,
   flash: IoFlashOutline,
+  rocket: IoRocketOutline,
+  rocketFilled: IoRocket,
 } as const;
 
 export type IconName = keyof typeof iconMap;

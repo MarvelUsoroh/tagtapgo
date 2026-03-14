@@ -515,7 +515,7 @@ export default function DashboardClient({
 
       {/* Content */}
       <Container>
-        <div className="py-4 space-y-4">
+        <div className="py-4 pb-32 space-y-4">
           {/* Active Class Status */}
           {displayActiveClass && (
             <motion.div
@@ -524,17 +524,17 @@ export default function DashboardClient({
               className="bg-white rounded-xl p-6 border-2"
               style={{ borderColor: colors.primary.DEFAULT }}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="p-3 rounded-lg" style={{ backgroundColor: `${colors.primary.DEFAULT}15` }}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center space-x-3 flex-1 min-w-0">
+                  <div className="p-3 rounded-lg flex-shrink-0" style={{ backgroundColor: `${colors.primary.DEFAULT}15` }}>
                     <Icon name="flash" size="lg" color={colors.primary.DEFAULT} />
                   </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">{displayActiveClass.name}</p>
-                    <p className="text-sm text-gray-600">{displayActiveClass.location}</p>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 truncate">{displayActiveClass.name}</p>
+                    <p className="text-sm text-gray-600 truncate">{displayActiveClass.location}</p>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-left sm:text-right flex-shrink-0 ml-[3.25rem] sm:ml-0">
                   <div className="text-xs text-gray-500 uppercase">Class Active</div>
                   <div className="text-sm font-semibold" style={{ color: colors.primary.DEFAULT }}>
                     In Progress

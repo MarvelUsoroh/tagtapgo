@@ -362,7 +362,7 @@ export default function LeaderboardClient({
 
       {/* Leaderboard List */}
       <Container>
-        <div className="py-4">
+        <div className="py-4 pb-32">
           <LeaderboardList
             entries={leaderboard}
             currentStudentId={currentStudentId}

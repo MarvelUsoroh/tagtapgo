@@ -189,6 +189,7 @@ export default function MessageItem({
   const cancelDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     setConfirmDelete(false);
+    setShowMessageMenu(false);
   };
 
   const executeDelete = useCallback(async (e: React.MouseEvent) => {
@@ -248,8 +249,26 @@ export default function MessageItem({
   // Smart picker positioning
   const [pickerPosition, setPickerPosition] = useState<'left' | 'right'>('left');
 
+  // Sync menus context - close others when opening one
+  useEffect(() => {
+    const handleCloseOthers = (e: CustomEvent) => {
+      if (e.detail !== message.id) {
+        setShowReactionPicker(false);
+        setShowMessageMenu(false);
+        setConfirmDelete(false);
+      }
+    };
+    window.addEventListener('chat-close-menus', handleCloseOthers as EventListener);
+    return () => window.removeEventListener('chat-close-menus', handleCloseOthers as EventListener);
+  }, [message.id]);
+
+  const notifyMenusActivity = () => {
+    window.dispatchEvent(new CustomEvent('chat-close-menus', { detail: message.id }));
+  };
+
   const handleOpenPicker = (e: React.MouseEvent) => {
     e.stopPropagation();
+    notifyMenusActivity();
     if (!reactionPickerRef.current) return;
     const rect = reactionPickerRef.current.getBoundingClientRect();
     const spaceOnRight = window.innerWidth - rect.left;
@@ -274,6 +293,7 @@ export default function MessageItem({
     touchTimerRef.current = setTimeout(() => {
       // Find a safe position
       setPickerPosition('left');
+      notifyMenusActivity();
       setShowReactionPicker(true);
       if (window.navigator?.vibrate) window.navigator.vibrate(50);
     }, 500); // 500ms long press
@@ -341,7 +361,12 @@ export default function MessageItem({
           {isOwnMessage && (
             <div className="relative ml-auto" ref={messageMenuRef}>
               <button
-                onClick={(e) => { e.stopPropagation(); setShowMessageMenu(v => !v); setConfirmDelete(false); }}
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  if (!showMessageMenu) notifyMenusActivity();
+                  setShowMessageMenu(v => !v); 
+                  setConfirmDelete(false); 
+                }}
                 className="p-1 rounded-full text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"
                 aria-label="Message options"
               >
@@ -349,45 +374,44 @@ export default function MessageItem({
               </button>
 
               {showMessageMenu && (
-                <div className="absolute right-0 top-7 z-30 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden min-w-[160px] py-1">
+                <div className="absolute right-0 top-7 z-30 bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden min-w-[220px] py-1">
                   {/* Edit */}
-                  {canEdit && (
+                  {canEdit && !confirmDelete && (
                     <button
                       onClick={() => { setIsEditing(true); setEditContent(message.content); setShowMessageMenu(false); }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                       <IoPencil className="w-4 h-4 text-gray-400" />
-                      Edit
+                      Edit Message
                     </button>
                   )}
                   {/* Delete Option or Confirm Yes/No */}
                   {confirmDelete ? (
-                    <div className="w-full flex items-center justify-between px-3 py-1.5 bg-red-50 text-sm sm:px-4">
-                      <span className="text-red-600 font-medium whitespace-nowrap">Delete?</span>
-                      <div className="flex items-center gap-1.5 ml-2">
-                        <button
-                          onClick={executeDelete}
-                          disabled={isDeleting}
-                          className="py-1.5 px-3 bg-red-600 text-white rounded-md hover:bg-red-700 active:bg-red-800 transition-colors disabled:opacity-50 font-medium shrink-0"
-                        >
-                          Yes
-                        </button>
-                        <button
-                          onClick={cancelDelete}
-                          disabled={isDeleting}
-                          className="py-1.5 px-3 text-gray-700 hover:bg-red-100 active:bg-red-200 rounded-md transition-colors disabled:opacity-50 font-medium shrink-0"
-                        >
-                          No
-                        </button>
-                      </div>
+                    <div className="p-4 px-5">
+                      <p className="font-bold text-gray-900 mb-1 text-base">Delete message?</p>
+                      <p className="text-sm text-gray-500 mb-4 leading-snug">This can&apos;t be undone and it will be removed for everyone.</p>
+                      <button
+                        onClick={executeDelete}
+                        disabled={isDeleting}
+                        className="w-full bg-red-600 text-white font-bold py-2.5 rounded-full mb-2 hover:bg-red-700 active:bg-red-800 transition-colors disabled:opacity-50 text-sm"
+                      >
+                        {isDeleting ? 'Deleting...' : 'Delete'}
+                      </button>
+                      <button
+                        onClick={cancelDelete}
+                        disabled={isDeleting}
+                        className="w-full bg-white border border-gray-300 text-gray-900 font-bold py-2.5 rounded-full hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-50 text-sm"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   ) : (
                     <button
                       onClick={handleDeleteClick}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                      className="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50 transition-colors"
                     >
                       <IoTrash className="w-4 h-4" />
-                      Delete
+                      Delete Message
                     </button>
                   )}
                 </div>

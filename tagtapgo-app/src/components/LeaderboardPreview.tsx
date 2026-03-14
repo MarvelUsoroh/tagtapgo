@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, memo } from 'react';
 import { motion } from 'framer-motion';
-import { IoTrophy, IoMedal, IoRibbon, IoTrendingUp, IoFlame } from 'react-icons/io5';
+import { IoTrophy, IoMedal, IoRibbon, IoTrendingUp, IoFlame, IoRocket } from 'react-icons/io5';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 // import { colors } from '@/lib/theme';
@@ -239,7 +239,10 @@ function LeaderboardPreview({
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium text-primary">Your Rank</p>
-                <p className="text-sm text-gray-600">Keep climbing! 🚀</p>
+                <div className="flex items-center gap-1 text-sm text-gray-600">
+                  <p>Keep climbing!</p>
+                  <IoRocket className="h-4 w-4" />
+                </div>
               </div>
               <div className="text-right">
                 <p className="text-2xl font-bold text-primary">#{userRank}</p>
