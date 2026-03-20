@@ -37,7 +37,7 @@ export default function ChatInput({ onSend, disabled, placeholder = "Type your t
     }
   }, [value]);
 
-  // Auto-focus when not disabled (e.g., after Venus responds)
+  // Auto-focus when not disabled (e.g., after the chat responds)
   useEffect(() => {
     if (!disabled && textareaRef.current) {
       textareaRef.current.focus();

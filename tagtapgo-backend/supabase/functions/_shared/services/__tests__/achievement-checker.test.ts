@@ -59,7 +59,7 @@ function createMockSupabase() {
                   in: () => ({ count, error: null }),
                 };
               }
-              if (table === 'points' || table === 'class_feedback' || table === 'redemptions') {
+              if (table === 'points' || table === 'redemptions') {
                 return {
                   eq: () => ({ count: 0, error: null }),
                   in: () => ({ count: 0, error: null }),
@@ -92,9 +92,6 @@ function createMockSupabase() {
               return {
                 single: () => ({ data: found || null, error: found ? null : { code: 'PGRST116' } }),
               };
-            }
-            if (table === 'class_feedback') {
-              return { data: [], error: null };
             }
             return { data: [], error: null };
           },

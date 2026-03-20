@@ -10,7 +10,6 @@
  * - challenge: Challenge invitation
  * - rank: Rank change
  * - reward: Reward redemption
- * - feedback_prompt: Feedback prompt
  * - points_milestone: Points milestone reached
  * 
  * Requirements: 15
@@ -285,6 +284,54 @@ export async function sendPerfectMonthNotification(
       bonusPoints,
     },
     tag: 'perfect-month',
+    requireInteraction: false,
+  });
+}
+
+/**
+ * Send chat reply notification
+ */
+export async function sendChatReplyNotification(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  studentId: string,
+  replierName: string,
+  messageText: string,
+  messageId: string
+): Promise<NotificationResult> {
+  return sendPushNotification(supabaseUrl, serviceRoleKey, {
+    studentId,
+    title: '💬 New Reply',
+    body: `${replierName} replied: ${messageText}`,
+    data: {
+      type: 'chat_reply',
+      messageId,
+    },
+    tag: `chat-reply-${messageId}`,
+    requireInteraction: false,
+  });
+}
+
+/**
+ * Send chat reaction notification
+ */
+export async function sendChatReactionNotification(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  studentId: string,
+  reactorName: string,
+  emoji: string,
+  messageId: string
+): Promise<NotificationResult> {
+  return sendPushNotification(supabaseUrl, serviceRoleKey, {
+    studentId,
+    title: '👍 New Reaction',
+    body: `${reactorName} reacted with ${emoji} to your message`,
+    data: {
+      type: 'chat_reaction',
+      messageId,
+    },
+    tag: `chat-reaction-${messageId}`,
     requireInteraction: false,
   });
 }

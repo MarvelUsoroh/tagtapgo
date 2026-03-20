@@ -34,13 +34,13 @@ Achievements based on punctuality and perfect attendance periods.
 - Perfect Month (20/20 days) - 500 points
 
 ### 4. Social
-Achievements based on feedback and social interactions.
+Achievements based on social interactions.
 
 **Examples:**
-- Voice Heard (5 feedback submissions) - 50 points
-- Course Critic (10 unique courses) - 100 points
-- Feedback Champion (25 submissions) - 250 points
-- Thoughtful Contributor (10 with comments) - 150 points
+- Community Contributor (5 messages sent) - 50 points
+- Conversation Starter (10 discussion threads) - 100 points
+- Helpful Peer (25 upvotes received) - 250 points
+- Top Answerer (10 accepted answers) - 150 points
 
 ### 5. Reward
 Achievements based on reward redemptions.
@@ -111,33 +111,13 @@ Counts perfect month bonus points transactions.
 }
 ```
 
-### feedback_count
-Counts total feedback submissions.
+### community_message_count
+Counts total messages sent in community chat.
 
 ```json
 {
-  "type": "feedback_count",
+  "type": "community_message_count",
   "target": 5
-}
-```
-
-### feedback_unique_courses
-Counts unique courses with feedback.
-
-```json
-{
-  "type": "feedback_unique_courses",
-  "target": 10
-}
-```
-
-### feedback_with_comments
-Counts feedback submissions with comments.
-
-```json
-{
-  "type": "feedback_with_comments",
-  "target": 10
 }
 ```
 
@@ -254,10 +234,10 @@ INSERT INTO achievements (
 ## Achievement Flow
 
 ### 1. Trigger Event
-Student performs an action (attends class, submits feedback, etc.)
+Student performs an action (attends class, sends a message, etc.)
 
 ### 2. Gamification Engine
-Calls achievement checker after processing attendance/feedback
+Calls achievement checker after processing attendance/activity
 
 ### 3. Progress Calculation
 For each achievement:

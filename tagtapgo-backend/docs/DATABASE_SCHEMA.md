@@ -42,12 +42,6 @@ This reflects the live Supabase database as of November 21, 2025. The public sch
 - `push_subscriptions` — Web push subscriptions per student
 - `cron_job_executions` — Logs for pg_cron job executions
 
-### 7) Feedback & Quality Improvement
-- `class_feedback` — Student feedback on class sessions (ratings + comments)
-- `feedback_prompts` — Tracks feedback prompt status per student per session
-- `feedback_conversations` — AI chat sessions for qualitative feedback
-- `feedback_messages` — Individual messages within feedback conversations
-
 ## Key Relationships
 
 ```
@@ -60,15 +54,9 @@ universities
     │   ├─ leaderboards
     │   ├─ redemptions
     │   ├─ notifications
-    │   ├─ class_feedback
-    │   ├─ feedback_prompts
-    │   └─ feedback_conversations
-    │       └─ feedback_messages
     └─ courses
             ├─ classes
             │   └─ class_schedules
-            │       ├─ feedback_prompts
-            │       └─ class_feedback
             ├─ attendance
             ├─ enrollments
             └─ leaderboards
@@ -175,7 +163,7 @@ universities
 - `id` (uuid, PK): `gen_random_uuid()`
 - `student_id` (uuid, FK)
 - `points` (integer)
-- `transaction_type` (text): CHECK `transaction_type IN ('attendance', 'achievement', 'bonus', 'early_arrival', 'perfect_week', 'perfect_month', 'streak', 'challenge', 'referral', 'redemption', 'adjustment', 'feedback', 'feedback_reward')`
+- `transaction_type` (text): CHECK `transaction_type IN ('attendance', 'achievement', 'bonus', 'early_arrival', 'perfect_week', 'perfect_month', 'streak', 'challenge', 'referral', 'redemption', 'adjustment', ')`
 - `reference_id` (text)
 - `description` (text)
 - `metadata` (jsonb)
@@ -228,105 +216,6 @@ universities
 - `metadata` (jsonb)
 - `created_at`, `updated_at` (timestamptz)
 
-### feedback_prompts
-- `id` (uuid, PK): `gen_random_uuid()`
-- `student_id` (uuid, FK)
-- `class_schedule_id` (uuid, FK)
-- `status` (text): CHECK `status IN ('pending', 'completed', 'expired', 'skipped')`
-- `prompt_sent_at` (timestamptz)
-- `expires_at` (timestamptz)
-- `completed_at` (timestamptz)
-- `metadata` (jsonb): Contextual data (e.g., session topic)
-- `created_at`, `updated_at` (timestamptz)
-
-### feedback_conversations
-- `id` (uuid, PK): `gen_random_uuid()`
-- `student_id` (uuid, FK)
-- `class_schedule_id` (uuid, FK)
-- `started_at` (timestamptz)
-- `completed_at` (timestamptz)
-- `sentiment_score` (float)
-- `summary` (text)
-- `points_awarded` (integer)
-- `metadata` (jsonb)
-- `created_at`, `updated_at` (timestamptz)
-
-### feedback_messages
-- `id` (uuid, PK): `gen_random_uuid()`
-- `conversation_id` (uuid, FK)
-- `sender_type` (text): CHECK `sender_type IN ('user', 'ai')`
-- `content` (text)
-- `metadata` (jsonb)
-- `created_at` (timestamptz)
-
-### class_feedback
-- `id` (uuid, PK): `gen_random_uuid()`
-- `student_id` (uuid, FK)
-- `class_schedule_id` (uuid, FK)
-- `class_id` (uuid, FK)
-- `course_id` (uuid, FK)
-- `content_quality`, `clarity`, `pace` (integer): 1-5
-- `comments` (text)
-- `metadata` (jsonb)
-- `submitted_at` (timestamptz)
-- `created_at`, `updated_at` (timestamptz)
-
-### rewards
-- `id` (uuid, PK): `gen_random_uuid()`
-- `brand`, `name`, `description`, `image_url` (text)
-- `points_cost` (integer)
-- `category` (text)
-- `stock` (integer)
-- `active` (boolean)
-- `metadata` (jsonb)
-- `created_at`, `updated_at` (timestamptz)
-
-### redemptions
-- `id` (uuid, PK): `gen_random_uuid()`
-- `student_id` (uuid, FK)
-- `reward_id` (uuid, FK)
-- `points_spent` (integer)
-- `redemption_code` (text, UNIQUE)
-- `status` (text): CHECK `status IN ('pending', 'issued', 'used', 'expired', 'cancelled')`
-- `issued_at`, `used_at`, `expires_at` (timestamptz)
-- `metadata` (jsonb)
-- `created_at`, `updated_at` (timestamptz)
-
-### notifications
-- `id` (uuid, PK): `gen_random_uuid()`
-- `student_id` (uuid, FK)
-- `notification_type`, `title`, `message` (text)
-- `data` (jsonb)
-- `read` (boolean)
-- `created_at`, `updated_at` (timestamptz)
-
-### push_subscriptions
-- `id` (uuid, PK): `gen_random_uuid()`
-- `student_id` (uuid, FK, UNIQUE)
-- `subscription` (jsonb)
-- `created_at`, `updated_at` (timestamptz)
-
-### sync_logs
-- `id` (uuid, PK): `gen_random_uuid()`
-- `university_id` (uuid, FK)
-- `sync_type` (text)
-- `status` (text)
-- `records_processed`, `duration_ms` (integer)
-- `error_message` (text)
-- `metadata` (jsonb)
-- `created_at` (timestamptz)
-
-### cron_job_executions
-- `id` (uuid, PK): `gen_random_uuid()`
-- `job_name` (text)
-- `status` (text)
-- `started_at`, `completed_at` (timestamptz)
-- `duration_ms` (integer)
-- `error_message` (text)
-- `records_processed`, `records_succeeded`, `records_failed` (integer)
-- `metadata` (jsonb)
-- `created_at` (timestamptz)
-
 ## Indexes (selected)
 
 Performance and integrity indexes (abbreviated):
@@ -344,8 +233,6 @@ Performance and integrity indexes (abbreviated):
 - friends: UNIQUE(student_id, friend_id); btree on student_id, friend_id, status
 - rewards: btree on active, brand, points_cost
 - universities: UNIQUE(domain); btree on domain
-- class_feedback: UNIQUE(student_id, class_schedule_id); btree on student_id, course_id, class_schedule_id, submitted_at DESC
-- feedback_prompts: UNIQUE(student_id, class_schedule_id); btree on student_id, status, expires_at
 
 ## Functions & Triggers
 
@@ -392,3 +279,4 @@ Performance and integrity indexes (abbreviated):
 
 - Scale reads via replicas (analytics), partition large tables if growth warrants (future)
 - Potential caching (e.g., Redis) for hot leaderboard reads (future)
+

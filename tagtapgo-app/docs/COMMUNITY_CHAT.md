@@ -27,7 +27,7 @@ Community Chat is a feature that allows students within the same university to c
 - **RLS policies** on `chat_messages`, `chat_reactions`, and `students` tables
 
 ### UI/UX
-- Consistent green color scheme matching Venus chat (`bg-green-100 text-green-900`)
+- Consistent green color scheme (`bg-green-100 text-green-900`)
 - Slide-in thread panel with click-outside to close
 - Safe-area padding for mobile devices (notch support)
 - Keyboard-aware input positioning for mobile

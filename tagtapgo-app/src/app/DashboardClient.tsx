@@ -19,15 +19,13 @@ import { Container } from '@/components/layout/Container';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { FloatingActionButton } from '@/components/ui/FloatingActionButton';
 import TodayClasses from '@/components/TodayClasses';
-import RecentAchievements from '@/components/RecentAchievements';
 import LeaderboardPreview from '@/components/LeaderboardPreview';
 import NotificationPermissionPrompt from '@/components/NotificationPermissionPrompt';
 import NotificationBell from '@/components/NotificationBell';
 import NotificationsPanel from '@/components/NotificationsPanel';
 import Toast, { ToastType } from '@/components/Toast';
-import dynamic from 'next/dynamic';
-const FeedbackPromptCard = dynamic(() => import('@/components/FeedbackPromptCard'), { ssr: false });
-import { colors } from '@/lib/theme';
+  import { colors } from '@/lib/theme';
+
 
 interface Class {
   id: string;
@@ -130,36 +128,7 @@ export default function DashboardClient({
 
   // Handle URL query parameters and show toast notifications
   useEffect(() => {
-    const feedback = searchParams.get('feedback');
-    
-    if (feedback) {
-      let message = '';
-      let type: ToastType = 'info';
-      
-      switch (feedback) {
-        case 'success':
-          message = 'Feedback submitted! Thank you for sharing your thoughts';
-          type = 'success';
-          break;
-        case 'already-submitted':
-          message = 'You already submitted feedback for this class';
-          type = 'warning';
-          break;
-        case 'expired':
-          message = 'This feedback prompt has expired';
-          type = 'error';
-          break;
-        default:
-          message = 'Unknown feedback status';
-          type = 'info';
-      }
-      
-      // Show toast
-      setToast({ message, type });
-      
-      // Clean up URL by removing query parameters
-      router.replace('/', { scroll: false });
-    }
+    // Other query parameters can be handled here in the future
   }, [searchParams, router]);
 
   // Animate points count-up when totalPoints changes
@@ -229,13 +198,11 @@ export default function DashboardClient({
         setCurrentStreak(payload.new);
         store.setCurrentStreak(payload.new.current_streak);
         
-        // Show toast if streak increased
-        if (payload.new.current_streak > (currentStreak?.current_streak || 0)) {
-          setToast({ 
-            message: `Streak updated to ${payload.new.current_streak} days!`, 
-            type: 'success' 
-          });
-        }
+        // Show toast - UPDATE only fires when streak actually changed
+        setToast({ 
+          message: `Streak updated to ${payload.new.current_streak} days!`, 
+          type: 'success' 
+        });
         
         // Trigger debounced refresh
         refreshGamification();
@@ -326,7 +293,7 @@ export default function DashboardClient({
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       supabase.removeChannel(channel);
     };
-  }, [student?.id, currentStreak, store, refreshGamification]);
+  }, [student?.id, refreshGamification]);
 
   // Memoized timer callbacks to avoid recreation on each render
   const computeCompleted = useCallback(() => {
@@ -569,11 +536,6 @@ export default function DashboardClient({
           {/* Today's Classes */}
           <TodayClasses studentId={student?.id || ''} />
 
-          {/* Feedback Prompts */}
-          <FeedbackPromptCard studentId={student?.id || ''} maxPrompts={3} />
-
-          {/* Recent Achievements */}
-          <RecentAchievements studentId={student?.id || ''} />
 
           {/* Leaderboard Preview */}
           <LeaderboardPreview studentId={student?.id || ''} />

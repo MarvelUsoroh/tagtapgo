@@ -62,15 +62,6 @@ A vendor-agnostic NFC protocol layer that enables any ISO 14443 reader or mobile
 - **Daily Goals** - personalized attendance targets
 - **Visual Progress** - animated feedback, level-ups, and unlockables
 - **Social Features** - view friends' streaks and challenge peers
-- **Class Feedback** - time-based prompts after class to share quick feedback (optional, rewards bonus points)
-
-**Quality Improvement Loop**
-
-- **Time-based feedback prompts** - Students receive optional feedback requests 5-15 minutes after class ends
-- **Quick ratings** - Simple 1-5 star rating with optional comment
-- **Bonus points** - Earn extra points for providing feedback (no penalty for skipping)
-- **Instructor insights** - Aggregated feedback helps improve teaching quality
-- **Continuous improvement** - Better classes → higher attendance → stronger engagement loop
 
 **Upcoming Feature**
 
@@ -91,7 +82,6 @@ A vendor-agnostic NFC protocol layer that enables any ISO 14443 reader or mobile
 - **Brand partnerships** (10-20% commission) - Reward marketplace
 - **Analytics dashboards** - Included in Pro/Enterprise tiers
 - **Custom integrations** (€5K-50K) - API access, custom SIS adapters
-- **Feedback & quality insights** - Advanced analytics in Pro/Enterprise tiers
 - **White-label solutions** - For large institutions and multi-campus systems
 
 **Brand Partnership Program**
@@ -232,16 +222,14 @@ Inspired by Duolingo's engaging and intuitive interface:
 - Smooth transitions and micro-interactions
 - Celebratory animations for achievements and milestones
 - Haptic feedback on mobile devices
-- Time-based feedback prompts with simple, quick interactions
 
 **User Journey**
 
 - Onboarding flow with interactive tutorials
 - Daily dashboard showing streaks, goals, and quick stats
 - One-tap access to leaderboards and rewards catalog
-- Push notifications with friendly, encouraging tone (including optional feedback prompts)
+- Push notifications with friendly, encouraging tone
 - Gamified settings and profile customization
-- Seamless feedback experience - quick ratings without disrupting student flow
 
 **Accessibility**
 
@@ -393,7 +381,6 @@ Proprietary - All rights reserved
 │  - Policy engine (ABAC)                                     │
 │  - Event normalization                                      │
 │  - Gamification engine (points, streaks, achievements)      │
-│  - Feedback system (time-based prompts, analytics)          │
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐

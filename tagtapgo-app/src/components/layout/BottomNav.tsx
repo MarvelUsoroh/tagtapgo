@@ -69,7 +69,6 @@ export const BottomNav: React.FC = () => {
     '/update-password',
     '/coming-soon',
     '/community', // Full-screen chat experience
-    '/feedback', // Full-screen feedback experience
   ];
   
   const shouldHideNav = hideNavRoutes.some(route => pathname?.startsWith(route));

@@ -8,7 +8,7 @@ export type NotificationType =
   | 'challenge'
   | 'rank'
   | 'reward'
-  | 'feedback_prompt'
+
   | 'points_milestone'
   | 'perfect_week'
   | 'perfect_month'
@@ -22,7 +22,7 @@ export type NotificationPreferences = {
   challenge: boolean;
   rank: boolean;
   reward: boolean;
-  feedback_prompt: boolean;
+
   points_milestone: boolean;
   perfect_week: boolean;
   perfect_month: boolean;
@@ -37,7 +37,7 @@ const DEFAULT_PREFERENCES: NotificationPreferences = {
   challenge: true,
   rank: true,
   reward: true,
-  feedback_prompt: true,
+
   points_milestone: true,
   perfect_week: true,
   perfect_month: true,

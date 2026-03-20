@@ -69,7 +69,7 @@ serve(async (_req: Request) => {
       throw new Error(`Failed to load attendance: ${attendanceError.message}`);
     }
 
-    // Get new point transactions since last run (to catch feedback points, etc.)
+    // Get new point transactions since last run (to catch any latest points)
     const { data: newPoints, error: pointsError } = await supabase
       .from("points")
       .select("student_id")

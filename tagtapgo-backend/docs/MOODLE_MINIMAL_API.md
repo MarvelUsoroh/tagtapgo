@@ -57,7 +57,7 @@ After testing all 10 available Moodle API functions, we discovered that `mod_att
 | Function | Why We're Actively Using It Today | Privacy Lens |
 |----------|----------------------------------|--------------|
 | `core_webservice_get_site_info` | Every sync run starts here to validate the token, discover enabled WS functions, and short-circuit if `mod_attendance_get_sessions` isn’t exposed. | ✅ Low – capability metadata only |
-| `mod_attendance_get_sessions` | Primary data feed for sessions, durations, statuses, attendance logs, and minimal user stubs. Also provides `session.description` used for Venus AI context. | ✅ Low – class/attendance context only |
+| `mod_attendance_get_sessions` | Primary data feed for sessions, durations, statuses, attendance logs, and minimal user stubs. | ✅ Low – class/attendance context only |
 | `core_enrol_get_enrolled_users` | **Crucial for pre-population**: Used to extract the `email` from the Moodle payload (requires `moodle/course:useremail` capability) so students can log in via magic links. Also used to filter to true `student` roles. | ✅ Low – emails and role metadata only |
 | `core_course_get_courses` *(optional)* | Pulled only to hydrate real course names/codes for dashboards. When disabled, we rely on Moodle attendance metadata. | ✅ Low – course metadata only |
 

@@ -1,12 +1,19 @@
 // chat-send-message (Edge Function)
 // Creates chat messages with #course-tag parsing and @mention extraction
 // Auth: requires valid Supabase JWT
+// Rate limiting: Max 5 messages per 10 seconds
 // @ts-nocheck
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.3";
+import { sendChatReplyNotification } from "../_shared/services/notification-sender.ts";
+import { containsProfanity, filterProfanity } from "../_shared/utils/profanity-filter.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+// Rate limiting constants
+const RATE_LIMIT_WINDOW = 10; // seconds
+const RATE_LIMIT_MAX_MESSAGES = 5;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -97,7 +104,7 @@ Deno.serve(async (req) => {
     // Get student info
     const { data: student, error: studentError } = await serviceClient
       .from("students")
-      .select("id, university_id, first_name, last_name, full_name")
+      .select("id, university_id, first_name, last_name, full_name, avatar_url")
       .eq("id", userId)
       .single();
 
@@ -106,6 +113,37 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: "Student profile not found" }),
         { status: 404, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
       );
+    }
+
+    // Rate limiting check: Count messages from this user in the last 10 seconds
+    const rateLimitStart = new Date(Date.now() - RATE_LIMIT_WINDOW * 1000).toISOString();
+    const { count: recentMessageCount } = await serviceClient
+      .from("chat_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("author_id", userId)
+      .gte("created_at", rateLimitStart);
+
+    if (recentMessageCount && recentMessageCount >= RATE_LIMIT_MAX_MESSAGES) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Rate limit exceeded", 
+          message: `Please wait a moment before sending more messages. Limit: ${RATE_LIMIT_MAX_MESSAGES} messages per ${RATE_LIMIT_WINDOW} seconds.`
+        }),
+        { status: 429, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
+      );
+    }
+
+    // Profanity filter
+    let messageContent = body.content.trim();
+    if (containsProfanity(messageContent)) {
+      // Option 1: Filter it (replace with asterisks)
+      messageContent = filterProfanity(messageContent);
+      
+      // Option 2: Reject it entirely (uncomment to use this instead)
+      // return new Response(
+      //   JSON.stringify({ error: "Message contains inappropriate language" }),
+      //   { status: 400, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
+      // );
     }
 
     // Validate course enrollment if courseId provided
@@ -127,10 +165,11 @@ Deno.serve(async (req) => {
     }
 
     // Validate parent message exists and is in same university
+    let parentAuthorId: string | null = null;
     if (body.parentId) {
       const { data: parent, error: parentError } = await serviceClient
         .from("chat_messages")
-        .select("id, university_id, course_id")
+        .select("id, university_id, course_id, author_id")
         .eq("id", body.parentId)
         .eq("university_id", student.university_id)
         .is("deleted_at", null)
@@ -142,6 +181,8 @@ Deno.serve(async (req) => {
           { status: 404, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
         );
       }
+
+      parentAuthorId = parent.author_id;
 
       // Thread replies inherit parent's course scope
       if (parent.course_id && !body.courseId) {
@@ -156,7 +197,7 @@ Deno.serve(async (req) => {
         id: body.id || undefined, // Use client-provided UUID if present
         university_id: student.university_id,
         author_id: userId,
-        content: body.content.trim(),
+        content: messageContent, // Use filtered content
         course_id: body.courseId || null,
         parent_id: body.parentId || null,
         attachments: body.attachments || [],
@@ -238,19 +279,59 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Send push notification for reply if applicable
+    if (parentAuthorId && parentAuthorId !== userId) {
+      // Send notification asynchronously
+      sendChatReplyNotification(
+        SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY,
+        parentAuthorId,
+        student.full_name || student.first_name || 'Someone',
+        messageContent,
+        body.parentId!
+      ).catch(err => console.error("Failed to send chat reply push notification:", err));
+    }
+
+    // Get course info if courseId exists
+    let courseInfo = null;
+    if (message.course_id) {
+      const { data: course } = await serviceClient
+        .from("courses")
+        .select("id, code, short_name, name")
+        .eq("id", message.course_id)
+        .single();
+      courseInfo = course;
+    }
+
+    // Broadcast enriched message to all connected clients (fixes N+1 query issue)
+    const enrichedMessage = {
+      id: message.id,
+      content: message.content,
+      author: {
+        id: student.id,
+        first_name: student.first_name,
+        last_name: student.last_name,
+        full_name: student.full_name,
+        avatar_url: student.avatar_url,
+      },
+      course: courseInfo,
+      parent_id: message.parent_id,
+      attachments: message.attachments,
+      created_at: message.created_at,
+    };
+
+    // Broadcast to community-chat channel
+    await serviceClient.channel('community-chat').send({
+      type: 'broadcast',
+      event: 'new_message',
+      payload: enrichedMessage,
+    });
+
     // Return created message with author info
     return new Response(
       JSON.stringify({
         success: true,
-        message: {
-          ...message,
-          author: {
-            id: student.id,
-            first_name: student.first_name,
-            last_name: student.last_name,
-            full_name: student.full_name,
-          },
-        },
+        message: enrichedMessage,
       }),
       { status: 201, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
     );

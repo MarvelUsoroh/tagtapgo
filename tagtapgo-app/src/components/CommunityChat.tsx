@@ -15,6 +15,7 @@ import { format, isToday, isYesterday } from 'date-fns';
 import { useStore } from '@/store/useStore';
 import MessageItem from './MessageItem';
 import ChatInput from './ChatInput';
+import { StudentProfileModal } from './StudentProfileModal';
 
 interface Course {
   id: string;
@@ -89,6 +90,7 @@ export default function CommunityChat({
   const threadInputRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [profileModalStudentId, setProfileModalStudentId] = useState<string | null>(null);
   const isNearBottomRef = useRef(true);
   const supabase = createClient();
   const toast = useToast();
@@ -280,12 +282,15 @@ export default function CommunityChat({
     );
   }, [messages, searchQuery]);
 
-  const { setUnreadChatMentions } = useStore();
-
-  // Initial fetch and clear unread mentions & notifications
+  // Initial fetch + on course filter change
   useEffect(() => {
     fetchMessages();
+  }, [fetchMessages]);
 
+  const { setUnreadChatMentions } = useStore();
+
+  // Mark mentions and notifications as read once on mount (or if user changes)
+  useEffect(() => {
     const markMentionsAsRead = async () => {
       try {
         // Mark chat mentions as read
@@ -311,41 +316,25 @@ export default function CommunityChat({
     };
     
     markMentionsAsRead();
-  }, [fetchMessages, currentUser.id, supabase, setUnreadChatMentions]);
+  }, [currentUser.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Real-time subscription
   useEffect(() => {
     const channel = supabase
       .channel('community-chat')
-      // 1. New Messages
+      // 1. New Messages - Listen to broadcast instead of postgres_changes to avoid N+1
       .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `university_id=eq.${currentUser.universityId}` },
-        async (payload) => {
-          // Fetch the full message with author
-          const { data: newMsg } = await supabase
-            .from('chat_messages')
-            .select(`
-              id, content, course_id, parent_id, attachments, created_at,
-              author:students!author_id(id, first_name, last_name, full_name, avatar_url),
-              course:courses!course_id(id, code, short_name, name)
-            `)
-            .eq('id', payload.new.id)
-            .single();
-
-          /* eslint-disable @typescript-eslint/no-explicit-any */
-          const msg = newMsg as any;
+        'broadcast',
+        { event: 'new_message' },
+        (payload) => {
+          const msg = payload.payload;
           if (!msg) return;
 
-          // Unwrap arrays if Supabase returns them
-          const author = Array.isArray(msg?.author) ? msg.author[0] : msg?.author;
-          const course = Array.isArray(msg?.course) ? msg.course[0] : msg?.course;
-          
           const newMessageObj = {
             id: msg.id,
             content: msg.content,
-            author: author || null,
-            course: course || null,
+            author: msg.author || null,
+            course: msg.course || null,
             parentId: msg.parent_id,
             replyCount: 0,
             reactions: [],
@@ -387,7 +376,6 @@ export default function CommunityChat({
               });
             }
           }
-          /* eslint-enable @typescript-eslint/no-explicit-any */
         }
       )
       // 2. Message Updates / Soft Deletes
@@ -592,25 +580,10 @@ export default function CommunityChat({
     }));
 
     // Perform DB update in background
-    // Check both messages and threadReplies for existing reaction
-    const allMessages = [...messages, ...threadReplies];
-    const existingReaction = allMessages.find(m => m.id === messageId)?.reactions.find(r => r.emoji === emoji && r.reacted);
-
-    if (existingReaction) {
-      await supabase
-        .from('chat_reactions')
-        .delete()
-        .eq('message_id', messageId)
-        .eq('user_id', currentUser.id)
-        .eq('emoji', emoji);
-    } else {
-      await supabase
-        .from('chat_reactions')
-        .insert({ message_id: messageId, user_id: currentUser.id, emoji });
-    }
-    
-    // Note: No fetchMessages() here. Local state handles the immediate feedback,
-    // and the Realtime subscription (if hooked up to chat_reactions) handles syncing with other users.
+      // Perform DB update in background via Edge Function to trigger push notification
+      await supabase.functions.invoke('chat-toggle-reaction', {
+        body: { messageId, emoji }
+      });
   };
 
   return (
@@ -770,6 +743,7 @@ export default function CommunityChat({
                   onToggleReaction={(emoji) => toggleReaction(message.id, emoji)}
                   onMessageEdited={(id, content) => setMessages(prev => prev.map(m => m.id === id ? { ...m, content } : m))}
                   onMessageDeleted={(id) => setMessages(prev => prev.filter(m => m.id !== id))}
+                  onAvatarClick={setProfileModalStudentId}
                   searchQuery={searchQuery}
                 />
               </div>
@@ -866,6 +840,7 @@ export default function CommunityChat({
                   setMessages(prev => prev.filter(m => m.id !== id));
                   setThreadMessage(null);
                 }}
+                onAvatarClick={setProfileModalStudentId}
                 isThreadParent
               />
               
@@ -880,6 +855,7 @@ export default function CommunityChat({
                   onToggleReaction={(emoji) => toggleReaction(reply.id, emoji)}
                   onMessageEdited={(id, content) => setThreadReplies(prev => prev.map(m => m.id === id ? { ...m, content } : m))}
                   onMessageDeleted={(id) => setThreadReplies(prev => prev.filter(m => m.id !== id))}
+                  onAvatarClick={setProfileModalStudentId}
                 />
               ))}
             </div>
@@ -914,6 +890,12 @@ export default function CommunityChat({
           </div>
         </div>
       )}
+      
+      <StudentProfileModal
+        studentId={profileModalStudentId}
+        isOpen={!!profileModalStudentId}
+        onClose={() => setProfileModalStudentId(null)}
+      />
     </div>
   );
 }

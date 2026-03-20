@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IoClose, IoNotifications, IoTrophy, IoTrendingUp, IoFlame, IoChatbubble, IoCalendar } from 'react-icons/io5';
+import { IoClose, IoNotifications, IoTrophy, IoTrendingUp, IoFlame, IoCalendar } from 'react-icons/io5';
 import { supabase } from '@/lib/supabase';
 import { colors } from '@/lib/theme';
 import { formatDistanceToNow } from 'date-fns';
@@ -142,8 +142,7 @@ export default function NotificationsPanel({ studentId, isOpen, onClose }: Notif
         return <IoTrendingUp size={20} style={{ color: colors.primary.DEFAULT }} />;
       case 'streak':
         return <IoFlame size={20} style={{ color: colors.warning }} />;
-      case 'feedback_prompt':
-        return <IoChatbubble size={20} style={{ color: colors.info }} />;
+
       case 'perfect_week':
       case 'perfect_month':
         return <IoCalendar size={20} style={{ color: colors.success }} />;

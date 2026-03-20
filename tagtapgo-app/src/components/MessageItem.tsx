@@ -8,11 +8,14 @@
  */
 
 import { formatDistanceToNow } from 'date-fns';
-import { IoChatbubble, IoHappy, IoEllipsisHorizontal, IoPencil, IoTrash, IoCheckmark, IoClose } from 'react-icons/io5';
+import { useRouter } from 'next/navigation';
+import { IoChatbubble, IoHappy, IoEllipsisHorizontal, IoPencil, IoTrash, IoCheckmark, IoClose, IoFlag } from 'react-icons/io5';
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useToast } from '@/context/ToastContext';
 import { Avatar } from '@/components/ui/Avatar';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 import type { Message } from './CommunityChat';
 
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '🎉', '🙏', '👀'];
@@ -99,6 +102,7 @@ interface MessageItemProps {
   onToggleReaction: (emoji: string) => void;
   onMessageEdited?: (messageId: string, newContent: string) => void;
   onMessageDeleted?: (messageId: string) => void;
+  onAvatarClick?: (userId: string) => void;
   isThreadParent?: boolean;
   searchQuery?: string;
 }
@@ -110,9 +114,11 @@ export default function MessageItem({
   onToggleReaction,
   onMessageEdited,
   onMessageDeleted,
+  onAvatarClick,
   isThreadParent = false,
   searchQuery,
 }: MessageItemProps) {
+  const router = useRouter();
   const toast = useToast();
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [showMessageMenu, setShowMessageMenu] = useState(false);
@@ -120,7 +126,7 @@ export default function MessageItem({
   const [editContent, setEditContent] = useState(message.content);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [signedUrls, setSignedUrls] = useState<Record<string, string>>({});
   const reactionPickerRef = useRef<HTMLDivElement>(null);
   const messageMenuRef = useRef<HTMLDivElement>(null);
@@ -148,7 +154,6 @@ export default function MessageItem({
     const handleClickOutside = (e: MouseEvent) => {
       if (messageMenuRef.current && !messageMenuRef.current.contains(e.target as Node)) {
         setShowMessageMenu(false);
-        setConfirmDelete(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -181,16 +186,7 @@ export default function MessageItem({
     }
   }, [editContent, message.content, message.id, supabase, onMessageEdited]);
 
-  const handleDeleteClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setConfirmDelete(true);
-  };
 
-  const cancelDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setConfirmDelete(false);
-    setShowMessageMenu(false);
-  };
 
   const executeDelete = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -219,6 +215,8 @@ export default function MessageItem({
   }, [message.id, supabase, onMessageDeleted, toast]);
 
   // Generate signed URLs for private bucket attachments
+  // Stable key: join the paths so the effect only re-runs when paths actually change
+  const attachmentPathsKey = message.attachments.map(a => a.path).join(',');
   useEffect(() => {
     const generateSignedUrls = async () => {
       if (message.attachments.length === 0) return;
@@ -233,7 +231,7 @@ export default function MessageItem({
       if (Object.keys(urls).length > 0) setSignedUrls(prev => ({ ...prev, ...urls }));
     };
     generateSignedUrls();
-  }, [message.attachments]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [attachmentPathsKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Get author display name
   const authorName = message.author?.full_name ||
@@ -255,7 +253,6 @@ export default function MessageItem({
       if (e.detail !== message.id) {
         setShowReactionPicker(false);
         setShowMessageMenu(false);
-        setConfirmDelete(false);
       }
     };
     window.addEventListener('chat-close-menus', handleCloseOthers as EventListener);
@@ -316,7 +313,8 @@ export default function MessageItem({
   };
 
   return (
-    <article 
+    <>
+    <article
       className={`flex gap-3 px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100 ${isThreadParent ? 'bg-gray-50' : ''} ${message.isOptimistic ? 'opacity-60 transition-opacity duration-300' : ''}`}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -326,13 +324,25 @@ export default function MessageItem({
       {/* Avatar column */}
       <div className="flex-shrink-0 pt-0.5">
       <div className="flex-shrink-0 pt-0.5 relative">
-        <Avatar
-          src={message.author?.avatar_url || undefined}
-          alt={authorName}
-          size="md"
-          fallbackIcon={<span className="text-white text-sm font-bold">{initials}</span>}
-          className={isOwnMessage && !message.author?.avatar_url ? 'bg-green-500' : 'bg-gray-500'}
-        />
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isOwnMessage) {
+              router.push('/profile');
+            } else if (onAvatarClick && message.author?.id) {
+              onAvatarClick(message.author.id);
+            }
+          }}
+          className="focus:outline-none hover:opacity-80 transition-opacity"
+        >
+          <Avatar
+            src={message.author?.avatar_url || undefined}
+            alt={authorName}
+            size="md"
+            fallbackIcon={<span className="text-white text-sm font-bold">{initials}</span>}
+            className={isOwnMessage && !message.author?.avatar_url ? 'bg-green-500' : 'bg-gray-500'}
+          />
+        </button>
         {/* Thread connector line for parent posts */}
         {isThreadParent && (
           <div className="w-0.5 bg-gray-200 absolute left-1/2 -translate-x-1/2 top-11 bottom-[-14px]" />
@@ -357,67 +367,79 @@ export default function MessageItem({
           )}
           <span className="text-gray-400 text-xs">· {timeAgo}</span>
 
-          {/* ⋯ context menu for own messages */}
-          {isOwnMessage && (
-            <div className="relative ml-auto" ref={messageMenuRef}>
-              <button
-                onClick={(e) => { 
-                  e.stopPropagation(); 
-                  if (!showMessageMenu) notifyMenusActivity();
-                  setShowMessageMenu(v => !v); 
-                  setConfirmDelete(false); 
-                }}
-                className="p-1 rounded-full text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"
-                aria-label="Message options"
-              >
+          {/* ⋯ context menu for all messages (own: edit/delete, others: report) */}
+          <div className="relative ml-auto" ref={messageMenuRef}>
+            <button
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                if (!showMessageMenu) notifyMenusActivity();
+                setShowMessageMenu(v => !v); 
+                setShowDeleteModal(false); 
+              }}
+              className="p-1 rounded-full text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"
+              aria-label="Message options"
+            >
                 <IoEllipsisHorizontal className="w-4 h-4" />
               </button>
 
               {showMessageMenu && (
-                <div className="absolute right-0 top-7 z-30 bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden min-w-[220px] py-1">
-                  {/* Edit */}
-                  {canEdit && !confirmDelete && (
+                <div className="absolute right-0 top-7 z-30 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden min-w-[160px] py-1">
+                  {canEdit && (
                     <button
                       onClick={() => { setIsEditing(true); setEditContent(message.content); setShowMessageMenu(false); }}
-                      className="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                       <IoPencil className="w-4 h-4 text-gray-400" />
-                      Edit Message
+                      Edit
                     </button>
                   )}
-                  {/* Delete Option or Confirm Yes/No */}
-                  {confirmDelete ? (
-                    <div className="p-4 px-5">
-                      <p className="font-bold text-gray-900 mb-1 text-base">Delete message?</p>
-                      <p className="text-sm text-gray-500 mb-4 leading-snug">This can&apos;t be undone and it will be removed for everyone.</p>
-                      <button
-                        onClick={executeDelete}
-                        disabled={isDeleting}
-                        className="w-full bg-red-600 text-white font-bold py-2.5 rounded-full mb-2 hover:bg-red-700 active:bg-red-800 transition-colors disabled:opacity-50 text-sm"
-                      >
-                        {isDeleting ? 'Deleting...' : 'Delete'}
-                      </button>
-                      <button
-                        onClick={cancelDelete}
-                        disabled={isDeleting}
-                        className="w-full bg-white border border-gray-300 text-gray-900 font-bold py-2.5 rounded-full hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-50 text-sm"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
+                  {!isOwnMessage && (
                     <button
-                      onClick={handleDeleteClick}
-                      className="w-full flex items-center gap-2.5 px-4 py-3 text-sm font-medium text-red-500 hover:bg-red-50 transition-colors"
+                      onClick={async (e) => { 
+                        e.preventDefault();
+                        e.stopPropagation(); 
+                        setShowMessageMenu(false);
+                        try {
+                          const { error } = await supabase
+                            .from('reported_messages')
+                            .insert({
+                              message_id: message.id,
+                              reported_by: currentUserId,
+                              reason: 'User reported via UI'
+                            });
+                          
+                          if (error) {
+                            if (error.code === '23505') {
+                              toast.info('You have already reported this message');
+                            } else {
+                              toast.error('Failed to report message');
+                            }
+                          } else {
+                            toast.success('Message reported. Thank you for helping keep our community safe.');
+                          }
+                        } catch (err) {
+                          console.error('Report error:', err);
+                          toast.error('Failed to report message');
+                        }
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-orange-600 hover:bg-orange-50 transition-colors"
+                    >
+                      <IoFlag className="w-4 h-4" />
+                      Report
+                    </button>
+                  )}
+                  {isOwnMessage && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowMessageMenu(false); setShowDeleteModal(true); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
                     >
                       <IoTrash className="w-4 h-4" />
-                      Delete Message
+                      Delete
                     </button>
                   )}
                 </div>
               )}
             </div>
-          )}
         </div>
 
         {/* Message text — or inline edit textarea */}
@@ -553,5 +575,34 @@ export default function MessageItem({
         </div>
       </div>
     </article>
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Message"
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-2 w-full">
+            <Button
+              variant="secondary"
+              onClick={(e: React.MouseEvent) => { e.stopPropagation(); setShowDeleteModal(false); }}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={executeDelete}
+              loading={isDeleting}
+            >
+              Delete
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-gray-600 text-sm">
+          Are you sure you want to delete this message? This action cannot be undone and it will be removed for everyone.
+        </p>
+      </Modal>
+    </>
   );
 }
