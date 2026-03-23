@@ -8,8 +8,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase';
-import { useToast } from '@/context/ToastContext';
+import { supabase } from '@/lib/supabase';
 import { IoChatbubble, IoSearch, IoArrowBack, IoChevronDown } from 'react-icons/io5';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useStore } from '@/store/useStore';
@@ -92,8 +91,6 @@ export default function CommunityChat({
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [profileModalStudentId, setProfileModalStudentId] = useState<string | null>(null);
   const isNearBottomRef = useRef(true);
-  const supabase = createClient();
-  const toast = useToast();
   const router = useRouter();
 
   // Track scroll position to show/hide scroll-to-bottom button
@@ -183,24 +180,24 @@ export default function CommunityChat({
 
       if (fetchError) throw fetchError;
 
-      // Fetch reply counts
+      // Fetch reply counts + reactions in parallel — both only depend on messageIds
       const messageIds = (data || []).map(m => m.id);
-      const { data: replyCounts } = await supabase
-        .from('chat_messages')
-        .select('parent_id')
-        .in('parent_id', messageIds)
-        .is('deleted_at', null);
+      const [{ data: replyCounts }, { data: reactions }] = await Promise.all([
+        supabase
+          .from('chat_messages')
+          .select('parent_id')
+          .in('parent_id', messageIds)
+          .is('deleted_at', null),
+        supabase
+          .from('chat_reactions')
+          .select('message_id, emoji, user_id')
+          .in('message_id', messageIds),
+      ]);
 
       const replyCountMap: Record<string, number> = {};
       (replyCounts || []).forEach(r => {
         replyCountMap[r.parent_id] = (replyCountMap[r.parent_id] || 0) + 1;
       });
-
-      // Fetch reactions
-      const { data: reactions } = await supabase
-        .from('chat_reactions')
-        .select('message_id, emoji, user_id')
-        .in('message_id', messageIds);
 
       const reactionMap: Record<string, Record<string, { count: number; reacted: boolean }>> = {};
       (reactions || []).forEach(r => {
@@ -251,11 +248,11 @@ export default function CommunityChat({
       }
     } catch (err) {
       console.error('Error fetching messages:', err);
-      toast.error('Failed to load messages');
+      // toast.error('Failed to load messages'); // Removed useToast
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [supabase, currentUser.universityId, currentUser.id, selectedCourse, toast]);
+  }, [currentUser.universityId, currentUser.id, selectedCourse]);
 
   const loadMoreMessages = async () => {
     if (messages.length > 0 && !loadingMore) {
@@ -452,7 +449,7 @@ export default function CommunityChat({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, currentUser.universityId, currentUser.id, threadMessage?.id]);
+  }, [currentUser.universityId, currentUser.id, threadMessage?.id]);
 
   // Scroll to bottom
   const scrollToBottom = () => {

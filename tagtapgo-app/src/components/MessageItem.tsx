@@ -11,7 +11,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { IoChatbubble, IoHappy, IoEllipsisHorizontal, IoPencil, IoTrash, IoCheckmark, IoClose, IoFlag } from 'react-icons/io5';
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { createClient } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { useToast } from '@/context/ToastContext';
 import { Avatar } from '@/components/ui/Avatar';
 import { Modal } from '@/components/ui/Modal';
@@ -131,7 +131,6 @@ export default function MessageItem({
   const reactionPickerRef = useRef<HTMLDivElement>(null);
   const messageMenuRef = useRef<HTMLDivElement>(null);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const supabase = createClient();
   const isOwnMessage = message.author?.id === currentUserId;
   // 15-minute edit window
   const canEdit = isOwnMessage && (Date.now() - new Date(message.createdAt).getTime()) < 15 * 60 * 1000;
@@ -212,7 +211,7 @@ export default function MessageItem({
 
     setShowMessageMenu(false);
     onMessageDeleted?.(message.id);
-  }, [message.id, supabase, onMessageDeleted, toast]);
+  }, [message.id, onMessageDeleted, toast]);
 
   // Generate signed URLs for private bucket attachments
   // Stable key: join the paths so the effect only re-runs when paths actually change
@@ -484,13 +483,15 @@ export default function MessageItem({
         {message.attachments.length > 0 && (
           <div className={`mb-2 rounded-2xl overflow-hidden border border-gray-200 ${message.attachments.length === 1 ? 'max-w-sm' : 'grid grid-cols-2 gap-0.5'}`}>
             {message.attachments.map((att, i) => {
-              const signedUrl = signedUrls[att.path];
+              const isLocalPreview = att.path.startsWith('blob:') || att.path.startsWith('data:');
+              const signedUrl = isLocalPreview ? att.path : signedUrls[att.path];
               if (!signedUrl) {
                 return (
                   <div key={i} className="h-32 bg-gray-100 animate-pulse rounded" />
                 );
               }
-              return att.type.startsWith('image/') ? (
+              const isImage = att.type?.startsWith('image/') || /\.(jpe?g|png|gif|webp|avif|heic|heif|bmp)$/i.test(att.name || '');
+              return isImage ? (
                 <a key={i} href={signedUrl} target="_blank" rel="noopener noreferrer">
                   <img
                     src={signedUrl}

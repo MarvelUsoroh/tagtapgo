@@ -8,7 +8,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { IoSend, IoPricetag, IoAttach, IoClose, IoHourglass } from 'react-icons/io5';
-import { createClient } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { useToast } from '@/context/ToastContext';
 import type { Message } from './CommunityChat';
 
@@ -58,7 +58,7 @@ export default function ChatInput({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const courseDropdownRef = useRef<HTMLDivElement>(null);
   const mentionDropdownRef = useRef<HTMLDivElement>(null);
-  const supabase = createClient();
+  // supabase singleton — no per-render client creation
   const toast = useToast();
 
   // Mention state
@@ -116,7 +116,7 @@ export default function ChatInput({
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [mentionQuery, currentUser.universityId, currentUser.id, supabase, courseTag]);
+  }, [mentionQuery, currentUser.universityId, currentUser.id, courseTag]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newVal = e.target.value;
@@ -213,7 +213,8 @@ export default function ChatInput({
       }
 
       const attachment: PendingAttachment = { file };
-      if (file.type.startsWith('image/')) {
+      const isImage = file.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|avif|heic|heif|bmp)$/i.test(file.name);
+      if (isImage) {
         attachment.preview = URL.createObjectURL(file);
       }
       newAttachments.push(attachment);
@@ -288,7 +289,8 @@ export default function ChatInput({
         setUploading(true);
         try {
           for (const att of messageAttachments) {
-            const fileName = `${currentUser.id}/${Date.now()}-${att.file.name}`;
+            const safeName = att.file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+            const fileName = `${currentUser.id}/${Date.now()}-${safeName}`;
             const { data, error } = await supabase.storage
               .from('chat-attachments')
               .upload(fileName, att.file);
@@ -457,7 +459,7 @@ export default function ChatInput({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*,.pdf"
+          accept="image/*,.pdf,.heic,.heif"
           multiple
           onChange={handleFileSelect}
           className="hidden"
