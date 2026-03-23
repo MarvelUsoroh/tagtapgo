@@ -174,14 +174,6 @@ export default function NotificationsPanel({ studentId, isOpen, onClose }: Notif
         case 'streak':
           url = '/';
           break;
-        case 'feedback_prompt':
-          // Try to get prompt ID from data
-          if (notification.data?.promptId && typeof notification.data.promptId === 'string') {
-            url = `/feedback/${notification.data.promptId}`;
-          } else {
-            url = '/feedback';
-          }
-          break;
         case 'perfect_week':
         case 'perfect_month':
           url = '/profile';

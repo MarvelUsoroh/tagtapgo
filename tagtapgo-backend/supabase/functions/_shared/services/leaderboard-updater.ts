@@ -106,7 +106,7 @@ export async function updateLeaderboards(
       throw new Error(`Failed to load students: ${error.message}`);
     }
 
-    processStudentIds = students?.map((s) => s.id) || [];
+    processStudentIds = students?.map((s: { id: string }) => s.id) || [];
   }
 
   if (processStudentIds.length === 0) {
@@ -273,7 +273,7 @@ async function updateUnifiedClassLeaderboard(
     }
 
     const existingMap = new Map<string, any>(
-      (existingEntries || []).map(e => [e.student_id, e])
+      (existingEntries || []).map((e: any) => [e.student_id, e])
     );
 
     // Get student data (university_id, full_name, avatar_url)
@@ -287,7 +287,7 @@ async function updateUnifiedClassLeaderboard(
     }
 
     const studentDataMap = new Map<string, { id: string; university_id: string; full_name: string; avatar_url?: string }>(
-      studentsData?.map(s => [s.id, s as { id: string; university_id: string; full_name: string; avatar_url?: string }]) || []
+      studentsData?.map((s: any) => [s.id, s as { id: string; university_id: string; full_name: string; avatar_url?: string }]) || []
     );
 
     // Calculate current rankings for all students
@@ -430,7 +430,7 @@ async function updateLeaderboard(
   }
 
   const studentDataMap = new Map<string, { id: string; university_id: string; full_name: string; avatar_url?: string }>(
-    studentsData?.map(s => [s.id, s as { id: string; university_id: string; full_name: string; avatar_url?: string }]) || []
+    studentsData?.map((s: any) => [s.id, s as { id: string; university_id: string; full_name: string; avatar_url?: string }]) || []
   );
 
   // Calculate current rankings
@@ -635,7 +635,7 @@ async function calculateRankings(
     throw new Error(`Failed to get all students: ${allStudentsError.message}`);
   }
 
-  const allStudentIds = allStudents?.map(s => s.id) || [];
+  const allStudentIds = allStudents?.map((s: { id: string }) => s.id) || [];
   
   if (allStudentIds.length === 0) {
     return [];
@@ -690,7 +690,7 @@ async function calculateRankings(
   }
 
   // Calculate scores for ALL students (for global ranking)
-  const allStudentsWithScores = allStudentIds.map((student_id) => {
+  const allStudentsWithScores = allStudentIds.map((student_id: string) => {
     const points = studentPoints.get(student_id) || 0;
     const streakData = studentStreaks.get(student_id) || {
       current_streak: 0,
@@ -708,17 +708,21 @@ async function calculateRankings(
   });
 
   // Sort ALL students by score (descending), then by current_streak, then by points
-  const sortedAllStudents = allStudentsWithScores.sort((a, b) => {
+  // Final tiebreaker: student_id string comparison to ensure deterministic sorting for exact ties
+  const sortedAllStudents = allStudentsWithScores.sort((a: any, b: any) => {
     if (b.score !== a.score) return b.score - a.score;
     if (b.current_streak !== a.current_streak)
       return b.current_streak - a.current_streak;
-    return b.points - a.points;
+    if (b.points !== a.points) return b.points - a.points;
+    // Deterministic final tiebreaker
+    return a.student_id.localeCompare(b.student_id);
   });
 
   // Create a set of studentIds we need to return for quick lookup
   const targetStudentIds = new Set(studentIds);
 
-  // Assign GLOBAL ranks (handle ties based on score)
+  // Assign GLOBAL ranks (sequential 1, 2, 3...)
+  // The user requested chronological/sequential numbering without duplicate ranks for ties.
   const rankings: Array<{
     student_id: string;
     rank: number;
@@ -727,18 +731,12 @@ async function calculateRankings(
     longest_streak: number;
     score: number;
   }> = [];
-  let currentRank = 1;
-  let previousScore = -1;
 
   for (let i = 0; i < sortedAllStudents.length; i++) {
     const student = sortedAllStudents[i];
-
-    if (student.score !== previousScore) {
-      // New rank
-      currentRank = i + 1;
-      previousScore = student.score;
-    }
-    // Ties get the same rank (no increment)
+    
+    // Pure sequential ranking (1-based index)
+    const currentRank = i + 1;
 
     // Only include in results if this student is in the target list
     if (targetStudentIds.has(student.student_id)) {

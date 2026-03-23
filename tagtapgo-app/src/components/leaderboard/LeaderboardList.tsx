@@ -9,6 +9,7 @@ import React from 'react';
 import { LeaderboardItem } from './LeaderboardItem';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { IoTrophy } from 'react-icons/io5';
 
 interface LeaderboardEntry {
   id: string;
@@ -55,7 +56,7 @@ export const LeaderboardList: React.FC<LeaderboardListProps> = ({
   if (entries.length === 0) {
     return (
       <EmptyState
-        icon="trophy"
+        icon={<IoTrophy size={48} />}
         title={emptyTitle}
         description={emptyDescription}
       />

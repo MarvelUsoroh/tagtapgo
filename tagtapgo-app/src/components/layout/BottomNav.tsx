@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { useStore } from '@/store/useStore';
 import {
   HomeIcon,
   HomeIconFilled,
@@ -71,7 +72,9 @@ export const BottomNav: React.FC = () => {
     '/community', // Full-screen chat experience
   ];
   
-  const shouldHideNav = hideNavRoutes.some(route => pathname?.startsWith(route));
+  const { isNotificationsPanelOpen } = useStore();
+
+  const shouldHideNav = hideNavRoutes.some(route => pathname?.startsWith(route)) || isNotificationsPanelOpen;
   
   if (shouldHideNav) {
     return null;

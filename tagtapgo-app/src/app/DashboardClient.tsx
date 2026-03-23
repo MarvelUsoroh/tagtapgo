@@ -119,8 +119,8 @@ export default function DashboardClient({
   // Toast notification state
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
   
-  // Notifications panel state
-  const [notificationsPanelOpen, setNotificationsPanelOpen] = useState(false);
+  // Notifications panel state (synced to store so BottomNav can react)
+  const { isNotificationsPanelOpen: notificationsPanelOpen, setIsNotificationsPanelOpen: setNotificationsPanelOpen } = useStore();
   
   // Count-up animation for points (SSR-safe: render plain number, animate on client)
   const pointsMotion = useMotionValue(initialPoints);
@@ -554,14 +554,16 @@ export default function DashboardClient({
         />
       )}
 
-      {/* Floating Action Button for Community Chat */}
-      <FloatingActionButton
-        icon="chatFilled"
-        onClick={() => router.push('/community')}
-        label="Open Community Chat"
-        position="bottom-right"
-        badgeCount={store.unreadChatMentions}
-      />
+      {/* Floating Action Button for Community Chat — hidden when notifications panel is open */}
+      {!notificationsPanelOpen && (
+        <FloatingActionButton
+          icon="chatFilled"
+          onClick={() => router.push('/community')}
+          label="Open Community Chat"
+          position="bottom-right"
+          badgeCount={store.unreadChatMentions}
+        />
+      )}
     </div>
   );
 }

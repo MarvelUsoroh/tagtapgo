@@ -16,6 +16,8 @@ interface AppState {
   setUnreadCount: (count: number) => void;
   unreadChatMentions: number;
   setUnreadChatMentions: (count: number) => void;
+  isNotificationsPanelOpen: boolean;
+  setIsNotificationsPanelOpen: (open: boolean) => void;
 
   // Gamification State (synced across components)
   totalPoints: number;
@@ -46,6 +48,8 @@ export const useStore = create<AppState>()(
       setUnreadCount: (count) => set({ unreadCount: count }),
       unreadChatMentions: 0,
       setUnreadChatMentions: (count) => set({ unreadChatMentions: count }),
+      isNotificationsPanelOpen: false,
+      setIsNotificationsPanelOpen: (open) => set({ isNotificationsPanelOpen: open }),
 
       // Gamification State
       totalPoints: 0,
