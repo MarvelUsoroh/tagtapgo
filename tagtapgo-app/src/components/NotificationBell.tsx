@@ -32,15 +32,18 @@ export default function NotificationBell({ studentId, onClick, variant = 'white'
     // Fetch initial unread count
     fetchUnreadCount();
 
-    // Subscribe to real-time updates
+    // Subscribe to real-time updates via broadcast
     const channel = supabase
-      .channel('notifications-bell')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'notifications',
-        filter: `student_id=eq.${studentId}`,
-      }, () => {
+      .channel(`user:${studentId}:notifications`, {
+        config: { private: true }
+      })
+      .on('broadcast', { event: 'notifications_insert' }, () => {
+        fetchUnreadCount();
+      })
+      .on('broadcast', { event: 'notifications_update' }, () => {
+        fetchUnreadCount();
+      })
+      .on('broadcast', { event: 'notifications_delete' }, () => {
         fetchUnreadCount();
       })
       .subscribe();

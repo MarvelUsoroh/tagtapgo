@@ -48,15 +48,18 @@ export default function NotificationsPanel({ studentId, isOpen, onClose }: Notif
           });
       });
       
-      // Subscribe to real-time updates
+      // Subscribe to real-time updates via broadcast
       const channel = supabase
-        .channel('notifications-panel')
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'notifications',
-          filter: `student_id=eq.${studentId}`,
-        }, () => {
+        .channel(`user:${studentId}:notifications-panel`, {
+          config: { private: true }
+        })
+        .on('broadcast', { event: 'notifications_insert' }, () => {
+          fetchNotifications();
+        })
+        .on('broadcast', { event: 'notifications_update' }, () => {
+          fetchNotifications();
+        })
+        .on('broadcast', { event: 'notifications_delete' }, () => {
           fetchNotifications();
         })
         .subscribe();

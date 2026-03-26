@@ -382,7 +382,7 @@ export default function MessageItem({
               </button>
 
               {showMessageMenu && (
-                <div className="absolute right-0 top-7 z-30 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden min-w-[160px] py-1">
+                <div className="absolute right-0 top-7 z-30 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden min-w-[160px]">
                   {canEdit && (
                     <button
                       onClick={() => { setIsEditing(true); setEditContent(message.content); setShowMessageMenu(false); }}

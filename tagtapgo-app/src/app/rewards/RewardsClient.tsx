@@ -363,12 +363,20 @@ export default function RewardsClient({
       {/* Success Modal */}
       <AnimatePresence>
         {showSuccessModal && successRedemption && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/50 overflow-y-auto pt-8 pb-8">
+          <div 
+            className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/50 overflow-y-auto pt-8 pb-8"
+            onClick={() => {
+              setShowSuccessModal(false);
+              setSuccessRedemption(null);
+              setActiveTab('history');
+            }}
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl max-h-[calc(100vh-4rem)] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-center mb-4">
                 <div
@@ -465,12 +473,21 @@ export default function RewardsClient({
       {/* Redemption Confirmation Modal */}
       <AnimatePresence>
         {showRedemptionModal && selectedReward && (
-          <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto pt-8 pb-8">
+          <div 
+            className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto pt-8 pb-8"
+            onClick={() => {
+              if (!isRedeeming) {
+                setShowRedemptionModal(false);
+                setSelectedReward(null);
+              }
+            }}
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[calc(100vh-4rem)] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold" style={{ color: colors.gray[900] }}>

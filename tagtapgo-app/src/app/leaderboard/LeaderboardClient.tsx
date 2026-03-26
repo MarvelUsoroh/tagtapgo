@@ -221,27 +221,23 @@ export default function LeaderboardClient({
   useEffect(() => {
     fetchLeaderboard();
 
-    // Subscribe to realtime updates
+    // Subscribe to realtime updates via broadcast
     const channel = supabase
-      .channel('leaderboard-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'leaderboards',
-          filter: `leaderboard_type=eq.${activeTab}`,
-        },
-        () => {
-          fetchLeaderboard();
-        }
-      )
+      .channel(`user:${currentStudentId}:leaderboard`, {
+        config: { private: true }
+      })
+      .on('broadcast', { event: 'leaderboards_insert' }, () => {
+        fetchLeaderboard();
+      })
+      .on('broadcast', { event: 'leaderboards_update' }, () => {
+        fetchLeaderboard();
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [activeTab, fetchLeaderboard]);
+  }, [activeTab, fetchLeaderboard, currentStudentId]);
 
   const periodLabels: Record<TimePeriod, string> = {
     weekly: 'This Week',

@@ -19,6 +19,7 @@ interface ClassItem {
   start_time: string;
   end_time: string;
   status: 'in_session' | 'upcoming';
+  attendance_status: 'present' | 'not_tagged_in';
   points_earned?: number;
   potential_points?: number;
 }
@@ -37,14 +38,29 @@ interface ArcRingProps {
   progress: number;        // 0–1
   centerLabel: string;     // big number e.g. "42m"
   centerSub?: string;      // small text e.g. "remaining"
-  variant: 'active' | 'pre';
+  variant: 'active' | 'pre' | 'urgent';
 }
 
 function ArcRing({ progress, centerLabel, centerSub, variant }: ArcRingProps) {
   const offset     = CIRCUMFERENCE * (1 - Math.max(0, Math.min(1, progress)));
-  const trackColor = variant === 'active' ? '#dcfce7' : '#fef3c7';
-  const arcColor   = variant === 'active' ? '#4ADE80' : '#f59e0b';
-  const textColor  = variant === 'active' ? '#15803d' : '#92400e';
+  
+  let trackColor: string;
+  let arcColor: string;
+  let textColor: string;
+  
+  if (variant === 'active') {
+    trackColor = '#dcfce7'; // green-100
+    arcColor = '#4ADE80';   // green-400
+    textColor = '#15803d';  // green-700
+  } else if (variant === 'urgent') {
+    trackColor = '#fee2e2'; // red-100
+    arcColor = '#ef4444';   // red-500
+    textColor = '#991b1b';  // red-800
+  } else {
+    trackColor = '#fef3c7'; // amber-100
+    arcColor = '#f59e0b';   // amber-500
+    textColor = '#92400e';  // amber-800
+  }
 
   return (
     <svg
@@ -107,11 +123,21 @@ function ActiveRing({ classItem, now }: ActiveRingProps) {
   const startDt    = new Date(`${todayStr}T${classItem.start_time}`);
   const endDt      = new Date(`${todayStr}T${classItem.end_time}`);
   const isInSession = classItem.status === 'in_session';
+  const isTaggedIn = classItem.attendance_status === 'present';
 
   let progress = 0;
   let centerLabel = '';
   let centerSub: string | undefined;
-  const variant: 'active' | 'pre' = isInSession ? 'active' : 'pre';
+  let variant: 'active' | 'pre' | 'urgent';
+  
+  // Determine variant based on session status and tag-in status
+  if (isInSession && isTaggedIn) {
+    variant = 'active'; // Green - tagged in and class is running
+  } else if (isInSession && !isTaggedIn) {
+    variant = 'urgent'; // Red - class started but not tagged in
+  } else {
+    variant = 'pre'; // Amber - upcoming class
+  }
 
   if (isInSession) {
     const total   = endDt.getTime() - startDt.getTime();
@@ -122,17 +148,34 @@ function ActiveRing({ classItem, now }: ActiveRingProps) {
     const remainMin = Math.floor(remainMs / 60000);
     const remainSec = Math.floor((remainMs % 60000) / 1000);
 
-    if (remainMin >= 60) {
-      const h = Math.floor(remainMin / 60);
-      const m = remainMin % 60;
-      centerLabel = `${h}h${m > 0 ? ` ${m}m` : ''}`;
-      centerSub   = 'remaining';
-    } else if (remainMin > 0) {
-      centerLabel = `${remainMin}m`;
-      centerSub   = `${remainSec}s remaining`;
+    if (isTaggedIn) {
+      // Tagged in - show time remaining
+      if (remainMin >= 60) {
+        const h = Math.floor(remainMin / 60);
+        const m = remainMin % 60;
+        centerLabel = `${h}h${m > 0 ? ` ${m}m` : ''}`;
+        centerSub   = 'remaining';
+      } else if (remainMin > 0) {
+        centerLabel = `${remainMin}m`;
+        centerSub   = `${remainSec}s remaining`;
+      } else {
+        centerLabel = `${remainSec}s`;
+        centerSub   = 'ending soon';
+      }
     } else {
-      centerLabel = `${remainSec}s`;
-      centerSub   = 'ending soon';
+      // Not tagged in - show urgent message
+      if (remainMin >= 60) {
+        const h = Math.floor(remainMin / 60);
+        const m = remainMin % 60;
+        centerLabel = `${h}h${m > 0 ? ` ${m}m` : ''}`;
+        centerSub   = 'to tag in';
+      } else if (remainMin > 0) {
+        centerLabel = `${remainMin}m`;
+        centerSub   = 'tag in now!';
+      } else {
+        centerLabel = `${remainSec}s`;
+        centerSub   = 'tag in now!';
+      }
     }
   } else {
     // Pre-session: progress = fraction of 30-min window elapsed (fills as arrival approaches)
@@ -223,7 +266,7 @@ function TodayClasses({ studentId }: { studentId: string }) {
 
         const { data: scheduleData } = await supabase
           .from('class_schedules')
-          .select(`id, start_time, end_time, course_id, effective_from, effective_to,
+          .select(`id, start_time, end_time, course_id, effective_from, effective_to, metadata,
                    courses ( id, name, code )`)
           .eq('day_of_week', todayName)
           .in('course_id', enrolledCourseIds)
@@ -232,11 +275,12 @@ function TodayClasses({ studentId }: { studentId: string }) {
           .order('start_time');
 
         const { data: attendanceData } = await supabase
-          .from('attendance').select('id, course_id, status')
+          .from('attendance').select('id, course_id, status, session_id')
           .eq('student_id', studentId).eq('date', today);
 
-        const attendanceMap = new Map(
-          (attendanceData || []).map(att => [att.course_id, att.status])
+        // Map attendance by session_id for precise matching
+        const attendanceBySessionMap = new Map(
+          (attendanceData || []).map(att => [att.session_id, att])
         );
 
         const attendanceIds = (attendanceData || []).map(a => a.id);
@@ -255,23 +299,36 @@ function TodayClasses({ studentId }: { studentId: string }) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .map((schedule: any): ClassItem | null => {
             const courseId  = schedule.course_id;
-            const attStatus = attendanceMap.get(courseId);
-            const attRecord = (attendanceData || []).find(a => a.course_id === courseId);
+            const sessionId = schedule.metadata?.session_id?.toString();
+            
+            // Match attendance by session_id from metadata
+            const attRecord = sessionId ? attendanceBySessionMap.get(sessionId) : null;
+            const attStatus = attRecord?.status;
             const points    = attRecord ? pointsMap.get(attRecord.id) : 0;
             const duration  = schedule.start_time && schedule.end_time
               ? (new Date(`1970-01-01T${schedule.end_time}`).getTime() -
                  new Date(`1970-01-01T${schedule.start_time}`).getTime()) / 3600000
               : 0;
 
-            let status: ClassItem['status'];
-            if (attStatus === 'absent' || attStatus === 'present' || schedule.end_time < currentTimeStr) {
-              return null; // Skip ended, missed, or attended classes entirely
+            // Skip classes that have already ended
+            if (schedule.end_time < currentTimeStr) {
+              return null;
             }
+            
+            // Skip classes that are absent (missed entirely)
+            if (attStatus === 'absent') {
+              return null;
+            }
+
+            let status: ClassItem['status'];
             if (schedule.start_time <= currentTimeStr && schedule.end_time >= currentTimeStr) {
               status = 'in_session';
             } else {
               status = 'upcoming';
             }
+            
+            const attendance_status: ClassItem['attendance_status'] = 
+              attStatus === 'present' ? 'present' : 'not_tagged_in';
 
             return {
               id: schedule.id,
@@ -281,6 +338,7 @@ function TodayClasses({ studentId }: { studentId: string }) {
               start_time: schedule.start_time,
               end_time: schedule.end_time,
               status,
+              attendance_status,
               points_earned: points || 0,
               potential_points: Math.round(duration * 2),
             };
@@ -303,6 +361,49 @@ function TodayClasses({ studentId }: { studentId: string }) {
   const tickCallbacks = useMemo(() => ({ tick: tickNow }),  [tickNow]);
   const tickIntervals  = useMemo(() => ({ tick: 1000 }),   []);
   useTickLoop({ callbacks: tickCallbacks, intervals: tickIntervals, isScrolling, minInterval: 1000 });
+
+  // ── Realtime attendance updates ───────────────────────────────────────────
+  useEffect(() => {
+    if (!studentId) return;
+
+    const channel = supabase
+      .channel(`user:${studentId}:attendance`, {
+        config: { private: true }
+      })
+      .on('broadcast', { event: 'attendance_insert' }, (payload) => {
+        // New attendance record - update class status
+        const attendance = payload.payload.new;
+        setClasses(prev => prev.map(c => {
+          // Match by course_id and session_id from metadata
+          const sessionId = c.id; // class_schedule id
+          if (attendance.course_id === c.course_id) {
+            return {
+              ...c,
+              attendance_status: attendance.status === 'present' ? 'present' : 'not_tagged_in'
+            };
+          }
+          return c;
+        }));
+      })
+      .on('broadcast', { event: 'attendance_update' }, (payload) => {
+        // Updated attendance record - update class status
+        const attendance = payload.payload.new;
+        setClasses(prev => prev.map(c => {
+          if (attendance.course_id === c.course_id) {
+            return {
+              ...c,
+              attendance_status: attendance.status === 'present' ? 'present' : 'not_tagged_in'
+            };
+          }
+          return c;
+        }));
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [studentId]);
 
   // All classes rendered with ActiveRing — no selection needed
 

@@ -141,7 +141,7 @@ export default function DashboardClient({
     return controls.stop;
   }, [totalPoints, pointsMotion]);
 
-  // Real-time updates - consolidated into single channel
+  // Real-time updates - unified broadcast pattern
   useEffect(() => {
     if (!student?.id) return;
 
@@ -167,131 +167,120 @@ export default function DashboardClient({
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    const channel = supabase
-      .channel('dashboard-updates')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'points',
-        filter: `student_id=eq.${student.id}`,
-      }, (payload: { new: { points: number; transaction_type: string } }) => {
-        const newPoints = payload.new.points;
-        store.setTotalPoints(store.totalPoints + newPoints);
-        
-        // Show toast notification
-        const transactionType = payload.new.transaction_type;
-        const message = transactionType === 'attendance' 
-          ? `+${newPoints} points for attending class!`
-          : `+${newPoints} points earned!`;
-        
-        setToast({ message, type: 'success' });
-        
-        // Trigger debounced refresh
-        refreshGamification();
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'streaks',
-        filter: `student_id=eq.${student.id}`,
-      }, (payload: { new: Streak }) => {
-        setCurrentStreak(payload.new);
-        store.setCurrentStreak(payload.new.current_streak);
-        
-        // Show toast - UPDATE only fires when streak actually changed
-        setToast({ 
-          message: `Streak updated to ${payload.new.current_streak} days!`, 
-          type: 'success' 
-        });
-        
-        // Trigger debounced refresh
-        refreshGamification();
-      })
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'student_achievements',
-        filter: `student_id=eq.${student.id}`,
-      }, async (payload: { new: { achievement_id: string } }) => {
-        // Fetch achievement details
-        const { data: achievement } = await supabase
-          .from('achievements')
-          .select('*')
-          .eq('id', payload.new.achievement_id)
-          .single();
-        
-        if (achievement) {
+    // Set auth for private channel
+    supabase.realtime.setAuth().then(() => {
+      const channel = supabase
+        .channel(`user:${student.id}:updates`, {
+          config: { private: true }
+        })
+        .on('broadcast', { event: 'points_insert' }, (payload) => {
+          const pointsData = payload.payload.new;
+          const newPoints = pointsData.points;
+          store.setTotalPoints(store.totalPoints + newPoints);
+          
+          // Show toast notification
+          const transactionType = pointsData.transaction_type;
+          const message = transactionType === 'attendance' 
+            ? `+${newPoints} points for attending class!`
+            : `+${newPoints} points earned!`;
+          
+          setToast({ message, type: 'success' });
+          
+          // Trigger debounced refresh
+          refreshGamification();
+        })
+        .on('broadcast', { event: 'streaks_update' }, (payload) => {
+          const streakData = payload.payload.new;
+          setCurrentStreak(streakData);
+          store.setCurrentStreak(streakData.current_streak);
+          
+          // Show toast
           setToast({ 
-            message: `Achievement unlocked: ${achievement.name}!`, 
+            message: `Streak updated to ${streakData.current_streak} days!`, 
             type: 'success' 
           });
-        }
-        // Increment badge count in store
-        store.setBadgesCount(store.badgesCount + 1);
-        
-        // Trigger debounced refresh
-        refreshGamification();
-      })
-      .on('postgres_changes', {
-        event: 'DELETE',
-        schema: 'public',
-        table: 'student_achievements',
-        filter: `student_id=eq.${student.id}`,
-      }, () => {
-        // Decrement badge count when achievement is removed (cleanup/correction)
-        store.setBadgesCount(Math.max(0, store.badgesCount - 1));
-        
-        // Trigger debounced refresh
-        refreshGamification();
-      })
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'attendance',
-        filter: `student_id=eq.${student.id}`,
-      }, async () => {
-        // Recalculate attendance rate
-        const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-        const { data } = await supabase
-          .from('attendance')
-          .select('status')
-          .eq('student_id', student.id)
-          .gte('date', since);
-        if (data && data.length > 0) {
-          const present = data.filter(a => a.status === 'present').length;
-          const newRate = Math.round((present / data.length) * 100);
-          store.setAttendanceRate(newRate);
-        }
-        
-        // Trigger debounced refresh
-        refreshGamification();
-      })
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'chat_mentions',
-        filter: `mentioned_user_id=eq.${student.id}`,
-      }, (payload) => {
-        console.log('[REALTIME] chat_mentions INSERT payload:', payload);
-        if (payload.new && payload.new.read === false) {
-          store.setUnreadChatMentions(store.unreadChatMentions + 1);
-        }
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'chat_mentions',
-        filter: `mentioned_user_id=eq.${student.id}`,
-      }, (payload) => {
-        console.log('[REALTIME] chat_mentions UPDATE payload:', payload);
-        // Fallback: just refetch since replica identity might not give us payload.old
-        fetchUnreadMentions();
-      })
-      .subscribe();
+          
+          // Trigger debounced refresh
+          refreshGamification();
+        })
+        .on('broadcast', { event: 'achievement_unlocked' }, (payload) => {
+          // Achievement details already in payload (enriched by trigger)
+          const achievement = payload.payload.achievement;
+          
+          if (achievement) {
+            setToast({ 
+              message: `Achievement unlocked: ${achievement.name}!`, 
+              type: 'success' 
+            });
+          }
+          // Increment badge count in store
+          store.setBadgesCount(store.badgesCount + 1);
+          
+          // Trigger debounced refresh
+          refreshGamification();
+        })
+        .on('broadcast', { event: 'student_achievements_delete' }, () => {
+          // Decrement badge count when achievement is removed (cleanup/correction)
+          store.setBadgesCount(Math.max(0, store.badgesCount - 1));
+          
+          // Trigger debounced refresh
+          refreshGamification();
+        })
+        .on('broadcast', { event: 'attendance_insert' }, async () => {
+          // Recalculate attendance rate
+          const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+          const { data } = await supabase
+            .from('attendance')
+            .select('status')
+            .eq('student_id', student.id)
+            .gte('date', since);
+          if (data && data.length > 0) {
+            const present = data.filter(a => a.status === 'present').length;
+            const newRate = Math.round((present / data.length) * 100);
+            store.setAttendanceRate(newRate);
+          }
+          
+          // Trigger debounced refresh
+          refreshGamification();
+        })
+        .on('broadcast', { event: 'attendance_update' }, async () => {
+          // Recalculate attendance rate
+          const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+          const { data } = await supabase
+            .from('attendance')
+            .select('status')
+            .eq('student_id', student.id)
+            .gte('date', since);
+          if (data && data.length > 0) {
+            const present = data.filter(a => a.status === 'present').length;
+            const newRate = Math.round((present / data.length) * 100);
+            store.setAttendanceRate(newRate);
+          }
+          
+          // Trigger debounced refresh
+          refreshGamification();
+        })
+        .on('broadcast', { event: 'chat_mentions_insert' }, () => {
+          // New mention - update badge count
+          fetchUnreadMentions();
+        })
+        .on('broadcast', { event: 'chat_mentions_update' }, () => {
+          // Mention marked as read - update badge count
+          fetchUnreadMentions();
+        })
+        .on('broadcast', { event: 'chat_mentions_delete' }, () => {
+          // Mention deleted - update badge count
+          fetchUnreadMentions();
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    });
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      supabase.removeChannel(channel);
     };
   }, [student?.id, refreshGamification]);
 

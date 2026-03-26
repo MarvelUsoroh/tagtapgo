@@ -641,7 +641,7 @@ export default function CommunityChat({
             >
               <IoArrowBack size={20} className="text-gray-900" />
             </button>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 flex items-center gap-2">
               <h1 className="font-bold text-gray-900 text-base leading-tight">{universityAbbrev}</h1>
               <p className="text-xs text-gray-500">Community</p>
             </div>
@@ -818,8 +818,12 @@ export default function CommunityChat({
                 <IoArrowBack className="w-5 h-5 text-gray-600" />
               </button>
               <div>
-                <h2 className="font-semibold text-gray-900">Thread</h2>
-                <p className="text-xs text-gray-500">{threadReplies.length} replies</p>
+                <h2 className="font-semibold text-gray-900">
+                  {threadMessage.author?.full_name || 
+                   `${threadMessage.author?.first_name || ''} ${threadMessage.author?.last_name || ''}`.trim() || 
+                   'Unknown'}&apos;s Thread
+                </h2>
+                <p className="text-xs text-gray-500">{threadReplies.length} {threadReplies.length === 1 ? 'reply' : 'replies'}</p>
               </div>
             </header>
 
