@@ -13,6 +13,7 @@ import { useTickLoop } from '@/hooks/useTickLoop';
 
 interface ClassItem {
   id: string;
+  course_id: string;
   course_name: string;
   course_code?: string;
   time: string | null;
@@ -332,6 +333,7 @@ function TodayClasses({ studentId }: { studentId: string }) {
 
             return {
               id: schedule.id,
+              course_id: courseId,
               course_name: schedule.courses?.name || 'Unknown Course',
               course_code: schedule.courses?.code,
               time: schedule.start_time || null,
@@ -374,8 +376,7 @@ function TodayClasses({ studentId }: { studentId: string }) {
         // New attendance record - update class status
         const attendance = payload.payload.new;
         setClasses(prev => prev.map(c => {
-          // Match by course_id and session_id from metadata
-          const sessionId = c.id; // class_schedule id
+          // Match by course_id
           if (attendance.course_id === c.course_id) {
             return {
               ...c,
