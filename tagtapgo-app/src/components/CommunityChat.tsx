@@ -594,7 +594,7 @@ export default function CommunityChat({
       }}
     >
       {/* Header — morphs into search bar when active */}
-      <header className="bg-white/90 backdrop-blur-sm border-b border-gray-100 px-4 py-2.5 flex items-center gap-3 sticky top-0 z-10 min-h-[52px]">
+      <header className="bg-white/90 backdrop-blur-sm border-b border-gray-100 px-4 py-3 flex items-center gap-3 sticky top-0 z-10 min-h-[56px]">
         {showSearch ? (
           /* Search mode: full-width input */
           <>
@@ -613,7 +613,7 @@ export default function CommunityChat({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Escape' && (setShowSearch(false), setSearchQuery(''))}
-                className="w-full pl-9 pr-8 py-2 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:bg-white transition-colors"
+                className="w-full pl-9 pr-8 py-2 bg-gray-100 rounded-full text-base focus:outline-none focus:ring-2 focus:ring-green-400 focus:bg-white transition-colors"
               />
               {searchQuery && (
                 <button
@@ -633,21 +633,15 @@ export default function CommunityChat({
             )}
           </>
         ) : (
-          /* Normal mode: title + search icon */
+          /* Normal mode: unified title + search icon */
           <>
-            <button
-              onClick={() => router.back()}
-              className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
-            >
-              <IoArrowBack size={20} className="text-gray-900" />
-            </button>
-            <div className="flex-1 min-w-0 flex items-center gap-2">
-              <h1 className="font-bold text-gray-900 text-base leading-tight">{universityAbbrev}</h1>
-              <p className="text-xs text-gray-500">Community</p>
+            <div className="flex-1 min-w-0">
+              <h1 className="font-bold text-gray-900 text-lg leading-tight">{universityAbbrev} Community</h1>
             </div>
             <button
               onClick={() => setShowSearch(true)}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
+              aria-label="Search"
             >
               <IoSearch className="w-5 h-5 text-gray-600" />
             </button>
@@ -772,9 +766,9 @@ export default function CommunityChat({
       {/* Chat input */}
       <div 
         ref={inputContainerRef}
-        className="flex-none z-10 bg-white border-t border-gray-100"
+        className="flex-none z-10 bg-white border-t border-gray-100 pb-20"
         style={{
-          paddingBottom: 'calc(max(env(safe-area-inset-bottom, 0px), 12px) + 8px)'
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)'
         }}
       >
         <div className="max-w-2xl mx-auto w-full">

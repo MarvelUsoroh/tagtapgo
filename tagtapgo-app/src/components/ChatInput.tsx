@@ -405,25 +405,25 @@ export default function ChatInput({
     <div className="bg-white border-t border-gray-100 px-4 py-3">
       {/* Attachments preview */}
       {attachments.length > 0 && (
-        <div className="flex gap-2 mb-2 overflow-x-auto pb-2">
+        <div className="flex gap-2 mb-3 overflow-x-auto pb-2">
           {attachments.map((att, i) => (
             <div key={i} className="relative flex-shrink-0">
               {att.preview ? (
                 <img
                   src={att.preview}
                   alt={att.file.name}
-                  className="h-16 w-16 object-cover rounded-lg border"
+                  className="h-20 w-20 object-cover rounded-xl border border-gray-200"
                 />
               ) : (
-                <div className="h-16 w-16 rounded-lg border bg-gray-100 flex items-center justify-center text-xs text-gray-500 px-1 text-center">
+                <div className="h-20 w-20 rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center text-xs text-gray-500 px-2 text-center">
                   📎 {att.file.name.slice(0, 10)}...
                 </div>
               )}
               <button
                 onClick={() => removeAttachment(i)}
-                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5"
+                className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-1 shadow-sm hover:bg-red-600 transition-colors"
               >
-                <IoClose className="w-3 h-3" />
+                <IoClose className="w-3.5 h-3.5" />
               </button>
             </div>
           ))}
@@ -432,27 +432,28 @@ export default function ChatInput({
 
       {/* Course tag indicator */}
       {courseTag && (
-        <div className="flex items-center gap-2 mb-2">
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">
-            <IoPricetag className="w-3 h-3" />
+        <div className="flex items-center gap-2 mb-3">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 text-green-700 text-sm font-semibold border border-green-100">
+            <IoPricetag className="w-3.5 h-3.5" />
             {getCourseLabel(courseTag)}
             <button
               onClick={() => setCourseTag(null)}
-              className="ml-1 hover:bg-green-200 rounded-full p-0.5"
+              className="ml-0.5 hover:bg-green-100 rounded-full p-0.5 transition-colors"
             >
-              <IoClose className="w-3 h-3" />
+              <IoClose className="w-3.5 h-3.5" />
             </button>
           </span>
           <span className="text-xs text-gray-500">Only {getCourseLabel(courseTag)} students will see this</span>
         </div>
       )}
 
-      <div className="flex items-end gap-2 relative">
+      <div className="flex items-end gap-3 relative">
         {/* File upload */}
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+          className="p-2.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
           disabled={uploading}
+          aria-label="Attach file"
         >
           <IoAttach className="w-5 h-5" />
         </button>
@@ -467,23 +468,23 @@ export default function ChatInput({
 
         {/* Mention Popup */}
         {mentionResults.length > 0 && (
-          <div ref={mentionDropdownRef} className="absolute bottom-full left-10 mb-2 w-64 bg-white rounded-lg shadow-xl border overflow-hidden z-30 animate-slide-up">
-            <div className="px-3 py-2 bg-gray-50 border-b text-xs font-medium text-gray-500">
-              Mentioning...
+          <div ref={mentionDropdownRef} className="absolute bottom-full left-12 mb-2 w-64 bg-white rounded-xl shadow-xl border overflow-hidden z-30 animate-slide-up">
+            <div className="px-3 py-2 bg-gray-50 border-b text-xs font-semibold text-gray-600">
+              Mention someone
             </div>
             {mentionResults.map((user, i) => (
               <button
                 key={user.id}
                 onClick={() => insertMention(user)}
                 onMouseEnter={() => setMentionIndex(i)}
-                className={`w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-gray-50 ${
+                className={`w-full text-left px-3 py-2.5 flex items-center gap-2.5 hover:bg-gray-50 transition-colors ${
                   i === mentionIndex ? 'bg-green-50 text-green-700' : 'text-gray-700'
                 }`}
               >
                 {user.avatarUrl ? (
-                  <img src={user.avatarUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
+                  <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
                 ) : (
-                  <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center text-xs font-bold text-green-700">
+                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-sm font-bold text-green-700">
                     {user.firstName?.[0]}
                   </div>
                 )}
@@ -499,22 +500,23 @@ export default function ChatInput({
         <div ref={courseDropdownRef} className="relative">
           <button
             onClick={() => setShowCourseDropdown(!showCourseDropdown)}
-            className={`p-2 transition-colors rounded-lg ${
-              courseTag ? 'text-green-600 bg-green-50' : 'text-gray-400 hover:text-gray-600'
+            className={`p-2.5 transition-colors rounded-lg ${
+              courseTag ? 'text-green-600 bg-green-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
             }`}
+            aria-label="Tag a course"
           >
             <IoPricetag className="w-5 h-5" />
           </button>
 
           {showCourseDropdown && (
-            <div className="absolute bottom-full left-0 mb-2 bg-white shadow-lg rounded-lg border py-1 min-w-[160px] max-h-48 overflow-y-auto z-20">
+            <div className="absolute bottom-full left-0 mb-2 bg-white shadow-xl rounded-xl border py-1 min-w-[180px] max-h-64 overflow-y-auto z-20">
               <button
                 onClick={() => {
                   setCourseTag(null);
                   setShowCourseDropdown(false);
                 }}
-                className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${
-                  !courseTag ? 'text-green-600 font-medium' : 'text-gray-700'
+                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${
+                  !courseTag ? 'text-green-600 font-semibold' : 'text-gray-700'
                 }`}
               >
                 All (No tag)
@@ -526,11 +528,11 @@ export default function ChatInput({
                     setCourseTag(course);
                     setShowCourseDropdown(false);
                   }}
-                  className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2 ${
-                    courseTag?.id === course.id ? 'text-green-600 font-medium' : 'text-gray-700'
+                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2 transition-colors ${
+                    courseTag?.id === course.id ? 'text-green-600 font-semibold' : 'text-gray-700'
                   }`}
                 >
-                  <IoPricetag className="w-3 h-3" />
+                  <IoPricetag className="w-3.5 h-3.5" />
                   {getCourseLabel(course)}
                 </button>
               ))}
@@ -548,14 +550,15 @@ export default function ChatInput({
           onBlur={() => setTimeout(() => setMentionQuery(null), 200)}
           placeholder={parentId ? 'Post your reply...' : 'Share something with your university...'}
           rows={1}
-          className="flex-1 resize-none px-2 py-2 text-sm focus:outline-none bg-transparent placeholder-gray-400"
+          className="flex-1 resize-none px-3 py-2.5 text-base focus:outline-none bg-transparent placeholder-gray-400 leading-relaxed"
         />
 
         {/* Send button */}
         <button
           onClick={handleSend}
           disabled={sending || uploading || (!content.trim() && attachments.length === 0)}
-          className="p-2.5 bg-green-600 text-white rounded-full hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="p-3 bg-green-600 text-white rounded-full hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+          aria-label="Send message"
         >
           {sending || uploading ? (
             <IoHourglass className="w-5 h-5 animate-spin" />

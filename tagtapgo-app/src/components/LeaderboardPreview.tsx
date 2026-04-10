@@ -174,23 +174,38 @@ function LeaderboardPreview({
         {leaderboard.map((entry, index) => {
           const Icon = rankIcons[entry.rank as keyof typeof rankIcons] || IoRibbon;
           const isCurrentUser = entry.student_id === studentId;
+          const maxScore = Math.max(...leaderboard.map(e => e.score || ((e.current_streak || 0) * 100 + e.points)));
+          const entryScore = entry.score || ((entry.current_streak || 0) * 100 + entry.points);
+          const barWidthPercent = maxScore > 0 ? Math.max(15, (entryScore / maxScore) * 100) : 15;
+
+          const getBarColor = () => {
+            switch (entry.rank) {
+              case 1:
+                return '#FFD700';
+              case 2:
+                return '#C0C0C0';
+              case 3:
+                return '#CD7F32';
+              default:
+                return '#6366f1';
+            }
+          };
 
           return (
             <motion.div
               key={entry.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
               className={cn(
-                'flex items-center justify-between p-3 rounded-lg transition-all',
-                isCurrentUser
-                  ? 'bg-primary/10 border-2 border-primary/30'
-                  : 'bg-gray-50 hover:bg-gray-100'
+                'bg-white rounded-lg overflow-hidden',
+                isCurrentUser && 'ring-2 ring-primary'
               )}
             >
-              <div className="flex items-center space-x-3">
+              {/* Header */}
+              <div className="p-3 flex items-center space-x-3">
                 {/* Rank Icon */}
-                <div className="flex items-center justify-center w-8 h-8">
+                <div className="flex items-center justify-center w-8 h-8 flex-shrink-0">
                   <Icon
                     size={20}
                     className={rankColors[entry.rank as keyof typeof rankColors] || 'text-gray-400'}
@@ -198,31 +213,43 @@ function LeaderboardPreview({
                 </div>
 
                 {/* Student Info */}
-                <div>
+                <div className="flex-1 min-w-0">
                   <p
                     className={cn(
-                      'font-medium',
+                      'font-semibold truncate',
                       isCurrentUser ? 'text-primary' : 'text-gray-900'
                     )}
                   >
                     {getFirstName(entry.student_name)}
                     {isCurrentUser && ' (You)'}
                   </p>
-                  <p className="text-sm text-gray-500">Rank #{entry.rank}</p>
+                  <div className="flex items-center gap-1 text-xs text-orange-600">
+                    <IoFlame size={12} />
+                    <span>{entry.current_streak || 0} day{(entry.current_streak || 0) !== 1 ? 's' : ''}</span>
+                  </div>
+                </div>
+
+                {/* Score */}
+                <div className="text-right flex-shrink-0">
+                  <p className="text-lg font-bold text-gray-900">
+                    {formatNumber(entryScore)}
+                  </p>
+                  <p className="text-xs text-gray-500">pts</p>
                 </div>
               </div>
 
-              {/* Score & Streak */}
-              <div className="text-right">
-                <div className="flex flex-col items-end gap-1">
-                  <p className="font-bold text-gray-900">
-                    {formatNumber(entry.score || ((entry.current_streak || 0) * 100 + entry.points))}
-                  </p>
-                  <p className="text-xs text-gray-500">score</p>
-                  <div className="flex items-center gap-1 text-xs text-orange-600">
-                    <IoFlame size={10} />
-                    <span>{entry.current_streak || 0}</span>
-                  </div>
+              {/* Bar Chart */}
+              <div className="px-3 pb-3">
+                <div className="relative h-6 bg-gray-100 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${barWidthPercent}%` }}
+                    transition={{ duration: 0.8, delay: index * 0.1 + 0.2, ease: 'easeOut' }}
+                    className="absolute inset-y-0 left-0 rounded-full"
+                    style={{
+                      backgroundColor: getBarColor(),
+                    }}
+                  />
                 </div>
               </div>
             </motion.div>

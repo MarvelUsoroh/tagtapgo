@@ -36,6 +36,9 @@ export const LeaderboardList: React.FC<LeaderboardListProps> = ({
   emptyTitle = 'No leaderboard data yet',
   emptyDescription = 'Start earning points to appear on the leaderboard',
 }) => {
+  // Calculate max score for bar width scaling
+  const maxScore = entries.length > 0 ? Math.max(...entries.map(e => e.score)) : 0;
+
   if (loading) {
     return (
       <div className="space-y-3">
@@ -75,6 +78,7 @@ export const LeaderboardList: React.FC<LeaderboardListProps> = ({
           currentStreak={entry.current_streak}
           isCurrentUser={entry.student_id === currentStudentId}
           index={index}
+          maxScore={maxScore}
         />
       ))}
     </div>

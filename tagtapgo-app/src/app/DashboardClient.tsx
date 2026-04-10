@@ -17,7 +17,6 @@ import { useScrollAware } from '@/hooks/useScrollAware';
 import { useTickLoop } from '@/hooks/useTickLoop';
 import { Container } from '@/components/layout/Container';
 import { StatCard } from '@/components/dashboard/StatCard';
-import { FloatingActionButton } from '@/components/ui/FloatingActionButton';
 import TodayClasses from '@/components/TodayClasses';
 import LeaderboardPreview from '@/components/LeaderboardPreview';
 import NotificationPermissionPrompt from '@/components/NotificationPermissionPrompt';
@@ -540,17 +539,6 @@ export default function DashboardClient({
           studentId={student.id}
           isOpen={notificationsPanelOpen}
           onClose={() => setNotificationsPanelOpen(false)}
-        />
-      )}
-
-      {/* Floating Action Button for Community Chat — hidden when notifications panel is open */}
-      {!notificationsPanelOpen && (
-        <FloatingActionButton
-          icon="chatFilled"
-          onClick={() => router.push('/community')}
-          label="Open Community Chat"
-          position="bottom-right"
-          badgeCount={store.unreadChatMentions}
         />
       )}
     </div>

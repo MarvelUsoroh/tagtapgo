@@ -314,7 +314,7 @@ export default function MessageItem({
   return (
     <>
     <article
-      className={`flex gap-3 px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100 ${isThreadParent ? 'bg-gray-50' : ''} ${message.isOptimistic ? 'opacity-60 transition-opacity duration-300' : ''}`}
+      className={`flex gap-3 px-4 py-4 hover:bg-gray-50 transition-colors border-b border-gray-100 ${isThreadParent ? 'bg-gray-50' : ''} ${message.isOptimistic ? 'opacity-60 transition-opacity duration-300' : ''}`}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
@@ -337,14 +337,14 @@ export default function MessageItem({
           <Avatar
             src={message.author?.avatar_url || undefined}
             alt={authorName}
-            size="md"
-            fallbackIcon={<span className="text-white text-sm font-bold">{initials}</span>}
+            size="lg"
+            fallbackIcon={<span className="text-white text-base font-bold">{initials}</span>}
             className={isOwnMessage && !message.author?.avatar_url ? 'bg-green-500' : 'bg-gray-500'}
           />
         </button>
         {/* Thread connector line for parent posts */}
         {isThreadParent && (
-          <div className="w-0.5 bg-gray-200 absolute left-1/2 -translate-x-1/2 top-11 bottom-[-14px]" />
+          <div className="w-0.5 bg-gray-200 absolute left-1/2 -translate-x-1/2 top-12 bottom-[-16px]" />
         )}
       </div>
       </div>
@@ -352,19 +352,19 @@ export default function MessageItem({
       {/* Content column */}
       <div className="flex-1 min-w-0">
         {/* Header row */}
-        <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-          <span className="font-bold text-gray-900 text-sm leading-tight">
+        <div className="flex items-center gap-2 flex-wrap mb-1">
+          <span className="font-bold text-gray-900 text-base leading-tight">
             {authorName}
           </span>
           {isOwnMessage && (
             <span className="text-xs text-gray-400 font-normal">You</span>
           )}
           {message.course && (
-            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-medium border border-green-100">
+            <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-green-50 text-green-700 text-xs font-semibold border border-green-100">
               #{message.course.code || message.course.short_name || message.course.name}
             </span>
           )}
-          <span className="text-gray-400 text-xs">· {timeAgo}</span>
+          <span className="text-gray-400 text-sm">· {timeAgo}</span>
 
           {/* ⋯ context menu for all messages (own: edit/delete, others: report) */}
           <div className="relative ml-auto" ref={messageMenuRef}>
@@ -452,7 +452,7 @@ export default function MessageItem({
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveEdit(); }
                 if (e.key === 'Escape') { setIsEditing(false); }
               }}
-              className="w-full text-sm text-gray-900 border border-green-400 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-green-300 leading-relaxed"
+              className="w-full text-base text-gray-900 border border-green-400 rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-green-300 leading-relaxed"
               rows={Math.max(2, editContent.split('\n').length)}
             />
             <div className="flex gap-2 mt-1.5">
@@ -474,7 +474,7 @@ export default function MessageItem({
             </div>
           </div>
         ) : (
-          <p className="text-gray-900 text-sm leading-relaxed whitespace-pre-wrap break-words mb-2">
+          <p className="text-gray-900 text-base leading-relaxed whitespace-pre-wrap break-words mb-2">
             <RichContent text={message.content} searchQuery={searchQuery} />
           </p>
         )}
