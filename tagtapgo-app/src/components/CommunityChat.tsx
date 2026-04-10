@@ -7,7 +7,6 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { IoChatbubble, IoSearch, IoArrowBack, IoChevronDown } from 'react-icons/io5';
 import { format, isToday, isYesterday } from 'date-fns';
@@ -91,7 +90,6 @@ export default function CommunityChat({
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [profileModalStudentId, setProfileModalStudentId] = useState<string | null>(null);
   const isNearBottomRef = useRef(true);
-  const router = useRouter();
 
   // Track scroll position to show/hide scroll-to-bottom button
   useEffect(() => {
