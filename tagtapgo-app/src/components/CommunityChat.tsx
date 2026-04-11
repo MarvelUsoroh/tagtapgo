@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { IoChatbubble, IoSearch, IoArrowBack, IoChevronDown } from 'react-icons/io5';
 import { format, isToday, isYesterday } from 'date-fns';
@@ -90,6 +91,7 @@ export default function CommunityChat({
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [profileModalStudentId, setProfileModalStudentId] = useState<string | null>(null);
   const isNearBottomRef = useRef(true);
+  const router = useRouter();
 
   // Track scroll position to show/hide scroll-to-bottom button
   useEffect(() => {
@@ -631,8 +633,14 @@ export default function CommunityChat({
             )}
           </>
         ) : (
-          /* Normal mode: unified title + search icon */
+          /* Normal mode: back arrow + unified title + search icon */
           <>
+            <button
+              onClick={() => router.back()}
+              className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
+            >
+              <IoArrowBack size={20} className="text-gray-900" />
+            </button>
             <div className="flex-1 min-w-0">
               <h1 className="font-bold text-gray-900 text-lg leading-tight">{universityAbbrev} Community</h1>
             </div>
@@ -764,9 +772,9 @@ export default function CommunityChat({
       {/* Chat input */}
       <div 
         ref={inputContainerRef}
-        className="flex-none z-10 bg-white border-t border-gray-100 pb-20"
+        className="flex-none z-10 bg-white border-t border-gray-100"
         style={{
-          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)'
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)'
         }}
       >
         <div className="max-w-2xl mx-auto w-full">

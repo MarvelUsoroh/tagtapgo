@@ -78,6 +78,7 @@ export const BottomNav: React.FC = () => {
     '/reset-password',
     '/update-password',
     '/coming-soon',
+    '/community', // Full-screen chat experience
   ];
   
   const { isNotificationsPanelOpen } = useStore();
