@@ -13,18 +13,18 @@ type AuthUser = {
 };
 
 export async function ensureStudentProfile(supabase: SupabaseClient, user: AuthUser) {
-  // Check if a profile already exists by ID or Email
+  // Check if a profile already exists by auth_user_id or Email
   // We check email too because the sync job might have created the student profile
-  // with a different ID (Moodle UUID) before the user signed up.
+  // before the user signed up via invitation.
   let query = supabase
     .from('students')
     .select('id, metadata')
     .limit(1);
     
   if (user.email) {
-    query = query.or(`id.eq.${user.id},email.eq.${user.email}`);
+    query = query.or(`auth_user_id.eq.${user.id},email.eq.${user.email}`);
   } else {
-    query = query.eq('id', user.id);
+    query = query.eq('auth_user_id', user.id);
   }
 
   const { data: existing, error: selectError } = await query;

@@ -16,6 +16,7 @@
     "@supabase/ssr": "^0.5.1",
     "@supabase/supabase-js": "^2.45.0",
     "@vercel/analytics": "^1.5.0",
+    "bcryptjs": "^3.0.3",
     "canvas-confetti": "^1.9.2",
     "clsx": "^2.0.0",
     "date-fns": "^2.30.0",
@@ -35,6 +36,7 @@
   "devDependencies": {
     "@lhci/cli": "^0.15.1",
     "@next/bundle-analyzer": "^16.0.1",
+    "@types/bcryptjs": "^2.4.6",
     "@types/canvas-confetti": "^1.6.4",
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
