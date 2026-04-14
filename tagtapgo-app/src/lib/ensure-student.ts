@@ -27,11 +27,20 @@ export async function ensureStudentProfile(supabase: SupabaseClient, user: AuthU
     query = query.eq('auth_user_id', user.id);
   }
 
+  console.log('[ensureStudentProfile] Checking for user:', { userId: user.id, email: user.email });
+
   const { data: existing, error: selectError } = await query;
+
+  console.log('[ensureStudentProfile] Query result:', { 
+    found: existing?.length || 0, 
+    error: selectError?.message,
+    data: existing 
+  });
 
   // If profile exists, we no longer trigger enrollment manually. Moodle sync handles it.
   if (!selectError && Array.isArray(existing) && existing.length > 0) {
     // Return early, the profile exists.
+    console.log('[ensureStudentProfile] Profile found, returning success');
     return { created: false, enrolled: true } as const;
   }
 
@@ -39,6 +48,7 @@ export async function ensureStudentProfile(supabase: SupabaseClient, user: AuthU
   // In the pre-populated Moodle sync model, we DO NOT allow open registrations.
   // The user MUST exist in the 'students' table first.
 
+  console.log('[ensureStudentProfile] No profile found, returning error');
   return { created: false, error: new Error('Your email is not registered for the TagTapGo Pilot. Please use your official university email or contact support.') } as const;
 }
 
