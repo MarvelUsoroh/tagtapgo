@@ -76,7 +76,6 @@ export async function createInvitation(
     .single();
 
   if (error) {
-    console.error('Error creating invitation:', error);
     throw new Error(`Failed to create invitation: ${error.message}`);
   }
 
@@ -107,7 +106,6 @@ export async function getInvitationByTokenHash(
       // No rows returned
       return null;
     }
-    console.error('Error fetching invitation:', error);
     throw new Error(`Failed to fetch invitation: ${error.message}`);
   }
 
@@ -141,7 +139,6 @@ export async function getInvitationByStudentId(
       // No rows returned
       return null;
     }
-    console.error('Error fetching invitation by student:', error);
     throw new Error(`Failed to fetch invitation: ${error.message}`);
   }
 
@@ -167,7 +164,6 @@ export async function invalidateTokensForStudent(
   });
 
   if (error) {
-    console.error('Error invalidating tokens:', error);
     throw new Error(`Failed to invalidate tokens: ${error.message}`);
   }
 }
@@ -197,7 +193,6 @@ export async function markTokenAsUsed(
     .single();
 
   if (error) {
-    console.error('Error marking token as used:', error);
     throw new Error(`Failed to mark token as used: ${error.message}`);
   }
 
@@ -227,7 +222,6 @@ export async function updateInvitationStatus(
     .single();
 
   if (error) {
-    console.error('Error updating invitation status:', error);
     throw new Error(`Failed to update invitation status: ${error.message}`);
   }
 
@@ -259,7 +253,6 @@ export async function getPendingInvitationsByUniversity(
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('Error fetching pending invitations:', error);
     throw new Error(`Failed to fetch pending invitations: ${error.message}`);
   }
 
@@ -287,7 +280,6 @@ export async function getInvitationHistoryByEmail(
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('Error fetching invitation history:', error);
     throw new Error(`Failed to fetch invitation history: ${error.message}`);
   }
 
@@ -309,7 +301,6 @@ export async function cleanupExpiredTokens(): Promise<number> {
   const { data, error } = await supabase.rpc('cleanup_expired_invitation_tokens');
 
   if (error) {
-    console.error('Error cleaning up expired tokens:', error);
     throw new Error(`Failed to cleanup expired tokens: ${error.message}`);
   }
 

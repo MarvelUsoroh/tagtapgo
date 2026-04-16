@@ -313,6 +313,30 @@ export async function sendChatReplyNotification(
 }
 
 /**
+ * Send chat mention notification
+ */
+export async function sendChatMentionNotification(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  studentId: string,
+  mentionerName: string,
+  messageText: string,
+  messageId: string
+): Promise<NotificationResult> {
+  return sendPushNotification(supabaseUrl, serviceRoleKey, {
+    studentId,
+    title: '🔔 New Mention',
+    body: `${mentionerName} mentioned you: ${messageText}`,
+    data: {
+      type: 'chat_mention',
+      messageId,
+    },
+    tag: `chat-mention-${messageId}`,
+    requireInteraction: false,
+  });
+}
+
+/**
  * Send chat reaction notification
  */
 export async function sendChatReactionNotification(

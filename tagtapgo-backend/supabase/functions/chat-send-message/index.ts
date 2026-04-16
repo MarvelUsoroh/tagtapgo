@@ -5,7 +5,10 @@
 // @ts-nocheck
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.3";
-import { sendChatReplyNotification } from "../_shared/services/notification-sender.ts";
+import { 
+  sendChatReplyNotification, 
+  sendChatMentionNotification 
+} from "../_shared/services/notification-sender.ts";
 import { containsProfanity, filterProfanity } from "../_shared/utils/profanity-filter.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -274,8 +277,22 @@ Deno.serve(async (req) => {
         if (mentionsToCreate.length > 0) {
           await serviceClient
             .from("chat_mentions")
-            .insert(mentionsToCreate);
-        }
+            .insert(mentionsToCreate);            
+          // Send push notifications for mentions
+          const mentionerName = student.full_name || student.first_name || 'Someone';
+          
+          await Promise.all(
+            mentionsToCreate.map(mention => 
+              sendChatMentionNotification(
+                SUPABASE_URL,
+                SUPABASE_SERVICE_ROLE_KEY,
+                mention.mentioned_user_id,
+                mentionerName,
+                messageContent,
+                message.id
+              ).catch(err => console.error(`Failed to send mention notification to ${mention.mentioned_user_id}:`, err))
+            )
+          );        }
       }
     }
 

@@ -183,7 +183,7 @@ export default function MessageItem({
       setIsEditing(false);
       onMessageEdited?.(message.id, trimmed);
     }
-  }, [editContent, message.content, message.id, supabase, onMessageEdited]);
+  }, [editContent, message.content, message.id, onMessageEdited]);
 
 
 

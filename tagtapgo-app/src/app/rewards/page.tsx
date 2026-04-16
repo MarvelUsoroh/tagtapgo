@@ -19,6 +19,19 @@ export default async function RewardsPage() {
   }
   const userId = user.id;
   
+  // Get the actual student ID from auth_user_id
+  const { data: studentProfile } = await supabase
+    .from('students')
+    .select('id')
+    .eq('auth_user_id', userId)
+    .maybeSingle();
+  
+  if (!studentProfile) {
+    redirect('/login?error=no_profile');
+  }
+  
+  const studentId = studentProfile.id;
+  
   try {
     // Fetch all data in parallel
     const [rewardsData, redemptionsData, pointsData] = await Promise.all([
@@ -30,11 +43,11 @@ export default async function RewardsPage() {
       
       // User's redemption history
       supabase.from('redemptions').select('*, reward:rewards(*)')
-        .eq('student_id', userId)
+        .eq('student_id', studentId)
         .order('created_at', { ascending: false }),
       
       // User's total points
-      supabase.from('points').select('points').eq('student_id', userId),
+      supabase.from('points').select('points').eq('student_id', studentId),
     ]);
     
     // Handle errors
@@ -52,7 +65,7 @@ export default async function RewardsPage() {
         rewards={rewardsData.data || []}
         redemptions={redemptionsData.data || []}
         totalPoints={totalPoints}
-        studentId={userId}
+        studentId={studentId}
       />
     );
     

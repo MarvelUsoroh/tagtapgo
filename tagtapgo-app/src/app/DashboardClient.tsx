@@ -281,7 +281,7 @@ export default function DashboardClient({
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [student?.id, refreshGamification]);
+  }, [student?.id, refreshGamification, store]);
 
   // Memoized timer callbacks to avoid recreation on each render
   const computeCompleted = useCallback(() => {
@@ -372,7 +372,7 @@ export default function DashboardClient({
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  Hi, {student?.first_name || student?.full_name?.split(' ')[0] || 'Student'}!
+                  Hi, {student?.first_name || (student as { name?: string })?.name?.split(' ')[0] || student?.full_name?.split(' ')[0] || 'Student'}!
                 </h1>
                 <p className="text-sm text-gray-600 mt-1">Keep up the great work!</p>
               </div>

@@ -20,6 +20,19 @@ export default async function LeaderboardPage() {
   }
   const userId = user.id;
   
+  // Get the actual student ID from auth_user_id
+  const { data: studentProfile } = await supabase
+    .from('students')
+    .select('id')
+    .eq('auth_user_id', userId)
+    .maybeSingle();
+  
+  if (!studentProfile) {
+    redirect('/login?error=no_profile');
+  }
+  
+  const studentId = studentProfile.id;
+  
   try {
     // Fetch initial leaderboard data (school, all-time by default)
     const { data: leaderboardData, error } = await supabase
@@ -36,7 +49,7 @@ export default async function LeaderboardPage() {
     }
     
     // Find user's rank
-    const userEntry = leaderboardData?.find((entry) => entry.student_id === userId);
+    const userEntry = leaderboardData?.find((entry) => entry.student_id === studentId);
     const userRank = userEntry?.rank || null;
     
     // Pass to client component
@@ -44,7 +57,7 @@ export default async function LeaderboardPage() {
       <LeaderboardClient
         initialLeaderboard={leaderboardData || []}
         initialUserRank={userRank}
-        currentStudentId={userId}
+        currentStudentId={studentId}
       />
     );
     

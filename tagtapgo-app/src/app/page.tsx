@@ -31,17 +31,15 @@ export default async function DashboardPage() {
   }
 
   // Resolve the correct Student ID. 
-  // It might be the Auth User ID (if they signed up first) 
-  // OR a Moodle-derived UUID (if the sync job ran first).
-  // We trust the email link.
+  // Query by auth_user_id first (most reliable), then fall back to email if needed.
   let studentId = userId;
   
   const { data: studentProfile } = await supabase
     .from('students')
     .select('id')
-    .eq('email', user.email)
+    .eq('auth_user_id', userId)
     .maybeSingle();
-    
+
   if (studentProfile) {
     studentId = studentProfile.id;
   }

@@ -23,7 +23,7 @@ export default async function CommunityPage() {
   const { data: student } = await supabase
     .from('students')
     .select('id, university_id, first_name, last_name, full_name, avatar_url')
-    .eq('id', user.id)
+    .eq('auth_user_id', user.id)
     .single();
 
   if (!student) {

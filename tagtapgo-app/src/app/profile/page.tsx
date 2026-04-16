@@ -19,6 +19,19 @@ export default async function ProfilePage() {
   }
   const userId = user.id;
   
+  // Get the actual student ID from auth_user_id
+  const { data: studentProfile } = await supabase
+    .from('students')
+    .select('id')
+    .eq('auth_user_id', userId)
+    .maybeSingle();
+  
+  if (!studentProfile) {
+    redirect('/login?error=no_profile');
+  }
+  
+  const studentId = studentProfile.id;
+  
   try {
     // Fetch all data in parallel
     const [
@@ -32,30 +45,30 @@ export default async function ProfilePage() {
       redemptionsData,
     ] = await Promise.all([
       // Student profile
-      supabase.from('students').select('*').eq('id', userId).single(),
+      supabase.from('students').select('*').eq('id', studentId).single(),
       
       // Total points (current balance)
-      supabase.from('points').select('points').eq('student_id', userId),
+      supabase.from('points').select('points').eq('student_id', studentId),
 
       // Total points earned (only positive points, excluding redemptions)
-      supabase.from('points').select('points').eq('student_id', userId).gte('points', 0),
+      supabase.from('points').select('points').eq('student_id', studentId).gte('points', 0),
       
       // Current streak
-      supabase.from('streaks').select('*').eq('student_id', userId).single(),
+      supabase.from('streaks').select('*').eq('student_id', studentId).single(),
       
       // Attendance (last 30 days)
-      supabase.from('attendance').select('status').eq('student_id', userId)
+      supabase.from('attendance').select('status').eq('student_id', studentId)
         .gte('date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
       
       // Unlocked achievements
-      supabase.from('student_achievements').select('id').eq('student_id', userId)
+      supabase.from('student_achievements').select('id').eq('student_id', studentId)
         .not('unlocked_at', 'is', null),
       
       // Total achievements available
       supabase.from('achievements').select('id'),
       
       // Rewards redeemed (count all redemptions regardless of status)
-      supabase.from('redemptions').select('id').eq('student_id', userId),
+      supabase.from('redemptions').select('id').eq('student_id', studentId),
     ]);
     
     // Handle errors

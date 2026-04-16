@@ -71,8 +71,7 @@ export class InvitationTokenService {
       }
       
       return crypto.timingSafeEqual(tokenBuffer, hashBuffer);
-    } catch (error) {
-      console.error('Token verification error:', error);
+    } catch {
       return false;
     }
   }
